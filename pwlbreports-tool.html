@@ -2374,7 +2374,10 @@ function chartAlt(d, spec){
   }
   return `${spec.label || "Chart"}${yrs ? ", " + yrs : ""}`
        + (series.length ? `. Series: ${series.join("; ")}` : "") + range
-       + ". The figures are given in the table below.";
+       + ". The figures are given in the table below."
+       /* The source is on the face of the chart, so it belongs in the name a
+          screen reader reads out as well. */
+       + (spec.source ? ` ${spec.source}.` : "");
 }
 
 function chart(d, spec){
@@ -2612,11 +2615,26 @@ function chart(d, spec){
     });
     return out;
   })();
-  /* NO WATERMARK. The chart belongs to the authority's report, and a tool
-     that signs the charts inside somebody else's committee paper is making a
-     claim on a document that is not its own -- the same reason the site mark
-     came off the draft. */
-  const mark = "";
+  /* A SOURCE MARK, WHICH IS NOT A WATERMARK.
+   *
+   * A watermark was taken off every chart once, and rightly: the charts belong
+   * to the authority's report, and a tool that signs them is making a claim on
+   * a document that is not its own. This is not that. It appears only where the
+   * chart is drawn from market data we supplied, and it says where the numbers
+   * came from rather than who drew the picture — which is the thing an s151
+   * officer has to be able to answer about a rate in a committee paper.
+   *
+   * So it is opt-in per chart. The authority's own charts — the benchmark, the
+   * ladder, the indicators — pass no source and carry no mark, and that must
+   * stay true: a mark on those would be signing their figures.
+   *
+   * It sits in the top padding band, above the plot and clear of the x-axis
+   * labels at H-7, in --muted rather than --faint so that it is legible rather
+   * than merely present. A citation nobody can read is not a citation. */
+  const mark = spec.source
+    ? `<text x="${W - P.r}" y="12" text-anchor="end" font-family="var(--sans)"
+        font-size="10.5" fill="var(--muted)">${esc(spec.source)}</text>`
+    : "";
   return `<svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}" role="img"
     class="ctip" data-tip="${esc(JSON.stringify(tip))}"
     aria-label="${esc(chartAlt(d, spec))}">${gl.join("")}${fills}${bars}${zero}${mk}${mark}
@@ -3847,6 +3865,46 @@ const MKT = {"as_at":"2026-09-10","curve":{"NEW|ANNUITY":{"1Y":0.0,"1.5Y":0.0,"2
 ;
 const MK_TERMS = ["1Y","2Y","5Y","10Y","15Y","20Y","25Y","30Y","40Y","50Y"];
 
+/* ---------------------------------------------------------------------------
+ * WHERE THE MARKET DATA CAME FROM, SAID ONCE.
+ *
+ * Every chart and table built from the feed carries its source. A rate in a
+ * committee paper that nobody can trace is a rate the s151 officer cannot
+ * defend when a member asks where it came from, and "the system" is not an
+ * answer. The originating publisher is named first and the compiler second,
+ * because that is the order that answers the question: the PWLB sets the
+ * rates and the swap market prices Bank Rate; PWLBtoday assembles, dates and
+ * delivers them.
+ *
+ * THIS IS PROVENANCE, NOT A CREDIT, and the difference is the whole reason the
+ * tool is willing to put our name on a page it does not own. It goes only on
+ * figures WE supplied. The authority's own numbers — the benchmark, the
+ * ladder, the indicators, the counterparty limits — carry nothing, because a
+ * mark on those would be signing their work. And it is never gated on a
+ * question about whether they use us: it states where a number came from, it
+ * does not describe the authority's relationship with anybody. Four clauses
+ * that did the latter were removed for good reason and none of this brings
+ * them back.
+ * ------------------------------------------------------------------------ */
+const MKT_HOUSE  = "PWLBtoday.org";
+const SRC_PWLB   = "PWLB published rate notices";
+const SRC_SONIA  = "SONIA overnight index swap curve";
+const SRC_GILT   = "UK gilt yields";
+
+/* The line under a table or a block.
+ *
+ * class="src" already exists and already means provenance — "As entered by the
+ * authority" under the ladder is the same kind of sentence. Reuse it rather
+ * than declare a second rule: a duplicate .src later in the sheet quietly
+ * restyled the three that were already there, which is a regression bought for
+ * nothing. */
+function srcLine(what){
+  return `<p class="src">Source: ${esc(what)}, via ${esc(MKT_HOUSE)}</p>`;
+}
+/* The mark on the face of a chart — short, because it sits in 18 pixels of
+   padding, with the full citation in the line beneath. */
+const SRC_MARK = "Source: " + MKT_HOUSE;
+
 function mkDate(){
   const d = MKT.as_at ? new Date(MKT.as_at) : null;
   return d ? d.toLocaleDateString("en-GB",{day:"numeric",month:"long",year:"numeric"}) : "";
@@ -3890,7 +3948,8 @@ function curveTable(){
     </tbody></table></div>
     <p class="note">Round trip is the cost of repaying and re-borrowing the same term — new
       lending is set above the gilt curve and premature repayment below it, so the two do not
-      meet. It is the first test of whether rescheduling is worth doing.</p>`;
+      meet. It is the first test of whether rescheduling is worth doing.</p>
+    ${srcLine(SRC_PWLB)}`;
 }
 
 function rangeTable(){
@@ -3909,7 +3968,8 @@ function rangeTable(){
       <tr><td>Low</td>${keys.map(k=>`<td>${pc(cells(k).lo)}</td>`).join("")}</tr>
       <tr><td>High</td>${keys.map(k=>`<td>${pc(cells(k).hi)}</td>`).join("")}</tr>
       <tr class="key"><td>Latest</td>${keys.map(k=>`<td>${pc(cells(k).now)}</td>`).join("")}</tr>
-    </tbody></table></div>`;
+    </tbody></table></div>
+    ${srcLine(SRC_PWLB)}`;
 }
 
 /* The prediction table as PWLBtoday publishes it: last reset, the gilts it was
@@ -3922,7 +3982,8 @@ function marketBlock(){
   return `<h4>PWLB rates</h4>${curveTable()}
     ${rateBlock()}${rangeTable()}
     <p class="note">PWLB certainty rates as at <b>${esc(mkDate())}</b>, from the PWLB's own
-      published notices. Rates reset each working day; check them before you transact.</p>`;
+      published notices, compiled and dated by ${esc(MKT_HOUSE)}. Rates reset each working
+      day; check them before you transact.</p>`;
 }
 
 /* ===========================================================================
@@ -4053,7 +4114,7 @@ function rateLevelChart(){
   if(h.length < 3) return "";
   const on = rateShown();
   const d = h.map((r,i)=>Object.assign({fy:r.d.slice(2,7), i}, r));
-  return `<div class="chartwrap">${chart(d,{label:"PWLB certainty rates, 12 months",
+  return `<div class="chartwrap">${chart(d,{label:"PWLB certainty rates, 12 months", source:SRC_MARK,
       h:250, zero:"tight", fmt:v=>v.toFixed(2)+"%", mtfp:false,
       lines:on.map((k,ix)=>({k, c:seqFor(ix,on.length), t:tenorLabel(k)}))})}
     ${legend(on.map((k,ix)=>({c:seqFor(ix,on.length), t:k})))}</div>`;
@@ -4071,7 +4132,7 @@ function rateChangeChart(){
     on.forEach(k => o[k] = r[k]==null ? 0 : +(r[k]-base[k]).toFixed(3));
     return o;
   });
-  return `<div class="chartwrap">${chart(d,{label:"Change over 12 months",
+  return `<div class="chartwrap">${chart(d,{label:"Change over 12 months", source:SRC_MARK,
       h:200, fmt:v=>(v>0?"+":"")+v.toFixed(2), mtfp:false,
       lines:on.map((k,ix)=>({k, c:seqFor(ix,on.length), t:tenorLabel(k)}))})}
     ${legend(on.map((k,ix)=>({c:seqFor(ix,on.length), t:k})))}
@@ -4092,7 +4153,7 @@ function curveChart(){
   }).filter(o => snaps.every((_,ix)=>o["s"+ix]!=null));
   if(d.length < 3) return "";
   const C = ["var(--l-lb)","var(--seq5)","var(--seq3)","var(--seq1)"];
-  return `<div class="chartwrap">${chart(d,{label:"The certainty curve over time",
+  return `<div class="chartwrap">${chart(d,{label:"The certainty curve over time", source:SRC_MARK,
       h:230, zero:"tight", fmt:v=>v.toFixed(2)+"%", mtfp:false,
       lines:snaps.map((s,ix)=>({k:"s"+ix, c:C[ix]||"var(--muted)", w:ix?1.7:2.4,
         t:s.label || ("The curve as at " + fcDate(s.date || "")),
@@ -4159,7 +4220,8 @@ function bankRateBoxes(){
       points. On this pricing Bank Rate is ${endWord}. This is what is priced rather than a forecast,
       and the authority does not treat it as one; its own assumption goes in the table
       below.${prov ? ` Meeting dates after ${esc(fcDate(FC.mpc_confirmed_to))} are the
-      Bank's provisional schedule and may move.` : ""}</p>`;
+      Bank's provisional schedule and may move.` : ""}</p>
+    ${srcLine(SRC_SONIA)}`;
 }
 
 function rateBlock(){
