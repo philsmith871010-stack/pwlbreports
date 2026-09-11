@@ -382,6 +382,31 @@ html.demo p:has(.ph-inline){display:none !important}
 .doc > *{max-width:none;margin-left:0;margin-right:0}
 @media(max-width:760px){.doc{padding:26px 20px}}
 .doclogo{max-height:56px;max-width:260px;margin:0 auto 14px 0;display:block}
+/* The logo as it stands, beside the field that sets it. A Remove button with
+   nothing to look at is a button to delete something you cannot see. */
+.logorow{display:flex;align-items:center;gap:10px;margin-top:8px}
+.logorow img{max-height:34px;max-width:150px;background:var(--card);
+  border:1px solid var(--line);border-radius:4px;padding:3px}
+.logowhat{font-family:var(--sans);font-size:11.5px;color:var(--muted);flex:1}
+/* The unit under a column heading, and the worked line under the intro. Both
+   are the explanation put where the eye already is rather than in a paragraph
+   it has scrolled past. */
+.cphead i{display:block;font-style:normal;font-weight:400;font-family:var(--sans);
+  font-size:10.5px;color:var(--muted);letter-spacing:0;text-transform:none;margin-top:2px}
+.cpeg{display:inline-block;margin-top:5px;color:var(--muted)}
+.cpeg b{font-family:var(--mono);color:var(--ink2);font-weight:600}
+/* The tools that belong on every step, under the step footer. Quiet by
+   default: this is furniture you reach for, not something to read. */
+.stepbar{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;
+  border-top:1px solid var(--line);margin-top:12px;padding-top:10px}
+.navsave{flex:1;min-width:200px;font-family:var(--sans);font-size:11.5px;
+  color:var(--muted);line-height:1.5}
+.stepacts{display:flex;gap:14px;flex-wrap:wrap}
+.stepbar .lnk{background:none;border:0;padding:0;cursor:pointer;
+  font-family:var(--sans);font-size:11.5px;color:var(--ink2);
+  text-decoration:underline;text-underline-offset:3px}
+.stepbar .lnk:hover{color:var(--ink)}
+.stepbar .lnk[disabled]{color:var(--faint);cursor:default;text-decoration:none}
 .doc .dh{font-family:var(--sans);font-size:10px;letter-spacing:.11em;text-transform:uppercase;
   color:var(--muted);font-weight:600;padding-bottom:11px;border-bottom:1px solid var(--line2);
   display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
@@ -1764,7 +1789,12 @@ td.nask{background:repeating-linear-gradient(45deg,var(--hair),var(--hair) 4px,
       <div><label for="horizon">Horizon</label>
         <select id="horizon"></select></div>
       <div><label for="logo">Council logo</label>
-        <input type="file" id="logo" accept="image/png,image/jpeg,image/svg+xml"></div>
+        <input type="file" id="logo" accept="image/png,image/jpeg,image/svg+xml">
+        <div class="logorow" id="logorow" hidden>
+          <img id="logoshow" alt="The logo currently set for this report">
+          <span class="logowhat" id="logowhat"></span>
+          <button type="button" id="logoclear">Remove</button>
+        </div></div>
     </div>
     <div class="libbox" id="libbox" hidden>
       <label for="libpick">Start from a report you have already written</label>
@@ -2334,6 +2364,20 @@ const blank = () => { const o={}; COLS.forEach(c=>o[c.k]=Array(S.years).fill(0))
 S.g = {gf:blank(), hra:blank()};
 
 const $ = id => document.getElementById(id);
+
+/* THE SAVE STATE, SOMEWHERE IT SURVIVES A STEP CHANGE.
+ *
+ * It lived only in #saved, which sits on step 1, so from step 2 onwards there
+ * was nothing on screen saying the work was being kept — and the tool
+ * autosaves, so the one thing a reader most needs to know was the one thing it
+ * never said. The bar in the step footer is rebuilt on every step, which would
+ * lose the text, so the text is held here and painted into whatever exists. */
+let SAVE_HINT = "";
+function saveHint(t){
+  SAVE_HINT = t == null ? "" : String(t);
+  const el = $("saved"); if(el) el.textContent = SAVE_HINT;
+  document.querySelectorAll(".navsave").forEach(b => { b.textContent = SAVE_HINT; });
+}
 const esc = s => String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;")
   .replace(/>/g,"&gt;").replace(/"/g,"&quot;");
 const m1 = v => (Math.round(v*10)/10).toLocaleString("en-GB",{minimumFractionDigits:1,maximumFractionDigits:1});
@@ -6436,8 +6480,14 @@ const CHOICES = [
      for a council that does use us that is where we appear — because they
      wrote it. Where the tool says what IT uses is beside the rates it ships,
      in the tool, where a claim about us is ours to make. */
+  /* AN EXAMPLE, AND DELIBERATELY NOT A DEFAULT. Whatever they type is what the
+     clause says, so a one-click "use this" here would put our name into a
+     section 151 officer's report without them writing it — which is the line
+     the four named-product clauses were on the wrong side of. Naming PWLBtoday
+     among the examples is fair: it is where the rates on the page come from,
+     and it is what a reader would check. */
   {k:"datasource", g:"Advice and reporting", l:"Where your market data comes from", type:"text",
-   ph:"e.g. our treasury adviser's daily rate sheet and the PWLB website"},
+   ph:"e.g. PWLBtoday.org, or our treasury adviser's daily rate sheet and the PWLB website"},
   {k:"cycle", g:"Advice and reporting",     l:"Reporting cycle", type:"select",
    opts:[["quarterly","Quarterly"],["thrice","Strategy, mid-year, outturn"],["other","Other"]]}
 ];
@@ -8265,9 +8315,17 @@ function cpRender(){
   // against binding itself twice.
   setTimeout(()=>{ if(typeof arrowNav === "function") arrowNav($("cpbody")); }, 0);
   const c = cpState();
-  const num = (k, f, ph) => `<input type="text" inputmode="decimal" data-cp="${k}"
+  /* EVERY BOX SAYS WHICH SECTOR AND WHICH LIMIT IT IS.
+   *
+   * Five of the seven controls on every line had no label and no placeholder,
+   * so a screen reader announced most of this grid as "edit, blank" — and a
+   * sighted reader four columns in had only a £ and a % glyph to go on, the
+   * sentence explaining them having scrolled off the top. The sector name is
+   * part of the label because the grid is ten lines long and a limit is
+   * meaningless without the counterparty it applies to. */
+  const num = (k, f, ph, label) => `<input type="text" inputmode="decimal" data-cp="${k}"
       data-f="${f}" value="${esc(String((c.sec[k]||{})[f] ?? ""))}"
-      placeholder="${esc(String(ph))}">`;
+      placeholder="${esc(String(ph))}"${label ? ` aria-label="${esc(label)}"` : ""}>`;
 
   /* ONE TABLE, NOT THREE SECTIONS. The limit, the duration, what the limit
      applies to and the rating floor were three separate questions asked about
@@ -8277,7 +8335,8 @@ function cpRender(){
      funds, and a higher rating floor for money market funds than for anything
      else. Each is now a column, so a row states one sector's whole policy —
      which is also how councils publish it. */
-  const sel = (k, field, opts) => `<select data-cp="${k}" data-f="${field}">${
+  const sel = (k, field, opts, label) => `<select data-cp="${k}" data-f="${field}"${
+    label ? ` aria-label="${esc(label)}"` : ""}>${
       opts.map(o => `<option value="${esc(o[0])}" ${
         ((c.sec[k]||{})[field] || opts[0][0]) === o[0] ? "selected" : ""}>${esc(o[1])}</option>`
       ).join("")}</select>`;
@@ -8312,18 +8371,20 @@ function cpRender(){
   /* A limit cell holds a sum and a share, because a policy may state either
      or both. Two narrow boxes rather than a unit dropdown: a dropdown makes
      the reader choose before typing and makes "both" impossible to say. */
-  const lim = (k, cf, pf, ph) => `<span class="cplim">
-      <span class="cpu">£</span>${num(k, cf, ph)}
-      <span class="cpu">%</span>${num(k, pf, "")}</span>`;
+  const lim = (k, cf, pf, ph, who, what) => `<span class="cplim">
+      <span class="cpu">£</span>${num(k, cf, ph, `${who} — ${what} cash limit, £m`)}
+      <span class="cpu">%</span>${num(k, pf, "", `${who} — ${what} limit, % of the portfolio`)}</span>`;
   const row = x => `<div class="cprow ${(c.sec[x.k]||{}).on ? "on" : ""}">
       <span class="cpt"><label class="cpuse"><input type="checkbox" data-cpu="${x.k}"
         ${(c.sec[x.k]||{}).on ? "checked" : ""} aria-label="Include ${esc(x.t)}"
         >${esc(x.t)}</label></span>
-      <span>${lim(x.k, "cash", "pct", cpDefault(x.b,"cash"))}</span>
-      <span class="cpagg">${sel(x.k,"basis", CP_BASIS_OPTS)}
-        ${lim(x.k, "gcash", "gpct", "")}</span>
-      <span>${num(x.k,"months", cpDefault(x.b,"months"))}</span>
-      <span>${sel(x.k,"rating", CP_RATINGS)}</span>
+      <span>${lim(x.k, "cash", "pct", cpDefault(x.b,"cash"), x.t, "per counterparty")}</span>
+      <span class="cpagg">${sel(x.k,"basis", CP_BASIS_OPTS,
+          `${x.t} — what the aggregate limit is measured across`)}
+        ${lim(x.k, "gcash", "gpct", "", x.t, "aggregate")}</span>
+      <span>${num(x.k,"months", cpDefault(x.b,"months"),
+          `${x.t} — longest deal, in months`)}</span>
+      <span>${sel(x.k,"rating", CP_RATINGS, `${x.t} — lowest credit rating accepted`)}</span>
     </div>`;
 
   /* A type the authority names itself, on exactly the same line as the ten
@@ -8366,11 +8427,18 @@ function cpRender(){
     <p class="cpsub">One line per counterparty type. State a limit per counterparty, an
       aggregate limit across a group, sector or fund manager, or both — each as a sum, a
       share of the portfolio, or both. Where a sum and a share are both given, the lower
-      binds.</p>
+      binds.<br><span class="cpeg">For example: <b>£5m</b> with any one bank, or
+      <b>10%</b> of the portfolio, whichever is the lower — and no more than <b>£20m</b>
+      across the whole banking sector.</span></p>
     <div class="cptable tight wide">
+      <!-- THE UNIT BELONGS IN THE HEADING. It was in the paragraph above, which
+           is four columns and one scroll away by the time the eye reaches a
+           box with nothing in it but a £ sign. -->
       <div class="cprow cphead"><span>Include &amp; counterparty type</span>
-        <span>Per counterparty</span><span>Aggregate limit</span>
-        <span>Months</span><span>Min rating</span></div>
+        <span>Per counterparty<i>£m, or % of the portfolio</i></span>
+        <span>Aggregate limit<i>across a group, sector or manager</i></span>
+        <span>Months<i>longest deal</i></span>
+        <span>Min rating<i>lowest accepted</i></span></div>
       ${CP_SECTORS.map(row).join("")}
       ${(c.own || []).map((x, i) => ownRow(x, i)).join("")}
     </div>
@@ -11535,6 +11603,30 @@ function renderNav(){
      <span class="navnote">${st.need ? esc(st.need) : ""}</span>
      ${next ? "" : `<span class="navnote done">That is the whole report.</span>`}`;
 
+  /* THE SAME TOOLS ON EVERY STEP.
+   *
+   * Saving to a file, opening one, and the line saying the work is being kept
+   * all lived on step 1 only. Someone on step 6 who wanted to stop for the day
+   * had to navigate backwards to find them, and from step 2 onwards nothing on
+   * screen said the browser was keeping anything — which, in a tool that
+   * autosaves, is the one thing a reader most needs told.
+   *
+   * "Clear this report" is NOT here. It is destructive and it stays on step 0,
+   * one deliberate journey away. What is here is "Clear this step", which
+   * takes back only the panel you are looking at. */
+  const bar = document.createElement("div");
+  bar.className = "stepbar";
+  bar.innerHTML = `<span class="navsave">${esc(SAVE_HINT)}</span>
+    <span class="stepacts">
+      ${STEP === 0 ? "" : `<button type="button" class="lnk" data-undo
+          title="Undo the last change">Undo</button>`}
+      ${stepClearable(STEP)
+        ? `<button type="button" class="lnk" data-clearstep>Clear this step</button>` : ""}
+      <button type="button" class="lnk" data-savefile>Save to a file</button>
+      <button type="button" class="lnk" data-openfile>Open a file</button>
+    </span>`;
+  nav.appendChild(bar);
+
   /* THE WAY ON, AT THE TOP. It was the last thing in the panel, which on the
      figures step is below a fifty-one year grid and on the draft below eight
      thousand words — so the control you press most was the one you had to go
@@ -11949,12 +12041,15 @@ function autoSave(){
   _auto = setTimeout(() => { saveVersion(true); }, 900);
 }
 
-function saveVersion(quiet){
-  // Belt and braces: fillDemo calls this directly, and libNote below writes to
-  // the library index as well. One guard on the timer is not enough.
-  if(NO_SAVE) return;
-  try{
-    localStorage.setItem(KEY(), JSON.stringify({
+/* THE WHOLE OF A REPORT, IN ONE SHAPE.
+ *
+ * Built here rather than inline in saveVersion, because three things now need
+ * it: the autosave, the snapshot taken before a demonstration overwrites
+ * everything, and the pristine state captured at boot. A second copy of this
+ * list would drift, and the drift is silent — a field missing from one of them
+ * is work that quietly survives, or quietly does not. */
+function workPayload(){
+  return {
       v:3, gss:S.gss, report:S.report, fy0:S.fy0, hra:S.hra, years:S.years,
       loans:S.loans, g:S.g, text:S.text, limits:S.limits, perf:S.perf, mon:S.mon,
       choices:S.choices,
@@ -11964,13 +12059,36 @@ function saveVersion(quiet){
       logo:S.logo, logoDemo:S.logoDemo, mstruct:S.mstruct, asAt:S.asAt, minliq:S.minliq, cp:S.cp, prior:S.prior,
       otherName:S.otherName, natOverride:S.natOverride,
       demoSrc:S.demoSrc, demoName:S.demoName, demoKind:S.demoKind,
-      at:new Date().toISOString()}));
+      at:new Date().toISOString()};
+}
+
+/* A COPY, NOT A VIEW OF THE LIVE STATE.
+ *
+ * workPayload() hands back {choices: S.choices, ...} — references, which is
+ * exactly right for the autosave because it stringifies them on the spot. Held
+ * in memory it is a trap: typing mutates S.choices in place, so a snapshot
+ * taken before the edit quietly acquires the edit, and undo gives back the
+ * thing you asked it to take away. It went unnoticed at first because
+ * fillDemo REPLACES objects rather than editing them, so the demonstration
+ * snapshot survived by luck of assignment.
+ *
+ * Anything keeping a payload past the current statement takes one of these. */
+function snapshotPayload(){
+  return JSON.parse(JSON.stringify(workPayload()));
+}
+
+function saveVersion(quiet){
+  // Belt and braces: fillDemo calls this directly, and libNote below writes to
+  // the library index as well. One guard on the timer is not enough.
+  if(NO_SAVE) return;
+  try{
+    localStorage.setItem(KEY(), JSON.stringify(workPayload()));
     // Saving again does not un-issue what was already issued.
     libNote(S.gss, S.report, S.fy0, {hra:S.hra, issued: libIsIssued()});
     localStorage.setItem("lb:last", KEY());
     if(typeof libFill === "function") libFill();
     stampSaved(quiet ? "Saved in this browser" : "Saved");
-  }catch(e){ $("saved").textContent = "Could not save — browser storage is unavailable."; }
+  }catch(e){ saveHint("Could not save — browser storage is unavailable."); }
 }
 /* A grid saved by an older build carries only the columns that existed then.
    The model reads every column by name, so a missing one is not a missing
@@ -12043,12 +12161,14 @@ function migrateGrid(g, years){
    applied and no message at all. */
 const DEMO_GSS = "demo";
 
-function restoreVersion(quiet){
-  try{
-    // Anything saved before the key carried a year lives under the old one.
-    const raw = localStorage.getItem(KEY()) || localStorage.getItem(KEY_OLD());
-    if(!raw){ $("saved").textContent = "Nothing saved for this authority, report and year yet."; return; }
-    const d = JSON.parse(raw);
+/* APPLYING ONE, wherever it came from.
+ *
+ * Split out of restoreVersion so that a payload held in memory can be applied
+ * by the same code that applies one read from storage. Two appliers would be
+ * two chances to forget a field, and this is the path where forgetting one is
+ * worst: restoreVersion's own try/catch used to swallow a half-applied state
+ * and leave a broken page with no message. */
+function applyVersion(d){
     S.fy0=d.fy0; S.hra=d.hra; S.years=d.years||51; S.loans=d.loans||[];
     S.g=migrateGrid(d.g, d.years||51);
     S.text=d.text||{}; S.limits=migrateLimits(d.limits); S.perf=migratePerf(d.perf||{}); S.mon=d.mon||{};
@@ -12081,21 +12201,159 @@ function restoreVersion(quiet){
     if($("asat")) $("asat").value = S.asAt || MKT.as_at || "";
     if($("minliq")) $("minliq").value = S.minliq==null ? "" : S.minliq;
     buildLedger(); loanRows(); renderSections(); cpRender(); render();
+    /* THE PANELS THAT LIVE INSIDE init() CANNOT BE CALLED FROM OUT HERE.
+     *
+     * renderChoices and logoRow are declared in init, and a top-level function
+     * reaching in is a ReferenceError that this function's own try/catch would
+     * swallow — which is how a restored demonstration once came back with half
+     * its state applied and no message. So this says what happened and init
+     * listens, rather than reaching across the scope.
+     *
+     * It matters beyond undo: the choices panel was not redrawn by ANY restore
+     * path, so opening a saved report left the previous report's answers on
+     * screen over the right ones underneath. */
+    document.dispatchEvent(new CustomEvent("lb:applied"));
+}
+
+function restoreVersion(quiet){
+  try{
+    // Anything saved before the key carried a year lives under the old one.
+    const raw = localStorage.getItem(KEY()) || localStorage.getItem(KEY_OLD());
+    if(!raw){ saveHint("Nothing saved for this authority, report and year yet."); return; }
+    applyVersion(JSON.parse(raw));
     stampSaved(quiet ? "Picked up where you left off" : "Restored");
-  }catch(e){ $("saved").textContent = "Could not restore that version."; }
+  }catch(e){ saveHint("Could not restore that version."); }
 }
 function stampSaved(word){
   const raw = localStorage.getItem(KEY());
   let when = "";
   try{ when = new Date(JSON.parse(raw).at).toLocaleString("en-GB",
     {dateStyle:"medium",timeStyle:"short"}); }catch(e){}
-  $("saved").innerHTML = `${esc(word)} — ${esc(REPORTS.find(r=>r.k===S.report).t)}`
-    + (when?`, ${esc(when)}`:"")
-    + ". Save to a file to keep it beyond this browser.";
+  /* Plain text through the one hint, so the footer bar on every step shows the
+     same words as the line on step 1. It was already escaping every part it
+     interpolated, so there was nothing here that needed to be markup. */
+  saveHint(`${word} — ${REPORTS.find(r=>r.k===S.report).t}`
+    + (when ? `, ${when}` : "")
+    + ". Save to a file to keep it beyond this browser.");
+}
+
+/* CLEAR ONE STEP, NOT THE WHOLE REPORT.
+ *
+ * "Clear this report" is on step 0 and stays there: it is destructive and it
+ * should take a deliberate journey. This takes back only the panel in front
+ * of you, and undo covers it, so it is safe to offer everywhere it applies.
+ *
+ * Steps 0, 1, 8 and 9 are missing on purpose. Nought and one are the report's
+ * identity rather than its content; eight and nine are the draft and the
+ * check, which hold nothing of their own to clear. */
+const STEP_CLEARS = {
+  portfolio: ["what you hold", () => { S.loans = S.loans.filter(l => l.pwlb);
+    S.portfolio = []; S.portfolioText = ""; S.portfolioNote = ""; S.mat = {d:{}, i:{}}; }],
+  figures:   ["the projection", () => { S.g = {gf:blank(), hra:blank()}; }],
+  choices:   ["the choices", () => { S.choices = {}; }],
+  counterparty: ["the counterparty policy", () => { S.cp = null; }],
+  wording:   ["the wording", () => { S.text = {}; }],
+  period:    ["the period's figures", () => { S.limits = {}; S.perf = {}; S.mon = {};
+    S.actual = {}; S.group = {}; S.mstruct = {}; }]
+};
+function clearStep(){
+  const cur = STEPS.find(s => s.n === STEP);
+  const entry = cur && STEP_CLEARS[cur.k];
+  if(!entry){ saveHint("There is nothing to clear on this step."); return; }
+  if(!confirm(`Clear ${entry[0]}?\n\nOnly this step is affected, and Undo will `
+    + `bring it back.`)) return;
+  undoMark("clear:" + cur.k);
+  entry[1]();
+  buildLedger(); loanRows(); renderSections(); cpRender(); render();
+  saveHint(`Cleared ${entry[0]}. Undo will bring it back.`);
+}
+
+
+
+
+/* Which steps have anything of their own to take back. Read by renderNav so
+   the button is absent where it would only ever say "nothing to clear". */
+function stepClearable(n){
+  const cur = STEPS.find(s => s.n === n);
+  return !!(cur && STEP_CLEARS[cur.k]);
+}
+
+/* ===========================================================================
+ * UNDO, ACROSS THE WHOLE TOOL.
+ *
+ * There was already an undo, but only inside the figures grid: nothing covered
+ * the choices, the wording, the counterparty policy, the limits or the logo.
+ * This is one stack for all of it, and it snapshots the same payload the
+ * autosave writes — so a field added to the payload is undone without anyone
+ * remembering to add it here. A second hand-kept list would be worse than no
+ * undo at all: the field somebody forgets is not restored, so pressing undo
+ * would destroy work rather than give it back.
+ *
+ * MARKED IN THE CAPTURE PHASE, which is the whole trick. The listener runs
+ * before the handlers that write to S, so what it snapshots is the state as it
+ * was BEFORE the edit — which is what undo has to give back. Marking
+ * afterwards would store the change you are trying to undo.
+ *
+ * One mark per OPERATION, not per keystroke, following the rule the grid's own
+ * undo already used: typing a number and pressing undo should give back what
+ * was there before you started typing, not the digit you just removed. A run
+ * of edits to the same control inside a second and a bit is one operation.
+ *
+ * In memory only. The biggest report is about 50 KB, so twenty-five of them is
+ * a megabyte of RAM and nothing in storage.
+ * ======================================================================== */
+const UNDO = [];
+let UNDO_LAST = null;
+const UNDO_DEPTH = 25;
+
+function undoMark(tag){
+  const now = Date.now();
+  if(UNDO_LAST && UNDO_LAST.tag === tag && now - UNDO_LAST.at < 1200){
+    UNDO_LAST.at = now; return;          // still the same operation
+  }
+  try{ UNDO.push(snapshotPayload()); }catch(e){ return; }
+  if(UNDO.length > UNDO_DEPTH) UNDO.shift();
+  UNDO_LAST = {tag, at: now};
+  undoPaint();
+}
+
+function undoOne(){
+  if(!UNDO.length) return false;
+  /* LET GO OF THE FIELD FIRST.
+   *
+   * keepFocus() exists because rebuilding a panel under the caret destroyed
+   * the box you were typing in, so it carries the focused control's VALUE
+   * across the rebuild. That is right for every other rebuild and exactly
+   * wrong for this one: undo restores the state, the panel redraws, and
+   * keepFocus faithfully puts the edit you just undid back into the box. The
+   * state was correct and the screen disagreed with it, which is the worst of
+   * both. Blurring first leaves keepFocus nothing to preserve. */
+  const a = document.activeElement;
+  if(a && a !== document.body && typeof a.blur === "function") a.blur();
+  applyVersion(UNDO.pop());
+  UNDO_LAST = null;
+  undoPaint();
+  saveHint(UNDO.length
+    ? `Undone. ${UNDO.length} more step${UNDO.length === 1 ? "" : "s"} to go back.`
+    : "Undone. That is as far back as this goes.");
+  return true;
+}
+
+function undoPaint(){
+  document.querySelectorAll("[data-undo]").forEach(b => { b.disabled = !UNDO.length; });
 }
 
 /* ---- init ---------------------------------------------------------------- */
 (function init(){
+  /* WHERE A REPORT STARTS, AND WHERE IT WAS BEFORE A DEMONSTRATION.
+   *
+   * Both are whole payloads rather than lists of fields to clear, because a
+   * list of fields to clear is a list that drifts: the one field somebody
+   * forgets to add is the one that survives onto a real council's report.
+   * PRISTINE is captured here, before the boot restore below runs, so it is
+   * genuinely the empty state and not somebody's saved work. */
+  const PRISTINE = snapshotPayload();
+  let PRE_DEMO = null;
   const keys=Object.keys(LB).sort((a,b)=>LB[a].n.localeCompare(LB[b].n));
   /* ANYONE WHO WRITES THIS REPORT SHOULD BE ABLE TO USE THIS.
    *
@@ -12193,6 +12451,25 @@ function stampSaved(word){
     $("otherbox").hidden = !on; $("otherregbox").hidden = !on;
     if(on && !LB.other.n){ LB.other.n = ""; $("othername").focus(); }
   }
+/* A DEMONSTRATION DOES NOT FOLLOW YOU TO A REAL COUNCIL.
+ *
+ * Looking at a demonstration and then picking your own authority used to carry
+ * the whole of it across: all twenty-two choices, including an adviser called
+ * "Example Treasury Advisers" and an author who works nowhere, twenty sections
+ * of prose, and a crest generated under the real council's name. Step 4 then
+ * marked itself "22 of 22 answered" and the check step said nothing was
+ * outstanding — a finished-looking report for a real authority that nobody
+ * there had written a word of.
+ *
+ * hasWork() already answers the only question that matters, and did before
+ * this was noticed: is this still an untouched demonstration, or has someone
+ * typed on top of it? Untouched, nothing is lost by putting back what was
+ * there before it. Touched, it is their work, so ask — and default to keeping
+ * it, because carrying work across is recoverable and discarding it is not.
+ *
+ * What goes back is a whole payload, not a list of fields to clear. A list of
+ * fields to clear is a list that drifts, and the one field somebody forgets is
+ * the one that survives onto a real council's report. */
   $("council").addEventListener("change", e=>{
     /* A demonstration is chosen from the same list. fillDemo sets the real
        authority underneath it and puts that back in the control, which is
@@ -12204,6 +12481,15 @@ function stampSaved(word){
       fillDemo(e.target.value.slice(5));
       return;
     }
+    // Leaving a demonstration: see the note above the handler.
+    if(S.gss === DEMO_GSS){
+      const theirs = hasWork();
+      if(!theirs || confirm("Start a clean report for "
+          + ((LB[e.target.value] || {}).n || "this authority") + "?\n\n"
+          + "Your changes to the demonstration would be discarded. "
+          + "Cancel to carry them across instead."))
+        applyVersion(PRE_DEMO || PRISTINE);
+    }
     S.gss=e.target.value; const c=LB[S.gss];
     S.loans=S.loans.filter(l=>!l.pwlb);
     // No PWLB row for a body whose book we do not hold: a line saying "PWLB
@@ -12212,7 +12498,12 @@ function stampSaved(word){
     seedHoldings();
     if(S.gss === "other") S.natOverride = $("otherreg").value;
     else S.natOverride = null;
-    if(S.logoDemo) S.logo = demoLogo(LB[S.gss] ? LB[S.gss].n : "");
+    /* A GENERATED CREST BELONGS TO A DEMONSTRATION AND NOWHERE ELSE.
+       It used to be regenerated under whatever name was picked next, so a real
+       council's report was headed with a mark nobody there had chosen. It is
+       dropped on the way out instead. */
+    if(S.logoDemo){ S.logo = null; S.logoDemo = false; }
+    logoRow();
     otherShown(); renationaliseText(); loanRows(); applyLoans(); renderSections(); libFill();
     $("issued").checked = libIsIssued(); });
   /* RE-PICKING THE DEMONSTRATION YOU ARE ALREADY ON.
@@ -12269,7 +12560,7 @@ function stampSaved(word){
   $("otherreg").addEventListener("change", e=>{
     S.natOverride = e.target.value; renationaliseText(); renderSections(); render(); });
   $("rtype").addEventListener("change", e=>{ S.report=e.target.value;
-    $("saved").textContent=""; renderSections(); render(); libFill(); });
+    saveHint(""); renderSections(); render(); libFill(); });
   // The report's as-at date. Defaults to the data we hold, and is free to be
   // moved either side of it.
   $("asat").value = MKT.as_at || "";
@@ -12299,12 +12590,41 @@ function stampSaved(word){
   $("logo").addEventListener("change", e=>{
     const f=e.target.files && e.target.files[0]; if(!f) return;
     if(f.size > 512*1024){
-      $("saved").textContent="That logo is over 512KB — use a smaller one so the export stays portable.";
+      saveHint("That logo is over 512KB — use a smaller one so the export stays portable.");
       return; }
     const rd=new FileReader();
-    rd.onload=()=>{ S.logo=rd.result; S.logoDemo=false; render();
-      $("saved").textContent="Logo added. It travels inside the exported file."; };
+    rd.onload=()=>{ S.logo=rd.result; S.logoDemo=false; logoRow(); render();
+      saveHint("Logo added. It travels inside the exported file."); };
     rd.readAsDataURL(f);
+  });
+
+  /* WHAT IS SET, AND A WAY TO UNSET IT.
+   *
+   * A file input cannot be emptied by the person using it — cancelling the
+   * dialog leaves the last picture in place — so once a logo was chosen the
+   * only way out was to clear the whole report. And there was nothing on the
+   * page showing which logo was set, so the head of the document was the first
+   * place anyone found out.
+   *
+   * The row says which of the two it is, because Remove on a crest you chose
+   * and Remove on one the tool generated are different clicks. */
+  function logoRow(){
+    const row = $("logorow"); if(!row) return;
+    row.hidden = !S.logo;
+    if(!S.logo) return;
+    $("logoshow").src = S.logo;
+    $("logowhat").textContent = S.logoDemo
+      ? "Generated for the demonstration — not your council's crest."
+      : "Travels inside the exported file.";
+  }
+  $("logoclear").addEventListener("click", () => {
+    /* The generated flag goes with it. Leaving it set made Remove look as
+       though it had worked and brought the crest back on the next change of
+       authority, which is worse than a button that does nothing. */
+    S.logo = null; S.logoDemo = false;
+    const f = $("logo"); if(f) f.value = "";
+    logoRow(); render();
+    saveHint("Logo removed.");
   });
   /* THE DEMONSTRATION AUTHORITY'S LOGO.
    *
@@ -12551,6 +12871,11 @@ function stampSaved(word){
       + "want to keep it.\n\nFill the demonstration?")){
       $("council").value = councilValue(); return;
     }
+    /* Remember what this is replacing, so that leaving the demonstration can
+       put it back. Only on the way IN: filling a second demonstration must not
+       overwrite the real report the first one covered up. */
+    if(S.gss !== DEMO_GSS) PRE_DEMO = snapshotPayload();
+
     const D = DEMOS[which];
     /* THE FIGURES ARE A REAL AUTHORITY'S. THE NAME IS NOT.
     
@@ -12818,7 +13143,7 @@ function stampSaved(word){
        council's name drawn into it, and switching council left a Cardiff
        report carrying an Aberdeen City wordmark — captioned "example crest",
        which excuses the coat of arms and not the wrong name on it. */
-    S.logo = demoLogo(LB[S.gss] ? LB[S.gss].n : ""); S.logoDemo = true;
+    S.logo = demoLogo(LB[S.gss] ? LB[S.gss].n : ""); S.logoDemo = true; logoRow();
     S.asAt = MKT.as_at; if($("asat")) $("asat").value = MKT.as_at || "";
     $("hra").value = S.hra;
     fundTabs(); buildLedger(); loanRows(); renderChoices(); renderSections();
@@ -12848,9 +13173,9 @@ function stampSaved(word){
     /* The control shows the authority the demonstration is built on, which is
        true, and leaves the demonstration entry free to be chosen again. */
     $("council").value = councilValue();
-    $("saved").textContent = `Demonstration filled — ${D.label}, every section written. `
+    saveHint(`Demonstration filled — ${D.label}, every section written. `
       + `Every step is filled, including the counterparty policy. `
-      + `Change anything; nothing here is fixed.`;
+      + `Change anything; nothing here is fixed.`);
   }
 
   /* ONE SWITCH, ON THE FIRST STEP. The demonstration used to be two controls
@@ -13007,13 +13332,13 @@ function stampSaved(word){
   $("libpick").addEventListener("change", libSay);
   $("libgo").addEventListener("click", ()=>{
     const r = libSeed($("libpick").value);
-    if(!r.ok){ $("saved").textContent = r.note; return; }
+    if(!r.ok){ saveHint(r.note); return; }
     $("hra").value = S.hra;
     if($("minliq")) $("minliq").value = S.minliq == null ? "" : S.minliq;
     fundTabs(); buildLedger(); loanRows(); countClauses();
     if(typeof cpRender === "function") cpRender();
     renderSections(); render();
-    $("saved").textContent = r.note;
+    saveHint(r.note);
   });
   window.libFill = libFill;
 
@@ -13023,7 +13348,7 @@ function stampSaved(word){
     const data = libExport();
     const nv = (JSON.parse(data).versions || []).length;
     if(!nv){
-      $("saved").textContent = "Save a version first, then the file has something to carry.";
+      saveHint("Save a version first, then the file has something to carry.");
       return; }
     const name = libFileName();
     const held = libFor(S.gss);
@@ -13032,9 +13357,9 @@ function stampSaved(word){
     const doSave = async () => {
     if(DOWNLOADS){
       try{ await DOWNLOADS.save({filename:name, data});
-           $("saved").textContent = `Saved ${nv} report${nv===1?"":"s"} as ${name}.`; }
-      catch(err){ $("saved").textContent = (err && err.code) === "declined"
-        ? "Save cancelled." : "Saving is not available here."; }
+           saveHint(`Saved ${nv} report${nv===1?"":"s"} as ${name}.`); }
+      catch(err){ saveHint((err && err.code) === "declined"
+        ? "Save cancelled." : "Saving is not available here."); }
       return;
     }
     const a = document.createElement("a");
@@ -13042,7 +13367,7 @@ function stampSaved(word){
     a.download = name;
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(()=>URL.revokeObjectURL(a.href), 2000);
-    $("saved").textContent = `Downloading ${name} — ${nv} report${nv===1?"":"s"}.`;
+    saveHint(`Downloading ${name} — ${nv} report${nv===1?"":"s"}.`);
     };
     /* WHOSE WORK IS IN THIS FILE. The honest limit is stated rather than
        hidden: without a shared server nothing here can see a colleague's
@@ -13098,7 +13423,7 @@ function stampSaved(word){
     rd.onload = () => {
       const text = String(rd.result);
       const look = libInspect(text);
-      if(!look.ok){ $("saved").textContent = look.note; return; }
+      if(!look.ok){ saveHint(look.note); return; }
       /* WHAT WILL BE LOST, NAMED. A generic "this will overwrite your data"
          is a warning nobody can act on; this says which report, whose it is,
          and whether the copy in the file is older than the one here. */
@@ -13121,7 +13446,7 @@ function stampSaved(word){
                 $("saved").innerHTML = r.note;
                 if(r.ok){ libFill(); location.reload(); } });
     };
-    rd.onerror = () => { $("saved").textContent = "That file could not be read."; };
+    rd.onerror = () => { saveHint("That file could not be read."); };
     rd.readAsText(f);
     e.target.value = "";
   }
@@ -13138,12 +13463,12 @@ function stampSaved(word){
     const k = KEY();
     if(!localStorage.getItem(k)){
       e.target.checked = false;
-      $("saved").textContent = "Save this version before marking it issued."; return;
+      saveHint("Save this version before marking it issued."); return;
     }
     libIssue(k, e.target.checked);
-    $("saved").textContent = e.target.checked
+    saveHint(e.target.checked
       ? "Marked as issued. Next year's report will start from this one."
-      : "No longer marked as issued.";
+      : "No longer marked as issued.");
     libFill();
   });
   // The indicator picker lives inside the rendered draft, so it is delegated.
@@ -13275,11 +13600,57 @@ function stampSaved(word){
   // Seeded here rather than in the state declaration: it needs the council to
   // be known, because the PWLB row's amount comes from that council's book.
   seedHoldings();
+  // After the restore, so the row shows whatever came back with it. Called
+  // from in here and never from applyVersion: logoRow is declared inside
+  // init(), and a top-level function reaching in is a ReferenceError that
+  // restoreVersion's own try/catch would swallow.
+  logoRow();
   fundTabs(); buildLedger(); loanRows(); renderSections(); render(); libFill();
   $("issued").checked = libIsIssued();
   // The counterparty form is delegated from its container, so it is wired once
   // here and survives every re-render of its own contents.
   cpRender(); cpWire();
+  /* THE BAR IN EVERY STEP FOOTER. Delegated from the document, because the
+     bar is rebuilt by renderNav on every step change and a listener bound to
+     the buttons themselves would go with it. */
+  document.addEventListener("click", e => {
+    const b = e.target.closest && e.target.closest("[data-undo],[data-clearstep],"
+      + "[data-savefile],[data-openfile]");
+    if(!b) return;
+    if(b.hasAttribute("data-undo")){ if(!undoOne()) saveHint("Nothing to undo."); return; }
+    if(b.hasAttribute("data-savefile")){ $("libfile").click(); return; }
+    if(b.hasAttribute("data-openfile")){ $("libopen").click(); return; }
+    clearStep();
+  });
+
+  /* Every edit, marked before it lands. Capture phase so this runs ahead of
+     the handlers that write to S — see the note on undoMark. */
+  document.addEventListener("input", e => {
+    const t = e.target; if(!t || !t.matches) return;
+    if(!t.matches("input,textarea,select")) return;
+    undoMark(t.id || t.dataset.k || t.dataset.cp || t.dataset.f || t.name || "edit");
+  }, true);
+  /* NO SECOND LISTENER ON "change". A select, a checkbox and a radio all fire
+     "input" as well, so listening to both marked every one of them twice and
+     the first press of Undo did nothing at all — it popped a snapshot taken
+     after the change rather than before it. One event, one mark. */
+  document.addEventListener("keydown", e => {
+    if((e.metaKey || e.ctrlKey) && !e.shiftKey && (e.key === "z" || e.key === "Z")){
+      /* Not inside the figures grid: that has its own finer undo, and two
+         stacks answering one shortcut would each give back half an answer. */
+      if(e.target && e.target.closest && e.target.closest(".xgrid")) return;
+      if(undoOne()) e.preventDefault();
+    }
+  });
+
+  /* Inside init, because renderChoices and logoRow are declared here and a
+     top-level listener reaching in is the ReferenceError the coverage suite
+     watches for — which is exactly what it caught when this was lifted out by
+     accident along with the block above. */
+  document.addEventListener("lb:applied", () => {
+    renderChoices(); logoRow(); undoPaint();
+  });
+
   wireSteps();
   wireNumericFields();
 
