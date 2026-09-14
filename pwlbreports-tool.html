@@ -13164,6 +13164,13 @@ function undoPaint(){
        report carrying an Aberdeen City wordmark — captioned "example crest",
        which excuses the coat of arms and not the wrong name on it. */
     S.logo = demoLogo(LB[S.gss] ? LB[S.gss].n : ""); S.logoDemo = true; logoRow();
+    // The #council change handler returns straight out of the demo: branch
+    // above fillDemo's own call, so the otherShown() it runs for every other
+    // selection never gets a turn here. Picking a demo right after "Another
+    // body" left that body's name sitting open on screen, over a report that
+    // had nothing to do with it — S.gss is unconditionally "demo" by this
+    // point, so this is always a hide, never wrongly shows anything.
+    otherShown();
     S.asAt = MKT.as_at; if($("asat")) $("asat").value = MKT.as_at || "";
     $("hra").value = S.hra;
     fundTabs(); buildLedger(); loanRows(); renderChoices(); renderSections();
@@ -13612,10 +13619,24 @@ function undoPaint(){
      blank page wondering where their work went. */
   const lastKey = localStorage.getItem("lb:last");
   const last = lastKey ? libRead().find(e => e.k === lastKey) : null;
-  if(last && LB[last.gss]){
+  // LB[last.gss] is the right gate for a real authority — it catches a stale
+  // GSS code from a reorganisation that has dropped out of the current list.
+  // It is the wrong gate for a demonstration: LB.demo does not exist until
+  // fillDemo() runs, so it was never true on a fresh load, and a saved
+  // demonstration could not come back from a refresh though its whole
+  // 49KB+ payload sat intact in localStorage the entire time. applyVersion
+  // already rebuilds LB[DEMO_GSS] from the payload's own demoSrc/demoName
+  // (see "A DEMONSTRATION SAVED TO A FILE MUST COME BACK AS ITSELF" above,
+  // written for Open a file, which has the identical shape) — it just
+  // needed the chance to run.
+  if(last && (LB[last.gss] || last.gss === DEMO_GSS)){
     S.gss = last.gss; S.report = last.report; S.fy0 = last.fy0;
     $("council").value = councilValue(); $("rtype").value = S.report; $("fy0").value = S.fy0;
     restoreVersion(true);
+    // councilValue() above ran before restoreVersion supplied S.demoKind, so
+    // a demonstration other than the "no HRA" default showed the right
+    // group but the wrong of the three entries in it.
+    if(S.gss === DEMO_GSS) $("council").value = councilValue();
   }
   // Seeded here rather than in the state declaration: it needs the council to
   // be known, because the PWLB row's amount comes from that council's book.
