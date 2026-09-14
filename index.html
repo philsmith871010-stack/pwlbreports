@@ -8,9 +8,16 @@
      does this: the benchmark is the part nobody else draws, but it is one
      indicator of thirteen sections, and leading with it undersold the rest. -->
 <meta name="description" content="Treasury strategies, outturns and monitoring reports, built to CIPFA's 2026 Codes — every indicator, chart and table they ask for, the liability benchmark included. Independent, and produced entirely in your browser.">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Serif:ital,wght@0,400;0,600;1,400&display=swap">
+<!-- NO WEBFONT. IBM Plex is still first in every stack below, so anyone who has
+     it installed gets it; nobody waits for it. Three requests to two Google
+     hosts bought one typeface and cost a flash of unstyled text on every load,
+     because display=swap paints the fallback and then re-lays the page out.
+
+     It also bought a sentence we then had to make: step 0 promises that your
+     figures never leave the browser, and had to qualify it with "and the fonts
+     it is displayed in from Google Fonts". The page now makes exactly one
+     request, for the rate file, to its own origin. A promise with no exception
+     in it is worth more than a typeface. -->
 <style>
 /* ===========================================================================
  * PWLBreports — the page that explains it.
