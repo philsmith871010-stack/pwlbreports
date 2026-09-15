@@ -10867,7 +10867,7 @@ function libImport(text){
   if(!list || !list.length) return {ok:false, note:"That file contains no reports."};
 
   const ix = libRead();
-  let n = 0, issued = 0;
+  let n = 0, issued = 0, firstKey = null;
   list.forEach(x => {
     if(!x || !x.body) return;
     const gss = x.body.gss || d.gss || S.gss;
@@ -10881,9 +10881,25 @@ function libImport(text){
                 n: d.n || "your authority", at: x.at || d.at || new Date().toISOString(),
                 by: x.by || d.by || "", issued: !!x.issued, hra: x.body.hra});
     n++; if(x.issued) issued++;
+    // list is newest-first (the same order libWrite keeps lb:index in), so the
+    // first body actually written is the one to land on.
+    if(firstKey === null) firstKey = key;
   });
   if(!n) return {ok:false, note:"Nothing in that file could be stored — storage may be full."};
   libWrite(ix);
+  /* THE REPORT WAS THERE; THE PAGE JUST DID NOT KNOW TO SHOW IT.
+   *
+   * The caller reloads the page right after this returns (openLibraryFile
+   * below), and the page-load restore reads lb:last to decide what to bring
+   * back. saveVersion sets it on every autosave, but this function wrote the
+   * body and the index straight to storage without it — so opening a file in
+   * a browser that had nothing loaded landed on "no authority chosen" with
+   * the whole report sitting correctly in storage underneath, findable only
+   * by someone who knew to open dev tools and look. The generic authority
+   * picker does not get you back to it either: choosing an authority seeds
+   * that authority's real PWLB book fresh, which is a different action from
+   * resuming a specific saved report. */
+  try { localStorage.setItem("lb:last", firstKey); } catch(e){}
   return {ok:true, n,
           note: `Loaded ${n} report${n===1?"":"s"} for ${esc(d.n || "that authority")}`
               + (issued ? `, ${issued} marked as issued` : "")
