@@ -1395,10 +1395,6 @@ svg.ctip .hits rect{cursor:crosshair}
 /* Quieter than the way in above it, and not red until you are on it: this is
    a legitimate thing to want, not a warning. */
 .s0reset{margin-top:12px}
-/* On the first step the cards follow the form rather than open the page. */
-.panel[data-step="1"] .s0grid{margin-top:18px}
-.s0open{font-family:var(--sans);font-size:12.5px;line-height:1.6;color:var(--ink2);
-  margin:10px 0 0}
 button.danger{font-family:var(--sans);font-size:13px;font-weight:600;padding:9px 16px;
   border-radius:6px;cursor:pointer;background:transparent;color:var(--muted);
   border:1px solid var(--line2)}
@@ -1696,16 +1692,89 @@ td.nask{background:repeating-linear-gradient(45deg,var(--hair),var(--hair) 4px,
        never do — said once, before anybody types a figure. The rule it states
        is the one the whole tool is built on, so it belongs at the front and
        not only in a caveat at the end. -->
-  <!-- THE FIRST STEP IS ALSO THE INTRODUCTION. Step 0 used to carry the
-       promise, the explainer cards and the reset, and the authority form was
-       a tab away. Two tabs before the first question was one too many, so
-       the form comes first and the explainers sit under it: read them, or
-       pick your authority and go. -->
+  <section class="panel" data-step="0" hidden>
+    <div class="phead"><span class="n">0</span><h2>Before you start</h2></div>
+    <div class="pbody">
+      <p class="s0lede">This builds a treasury management report to the liability benchmark
+        framework in CIPFA&rsquo;s 2026 consultation &mdash; LB1 to LB6, the authorised limit,
+        the affordability indicators &mdash; and wraps them in the committee paper they travel
+        in. You supply the figures; it assembles the document and exports to Word.</p>
+
+      <div class="s0grid">
+        <div class="s0card">
+          <h3>Your figures never leave this browser</h3>
+          <p>There is no account, no upload and no server that sees them. What you type is held
+            in this browser, and in the files you save to your own machine &mdash; which is
+            where your report stays. Nobody here can read it, because there is nowhere for it
+            to go. The page makes one request: published market data (PWLB and SONIA rates)
+            from this site, which carries none of your data. Nothing else is fetched from
+            anywhere.</p>
+        </div>
+        <div class="s0card">
+          <h3>Every figure is yours</h3>
+          <p>Nothing here is forecast, estimated or assumed on your behalf. The tool translates
+            your data as the Codes require &mdash; the same inputs always give the same output
+            &mdash; and assumes nothing. You enter a figure once and it reaches every chart,
+            table and indicator that needs it, so the report cannot disagree with itself. A year
+            you leave blank is nil, and the charts show what that implies rather than interpolate
+            or extrapolate a substitute.</p>
+        </div>
+        <div class="s0card">
+          <h3>What it will ask for</h3>
+          <p>Your capital financing requirement and reserves by year, the loans and investments
+            you hold, a liquidity allowance, and the budget lines across your MTFP. All of it
+            comes from your ledger, your treasury system or your capital programme &mdash; the
+            figures can be pasted straight out of Excel.</p>
+        </div>
+        <div class="s0card">
+          <h3>What it will not do</h3>
+          <p>It will not work out your interest payable, your investment income or an HRA
+            recharge. Those need assumptions only you can make &mdash; when you draw, how much,
+            at what rate, whether a LOBO is called. Do that maths in your own systems, enter the
+            result, and say in the commentary what you assumed.</p>
+        </div>
+      </div>
+
+      <div class="s0start">
+        <div>
+          <h3>Already have a version?</h3>
+          <p>If you have a report saved from this tool &mdash; last year&rsquo;s strategy, or the
+            one you are monitoring against &mdash; open it now rather than starting from a blank
+            page. It carries your wording, your policy and your figures, and for a monitoring
+            report it fills the approved column for you.</p>
+        </div>
+        <div class="s0btns">
+          <label class="filebtn" for="libopen0">Open a file</label>
+          <input type="file" id="libopen0" data-libopen accept=".json,application/json" hidden>
+        </div>
+      </div>
+
+      <!-- START AGAIN. There was no way to. Every figure autosaves under the
+           authority, report and year, so a form filled in to try the thing out
+           stayed filled in — and the only routes back were to pick a different
+           year or to clear the browser's storage by hand. The wording is
+           deliberate: this cannot reach a file already saved, and it says so,
+           because a reader about to press it wants to know what it CANNOT
+           touch as much as what it can. -->
+      <div class="s0start s0reset">
+        <div>
+          <h3>Start again?</h3>
+          <p>Clears every figure, answer and paragraph for this authority, report and year, and
+            returns you to a blank form. Files you have already saved to your own machine are
+            not touched &mdash; open one to bring it back.</p>
+        </div>
+        <div class="s0btns">
+          <button type="button" id="resetall" class="danger">Clear this report</button>
+        </div>
+      </div>
+
+      <p class="s0foot">It is a drafting aid, not a compliance statement, and it is not advice.
+        Check every figure before it reaches a committee.</p>
+    </div>
+  </section>
+
   <section class="panel" data-step="1">
-    <div class="phead"><span class="n">1</span><h2>Your authority and report</h2>
-      <span class="why">This builds a treasury management report to the liability benchmark
-        framework in CIPFA&rsquo;s 2026 consultation and wraps it in the committee paper it
-        travels in. You supply the figures; it assembles the document and exports to Word.</span></div>
+    <div class="phead"><span class="n">1</span><h2>Your authority and report</h2></div>
     <div class="pbody"><div class="setup">
       <div><label for="council">Authority</label>
         <select id="council"></select></div>
@@ -1767,69 +1836,7 @@ td.nask{background:repeating-linear-gradient(45deg,var(--hair),var(--hair) 4px,
       <label class="whobox" for="whoami">Saved by
         <input type="text" id="whoami" placeholder="your name" maxlength="60"></label>
     </div>
-    <span class="hintline" id="saved"></span>
-    <p class="s0open">Already have a version saved from this tool &mdash; last year&rsquo;s
-      strategy, or the one you are monitoring against? Open it rather than starting from a
-      blank page: it carries your wording, your policy and your figures, and for a monitoring
-      report it fills the approved column for you.</p>
-
-      <div class="s0grid">
-        <div class="s0card">
-          <h3>Your figures never leave this browser</h3>
-          <p>There is no account, no upload and no server that sees them. What you type is held
-            in this browser, and in the files you save to your own machine &mdash; which is
-            where your report stays. Nobody here can read it, because there is nowhere for it
-            to go. The page makes one request: published market data (PWLB and SONIA rates)
-            from this site, which carries none of your data. Nothing else is fetched from
-            anywhere.</p>
-        </div>
-        <div class="s0card">
-          <h3>Every figure is yours</h3>
-          <p>Nothing here is forecast, estimated or assumed on your behalf. The tool translates
-            your data as the Codes require &mdash; the same inputs always give the same output
-            &mdash; and assumes nothing. You enter a figure once and it reaches every chart,
-            table and indicator that needs it, so the report cannot disagree with itself. A year
-            you leave blank is nil, and the charts show what that implies rather than interpolate
-            or extrapolate a substitute.</p>
-        </div>
-        <div class="s0card">
-          <h3>What it will ask for</h3>
-          <p>Your capital financing requirement and reserves by year, the loans and investments
-            you hold, a liquidity allowance, and the budget lines across your MTFP. All of it
-            comes from your ledger, your treasury system or your capital programme &mdash; the
-            figures can be pasted straight out of Excel.</p>
-        </div>
-        <div class="s0card">
-          <h3>What it will not do</h3>
-          <p>It will not work out your interest payable, your investment income or an HRA
-            recharge. Those need assumptions only you can make &mdash; when you draw, how much,
-            at what rate, whether a LOBO is called. Do that maths in your own systems, enter the
-            result, and say in the commentary what you assumed.</p>
-        </div>
-      </div>
-
-      <!-- START AGAIN. There was no way to. Every figure autosaves under the
-           authority, report and year, so a form filled in to try the thing out
-           stayed filled in — and the only routes back were to pick a different
-           year or to clear the browser's storage by hand. The wording is
-           deliberate: this cannot reach a file already saved, and it says so,
-           because a reader about to press it wants to know what it CANNOT
-           touch as much as what it can. -->
-      <div class="s0start s0reset">
-        <div>
-          <h3>Start again?</h3>
-          <p>Clears every figure, answer and paragraph for this authority, report and year, and
-            returns you to a blank form. Files you have already saved to your own machine are
-            not touched &mdash; open one to bring it back.</p>
-        </div>
-        <div class="s0btns">
-          <button type="button" id="resetall" class="danger">Clear this report</button>
-        </div>
-      </div>
-
-      <p class="s0foot">It is a drafting aid, not a compliance statement, and it is not advice.
-        Check every figure before it reaches a committee.</p>
-    </div>
+    <span class="hintline" id="saved"></span></div>
   </section>
 
   <div class="askbox" id="askbox" hidden>
@@ -11383,14 +11390,16 @@ function checkHTML(){
  * freely; nothing is gated.
  * ======================================================================== */
 const STEPS = [
-  /* ONE FIRST STEP, NOT TWO. There was a step 0, "Before you start", carrying
-     the promise, the explainer cards and the reset, and then a step 1 asking
-     for the authority. Two tabs to get to the first question is one too many,
-     so the explainers now sit under the authority form on this step. The
-     numbers 1 to 9 are untouched: the rail, the panel markup, the colour
-     ramp, every check.js "go" target and LIVE_STEPS all still mean what they
-     meant, which is the whole reason step 0 was never a renumbered step 1. */
-  {n:1, k:"setup",     t:"Start",       s:"your authority, and which report"},
+  /* STEP ZERO, NOT A RENUMBERED STEP ONE. The eight steps below keep the
+     numbers they have always had — in the rail, in the panel markup, in the
+     colour ramp, in every check.js "go" target and in LIVE_STEPS. This file
+     already carries the scar from the last time a step was inserted and four
+     places meant "the last step" by number; adding an intro at 0 leaves all
+     of them alone. It carries `intro`, so the progress count still says "of
+     8": there is nothing on it to complete. */
+  {n:0, k:"start", t:"Before you start", s:"what this is, and what you need",
+   intro:true},
+  {n:1, k:"setup",     t:"Authority",   s:"and which report"},
   {n:2, k:"portfolio", t:"What you hold", s:"debt and investments"},
   {n:3, k:"figures",   t:"Your figures", s:"the projection"},
   {n:4, k:"choices",   t:"Choices",      s:"which clauses apply"},
@@ -11558,6 +11567,7 @@ function stepStatus(k){
     return n ? {state: "done", note: `${n} figure${n===1?"":"s"} entered`, need:null}
              : {state: "", note: "limits, budget and outturn", need:"the period's figures"};
   }
+  if(k === "start") return {state:"", note:"read me first", need:null};
   return {state:"", note:"", need:null};
 }
 
