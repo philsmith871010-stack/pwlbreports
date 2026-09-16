@@ -341,6 +341,7 @@ table.ledger tbody tr td input:focus{background:var(--accent-soft);outline-offse
   color:var(--on-accent);font-weight:500}
 .ltools .sp{flex:1}
 .ltools .hintline{font-size:11.5px;color:var(--muted)}
+.hintline.dirty{color:var(--orange);font-weight:600}
 /* The one row in the grid that is a fact rather than a forecast. */
 .ledger tr.actualrow th.yr{color:var(--ink);font-weight:600}
 .ledger tr.actualrow th.yr small{display:block;font-size:9.5px;letter-spacing:.07em;
@@ -421,16 +422,48 @@ html.demo p:has(.ph-inline){display:none !important}
 .cpeg b{font-family:var(--mono);color:var(--ink2);font-weight:600}
 /* The tools that belong on every step, under the step footer. Quiet by
    default: this is furniture you reach for, not something to read. */
-.stepbar{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;
+.stepbar{display:flex;align-items:center;gap:14px;flex-wrap:wrap;
   border-top:1px solid var(--line);margin-top:12px;padding-top:10px}
-.navsave{flex:1;min-width:200px;font-family:var(--sans);font-size:11.5px;
-  color:var(--muted);line-height:1.5}
+.navstatus{display:flex;align-items:center;gap:8px;flex:1;min-width:200px}
+.navdot{width:7px;height:7px;border-radius:50%;flex:none;background:var(--good)}
+.navstatus:has(.navsave.dirty) .navdot{background:var(--orange)}
+/* The compact copy of the file card's own filename (see .filename), so the
+   one thing that matters — which file this is — is visible from every step,
+   not only step 1. Truncates rather than wrapping: this line already shares
+   space with the status word next to it. */
+.navfile{font-family:var(--mono);font-size:11px;color:var(--muted);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:38vw}
+.navfile:empty{display:none}
+.navsave{font-family:var(--sans);font-size:11.5px;color:var(--muted);line-height:1.4}
+/* On this page is not saved — it is one refresh, one closed tab, away from
+   gone, because nothing here writes anywhere durable except Save itself.
+   This is the one signal that says so wherever you are in the report, so
+   it has to look different from the quiet line it replaces, not just say
+   different words. */
+.navsave.dirty{color:var(--orange);font-weight:600}
 .stepacts{display:flex;gap:14px;flex-wrap:wrap}
 .stepbar .lnk{background:none;border:0;padding:0;cursor:pointer;
   font-family:var(--sans);font-size:11.5px;color:var(--ink2);
   text-decoration:underline;text-underline-offset:3px}
 .stepbar .lnk:hover{color:var(--ink)}
 .stepbar .lnk[disabled]{color:var(--faint);cursor:default;text-decoration:none}
+/* The one stepbar action that is not furniture. Saving to a file is the
+   real save now — see the note above renderNav in steps.js — so it gets
+   the weight the other quiet links deliberately do not. */
+.stepbar .savebtn{font-family:var(--sans);font-size:11.5px;font-weight:600;
+  padding:4px 10px;border-radius:var(--r-sm);border:1px solid var(--accent);
+  background:var(--accent-soft);color:var(--accent);cursor:pointer}
+.stepbar .savebtn:hover{background:var(--accent);color:var(--on-accent)}
+.stepbar .savebtn.dirty{background:var(--accent);color:var(--on-accent)}
+/* Step 1 carries its own file card a few lines up, wired to the same
+   #libfile and #libopen this bar's Save/Open just proxy-click — so showing
+   the status line and the pair again here repeated the same thing twice on
+   one screen. Every other step still gets the full bar; only this step's
+   copy of the status and the two file actions is hidden — Undo and Clear
+   this step stay. */
+[data-step="1"] .stepnav .navstatus,
+[data-step="1"] .stepnav [data-savefile],
+[data-step="1"] .stepnav [data-openfile]{display:none}
 .doc .dh{font-family:var(--sans);font-size:10px;letter-spacing:.11em;text-transform:uppercase;
   color:var(--muted);font-weight:600;padding-bottom:11px;border-bottom:1px solid var(--line2);
   display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
@@ -1105,6 +1138,91 @@ table.dtab td.wrap{white-space:normal;line-height:1.5}
 .warn{font-family:var(--sans);margin:10px 0 0;padding:9px 12px;border-radius:var(--r-sm);
   background:rgba(179,53,42,.09);border-left:3px solid var(--alert);font-size:12px;color:var(--ink2)}
 
+/* A locked report's panel is still in the DOM — the inputs are real, and a
+   correction only needs a reason typed above them, not a rebuild of the
+   panel. inert freezes the lot in one line rather than one per field, and
+   nothing keeps that list of fields in sync as panels change. */
+[inert]{opacity:.45}
+.lockbanner{font-family:var(--sans);margin:0 0 16px;padding:14px 16px;border-radius:var(--r-sm);
+  background:var(--sunken);border-left:3px solid var(--orange)}
+.lockbanner h3{margin:0 0 6px;font-size:14px;color:var(--ink)}
+.lockbanner p{margin:0 0 8px;font-size:12.5px;line-height:1.6;color:var(--ink2)}
+.lockbanner .unlockbox{margin-top:10px;border-top:1px solid var(--line2);padding-top:10px}
+.lockbanner .unlockbox summary{cursor:pointer;font-size:12.5px;font-weight:600;color:var(--ink2)}
+.lockbanner .unlockbox[open] summary{margin-bottom:8px}
+.lockbanner .overridehist{margin:0 0 10px}
+.lockbanner .overridehist summary{cursor:pointer;font-size:12px;font-weight:600;color:var(--alert)}
+.lockbanner .overridehist ul{margin:6px 0 0;padding-left:18px}
+.lockbanner .overridehist li{font-size:12px;color:var(--ink2);margin-bottom:4px}
+.lockbanner textarea{width:100%;box-sizing:border-box;font-family:var(--sans);font-size:12.5px;
+  border-radius:var(--r-sm);border:1px solid var(--line2);padding:7px 9px;resize:vertical}
+.overridestrip{font-family:var(--sans);margin:0 0 16px;padding:9px 12px;border-radius:var(--r-sm);
+  background:rgba(179,53,42,.09);border-left:3px solid var(--alert);font-size:12px;color:var(--ink2)}
+.overridestrip b{color:var(--ink)}
+/* Orange, not red — a correction and a what-if are different kinds of
+   editing a locked report, and this strip has to read as the calmer one:
+   nothing here can go wrong, because nothing here is kept. */
+.scenariostrip{font-family:var(--sans);margin:0 0 16px;padding:9px 12px;border-radius:var(--r-sm);
+  background:var(--sunken);border-left:3px solid var(--orange);font-size:12px;color:var(--ink2)}
+.scenariostrip b{color:var(--ink)}
+.scenariostrip #scenarioexit{margin-left:8px}
+
+/* Every return saved here for this authority, so a stale draft can be taken
+   out without opening it first. Locked ones cannot be — deleting the record
+   of what was actually issued is not a correction, it is losing it.
+   A bare table dropped under everything else read as a debug dump of the
+   library rather than a feature — no header band, no row separation to
+   speak of, the same 12.5px as every other line on the page. It is a card
+   now, matching the file card above it: a quiet heading bar, then rows
+   that wrap sanely at phone width instead of a table forcing a scrollbar. */
+.retlist{font-family:var(--sans);margin-top:16px}
+.retcard{border:1px solid var(--line);border-radius:var(--r);
+  background:var(--card);overflow:hidden}
+.rethead{padding:10px 16px;background:var(--sunken);
+  border-bottom:1px solid var(--line);font-size:12px;font-weight:700;
+  color:var(--ink2);text-transform:uppercase;letter-spacing:.04em}
+/* The caption ties the list back to the file it actually came from — see
+   renderReturnsList in wire.js. Not uppercase, not bold: it is explaining
+   the heading above it, not another heading of its own. */
+.rethead p{margin:3px 0 0;font-size:11px;font-weight:400;text-transform:none;
+  letter-spacing:normal;color:var(--muted)}
+.retrow{display:flex;align-items:center;gap:8px 16px;flex-wrap:wrap;
+  padding:10px 16px;border-top:1px solid var(--hair);font-size:12.5px;
+  color:var(--ink2)}
+.retrows .retrow:first-child{border-top:0}
+.retrow.cur{background:color-mix(in srgb, var(--accent) 5%, var(--card))}
+.retmain{flex:1 1 220px;min-width:0;color:var(--ink2)}
+.retrow.cur .retmain{color:var(--ink);font-weight:600}
+.retnow{font-family:var(--mono);font-size:9.5px;text-transform:uppercase;
+  letter-spacing:.04em;color:var(--accent);font-weight:600;margin-left:6px}
+.retwho{flex:0 1 auto;color:var(--muted);font-size:11.5px;white-space:nowrap}
+.retst{display:inline-block;padding:1px 7px;border-radius:99px;font-size:10.5px;
+  text-transform:uppercase;letter-spacing:.03em}
+.retst.draft{background:var(--sunken);color:var(--ink2)}
+.retst.saved{background:color-mix(in srgb, var(--good) 12%, var(--card));color:var(--good)}
+.retst.issued{background:var(--accent-soft);color:var(--accent)}
+.retst.locked{background:rgba(179,53,42,.12);color:var(--alert)}
+.retst.corrected{background:var(--sunken);color:var(--orange)}
+.retacts{display:flex;gap:8px;align-items:center;flex:none;flex-wrap:wrap}
+/* "Use it" replaces the separate "Bring in your figures" card's picker +
+   button — see renderReturnsList/useItFrom in wire.js. Two colours, not
+   one: roll-forward and monitor-against are never the same action (see
+   libSeed's own note on why the two are never conflated), and a row is
+   never offered both, so the colour alone says which one a button is
+   before the label does. */
+.usebtn{font-family:var(--sans);font-size:11.5px;font-weight:600;
+  padding:5px 12px;border-radius:var(--r-sm);border:1px solid var(--accent);
+  background:var(--accent-soft);color:var(--accent);cursor:pointer;white-space:nowrap}
+.usebtn:hover{background:var(--accent);color:var(--on-accent)}
+.usebtn.mon{border-color:var(--good);
+  background:color-mix(in srgb, var(--good) 10%, var(--card));color:var(--good)}
+.usebtn.mon:hover{background:var(--good);color:var(--on-accent)}
+button.retdel{font-family:var(--sans);font-size:11.5px;font-weight:600;
+  padding:5px 12px;border-radius:var(--r-sm);border:1px solid var(--line2);
+  background:var(--paper);color:var(--muted);cursor:pointer;white-space:nowrap}
+button.retdel:hover{border-color:var(--alert);color:var(--alert)}
+button.retdel:disabled{opacity:.4;cursor:not-allowed}
+
 /* ---- spreadsheet behaviour ------------------------------------------------
  * The selection is a background rather than a border, because a border on a
  * cell in a dense grid shifts everything a pixel and the whole table twitches
@@ -1301,11 +1419,58 @@ svg.ctip .hits rect{cursor:crosshair}
    Nobody starts a strategy from a blank page; they start from last year's.
    The offer names the operation before it runs, because a seed that silently
    replaces forty fields is a surprise rather than a convenience. */
-.issuedbox{margin-left:4px}
-.filebtn{padding:7px 12px;border-radius:var(--r-sm);border:1px solid var(--line2);
-  background:var(--paper);font-family:var(--sans);font-size:12.5px;cursor:pointer;
-  display:inline-block;line-height:1.25}
-.filebtn:hover{border-color:var(--accent)}
+/* ---- the file card -------------------------------------------------------
+   Save and Open used to be a bare button, a label styled as one, a checkbox
+   and a name field wrapped onto one flex row that broke unpredictably, with
+   a plain status line floating above it — and then the SAME status line and
+   the SAME two actions again, styled differently, in the step footer a few
+   lines down. Four ways of saying two things, none of them designed as one.
+   This is the one place now: a status band that changes with the state, and
+   the actions that change it, together. Every other step keeps the quiet
+   footer pair — see the note by .stepbar — this step hides its own copy of
+   it there instead of showing Save and Open twice on one screen. */
+.fbtn{display:inline-flex;align-items:center;gap:7px;font-family:var(--sans);
+  font-size:13px;font-weight:600;padding:8px 15px;border-radius:var(--r-sm);
+  border:1px solid var(--line2);background:var(--paper);color:var(--ink2);
+  cursor:pointer;line-height:1.2}
+.fbtn svg{width:14px;height:14px;flex:none}
+.fbtn:hover{border-color:var(--accent);color:var(--accent)}
+.fbtn.primary{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.fbtn.primary:hover{opacity:.9;color:var(--on-accent)}
+.filecard{margin-top:16px;border:1px solid var(--line);border-radius:var(--r);
+  background:var(--card);overflow:hidden}
+/* THE FILE'S OWN TITLE BAR — a filename with a status, the same pattern a
+   doc editor uses, because it is the one most people already carry a mental
+   model for: a name, a dot, a word, and — only here, where there is room for
+   it — a caption saying what Save will actually do to that name (see
+   paintFileStatus in ui.js). The compact copy of this in the stepbar (see
+   .navstatus below) skips the caption; there is nowhere on that line for it. */
+.filestatus{display:flex;flex-direction:column;gap:3px;padding:10px 16px;
+  background:var(--sunken);border-bottom:1px solid var(--line);
+  font-family:var(--sans);font-size:12.5px;color:var(--ink2)}
+.filestatus-row{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.filename{font-family:var(--mono);font-weight:500;color:var(--ink)}
+.filename:empty{display:none}
+.filecaption{margin:0;font-size:11px;color:var(--muted)}
+.filecaption:empty{display:none}
+.filedot{width:8px;height:8px;border-radius:50%;flex:none;background:var(--good)}
+/* Only shown once something is linked (see paintFileStatus in ui.js) — before
+   that, Save itself is the only "choose a location" a person needs. Light
+   weight on purpose: a secondary offer beside the primary status, not a
+   button competing with Save/Open below it. */
+.filechange{font-family:var(--sans);font-size:11px;font-weight:600;color:var(--accent);
+  background:none;border:none;padding:0;cursor:pointer;
+  text-decoration:underline;text-underline-offset:2px}
+.filechange:hover{color:var(--ink)}
+#saved.dirty{color:var(--orange);font-weight:600}
+.filestatus:has(#saved.dirty){background:color-mix(in srgb, var(--orange) 9%, var(--card))}
+.filestatus:has(#saved.dirty) .filedot{background:var(--orange)}
+.filecard-body{display:flex;gap:14px 22px;flex-wrap:wrap;align-items:center;
+  justify-content:space-between;padding:14px 16px}
+.filecard-primary{display:flex;gap:9px;flex-wrap:wrap}
+.filecard-meta{display:flex;gap:14px 20px;flex-wrap:wrap;align-items:center;
+  font-family:var(--sans);font-size:12.5px;color:var(--ink2)}
+.issuedbox{display:inline-flex;align-items:center;gap:6px}
 .whobox{display:inline-flex;align-items:center;gap:7px;font-family:var(--sans);
   font-size:12.5px;color:var(--ink2)}
 .whobox input{width:150px;padding:5px 9px;font-size:12.5px}
@@ -1325,18 +1490,6 @@ svg.ctip .hits rect{cursor:crosshair}
   color:var(--muted);white-space:nowrap;padding-top:2px}
 .asktag.older{color:var(--alert);font-weight:600}
 .asktag.new{color:var(--good)}
-.libbox{grid-column:1/-1;margin-top:14px;padding:14px 16px;border:1px solid var(--accent);
-  border-radius:var(--r-sm);background:color-mix(in srgb, var(--accent) 4%, var(--card))}
-.libbox label{font-family:var(--sans);font-size:12.5px;font-weight:600;color:var(--ink);
-  display:block;margin-bottom:8px}
-.librow{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-.librow select{flex:1;min-width:220px}
-.librow button{padding:7px 14px;border-radius:var(--r-sm);border:1px solid var(--line2);
-  background:var(--paper);font-family:var(--sans);font-size:12.5px;cursor:pointer}
-.librow button.primary{background:var(--accent);border-color:var(--accent);
-  color:var(--on-accent);font-weight:600}
-.libwhat{font-family:var(--sans);font-size:12px;line-height:1.55;color:var(--ink2);
-  margin:9px 0 0;max-width:78ch}
 .ltop{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px}
 .ltop .sp{flex:1;min-width:8px}
 /* Once the row wraps, the spacer stops separating two groups and starts
@@ -1466,7 +1619,7 @@ button.danger:hover{color:var(--alert);border-color:var(--alert)}
 @media print{
   .no-print{display:none !important}
   /* The workspace is not the document. Only the draft prints. */
-  .railwrap, .rail, .stepnav, .phead, .pv, .askbox, .pvveil, .libbox,
+  .railwrap, .rail, .stepnav, .phead, .pv, .askbox, .pvveil,
   .cpsurv-modal, .ltools, .picker, #stepwrap > .panel:not(.doc){display:none !important}
   .shell{max-width:none;padding:0}
   .panel.doc{border:0;box-shadow:none;padding:0;background:transparent}
@@ -1703,12 +1856,12 @@ td.nask{background:repeating-linear-gradient(45deg,var(--hair),var(--hair) 4px,
       <div class="s0grid">
         <div class="s0card">
           <h3>Your figures never leave this browser</h3>
-          <p>There is no account, no upload and no server that sees them. What you type is held
-            in this browser, and in the files you save to your own machine &mdash; which is
-            where your report stays. Nobody here can read it, because there is nowhere for it
-            to go. The page makes one request: published market data (PWLB and SONIA rates)
-            from this site, which carries none of your data. Nothing else is fetched from
-            anywhere.</p>
+          <p>There is no account, no upload and no server that sees them. What you type stays on
+            this page while you have it open, and nowhere else &mdash; the file you save to your
+            own machine is where your report actually lives, and opening it again is how you get
+            it back. Nobody here can read it, because there is nowhere for it to go. The page
+            makes one request: published market data (PWLB and SONIA rates) from this site,
+            which carries none of your data. Nothing else is fetched from anywhere.</p>
         </div>
         <div class="s0card">
           <h3>Every figure is yours</h3>
@@ -1744,7 +1897,14 @@ td.nask{background:repeating-linear-gradient(45deg,var(--hair),var(--hair) 4px,
             report it fills the approved column for you.</p>
         </div>
         <div class="s0btns">
-          <label class="filebtn" for="libopen0">Open a file</label>
+          <label class="fbtn" for="libopen0">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M4 20h13a2 2 0 0 0 2-2l1.3-6a1 1 0 0 0-1-1.2H6.1a2 2 0 0 0-1.9 1.4L3 16"/>
+              <path d="M3 6a2 2 0 0 1 2-2h4l2 2h7a2 2 0 0 1 2 2v2H6a2 2 0 0 0-1.9 1.4L3 16V6Z"/>
+            </svg>
+            Open a file
+          </label>
           <input type="file" id="libopen0" data-libopen accept=".json,application/json" hidden>
         </div>
       </div>
@@ -1818,25 +1978,50 @@ td.nask{background:repeating-linear-gradient(45deg,var(--hair),var(--hair) 4px,
           <button type="button" id="logoclear">Remove</button>
         </div></div>
     </div>
-    <div class="libbox" id="libbox" hidden>
-      <label for="libpick">Start from a report you have already written</label>
-      <div class="librow">
-        <select id="libpick"></select>
-        <button type="button" class="primary" id="libgo">Use it</button>
+    <!-- "Bring in your figures" used to live here, as a separate card:
+         a roll-forward dropdown, an upload-instead escape hatch, and a Use
+         it button. It is now the "Use it" buttons inside the Reports in
+         this file table below (#retlist, filled by renderReturnsList in
+         wire.js) — one table instead of two, and the upload path removed
+         rather than kept as a second way to reach what Open a file already
+         does. See wire.js's renderReturnsList/useItFrom. -->
+    <div class="filecard">
+      <div class="filestatus">
+        <div class="filestatus-row"><span class="filedot" aria-hidden="true"></span>
+          <span class="filename" id="filename"></span><span id="saved"></span>
+          <button type="button" class="filechange" id="filechange" hidden>Change file</button></div>
+        <p class="filecaption" id="filecaption"></p>
       </div>
-      <p class="libwhat" id="libwhat"></p>
+      <div class="filecard-body">
+        <div class="filecard-primary">
+          <button type="button" class="fbtn primary" id="libfile">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z"/>
+              <path d="M17 21v-8H7v8"/><path d="M7 3v5h8"/>
+            </svg>
+            Save
+          </button>
+          <label class="fbtn" for="libopen">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M4 20h13a2 2 0 0 0 2-2l1.3-6a1 1 0 0 0-1-1.2H6.1a2 2 0 0 0-1.9 1.4L3 16"/>
+              <path d="M3 6a2 2 0 0 1 2-2h4l2 2h7a2 2 0 0 1 2 2v2H6a2 2 0 0 0-1.9 1.4L3 16V6Z"/>
+            </svg>
+            Open a file
+          </label>
+          <input type="file" id="libopen" data-libopen accept=".json,application/json" hidden>
+        </div>
+        <div class="filecard-meta">
+          <label class="cpmini issuedbox"><input type="checkbox" id="issued">
+            Issued to members</label>
+          <label class="whobox" for="whoami">Saved by
+            <input type="text" id="whoami" placeholder="your name" maxlength="60"></label>
+        </div>
+      </div>
     </div>
-    <div class="ltools" style="margin-top:12px">
-      <button type="button" id="libfile">Save to a file</button>
-      <label class="filebtn" for="libopen">Open a file</label>
-      <input type="file" id="libopen" data-libopen accept=".json,application/json" hidden>
-      <label class="cpmini issuedbox"><input type="checkbox" id="issued">
-        Issued to members</label>
-      <span class="sp"></span>
-      <label class="whobox" for="whoami">Saved by
-        <input type="text" id="whoami" placeholder="your name" maxlength="60"></label>
+    <div class="retlist" id="retlist" hidden></div>
     </div>
-    <span class="hintline" id="saved"></span></div>
   </section>
 
   <div class="askbox" id="askbox" hidden>
@@ -2381,7 +2566,18 @@ let S = {gss:"", report:"tmss", fy0:2026, asAt:null, natOverride:null,
             carrying an MRP clause for a method they had never chosen. Step 0 says
             the tool assumes nothing, and it has to be true here first. */
          choices:{}, rates:[], limits:{}, portfolio:[], portfolioText:"", portfolioNote:"", logo:null,
-         mat:{d:{}, i:{}}, hold:"d"};
+         mat:{d:{}, i:{}}, hold:"d",
+         /* A freshly-seeded report is never locked, whatever its source was —
+            see library.js's libSeed(). Set only by checkAutoLock noticing the
+            report has been issued, or by the year-end check; cleared only by
+            a stated override. */
+         locked:false, lockedAt:null, lockedReason:null,
+         // The audit trail of every time a locked report was edited anyway.
+         // Never cleared — see checkAutoLock/overrideUnlock in wire.js.
+         overrides:[],
+         // Whether this version went to members. Lives on S like locked does
+         // now, not in a browser-side index — see libIsIssued in wire.js.
+         issued:false, issuedAt:null};
 const blank = () => { const o={}; COLS.forEach(c=>o[c.k]=Array(S.years).fill(0)); return o; };
 S.g = {gf:blank(), hra:blank()};
 
@@ -2395,10 +2591,69 @@ const $ = id => document.getElementById(id);
  * never said. The bar in the step footer is rebuilt on every step, which would
  * lose the text, so the text is held here and painted into whatever exists. */
 let SAVE_HINT = "";
+/* THE FILE IS THE SAVE NOW; THE BROWSER IS A SAFETY NET.
+ *
+ * Every edit still autosaves here as it always has — closing the tab by
+ * accident should not cost the last few minutes' work — but that autosave
+ * is not what "saved" means to the person using this. Pressing Save, which
+ * writes the JSON file, is. FILE_DIRTY is true from the moment anything
+ * changes until that file write actually happens, and it is what makes the
+ * difference visible: the same line that used to quietly say "saved" now
+ * says, in a colour that does not let it be missed, that it has not been.
+ */
+let FILE_DIRTY = false;
+/* THE FILE SYSTEM ACCESS API — DETECTED ONCE, BRANCHED ON EVERYWHERE SAVE OR
+ * OPEN RUNS. Chromium only (Chrome, Edge); Firefox and Safari have no local
+ * file picker in this API and never will via polyfill, so this stays a
+ * capability check, not an assumption. Also off inside a cross-origin
+ * iframe (window.top !== window.self) even on Chromium — same reasoning as
+ * the DOWNLOADS capability above being iframe-gated: an embedding page's
+ * permissions policy is not ours to promise past. Where FS_ACCESS is false,
+ * Save/Open fall back to exactly what they did before this existed. */
+const FS_ACCESS = typeof window !== "undefined"
+  && "showOpenFilePicker" in window && "showSaveFilePicker" in window
+  && window.self === window.top;
+/* THE LIVE LINK TO A REAL FILE ON DISK, WHERE FS_ACCESS HOLDS ONE. Set by
+ * opening a file or by the first Save of a session (see wire.js); cleared by
+ * applyVersion, on the same reasoning as OVERRIDE_KEY/SCENARIO_KEY there —
+ * a report just loaded is not still linked to whatever file a DIFFERENT
+ * report in this tab was linked to a moment ago. Never persisted: closing
+ * the tab loses the link, same as LIBRARY itself (see library.js) — Open
+ * again relinks it, once, rather than every Save. */
+let FILE_HANDLE = null;
 function saveHint(t){
   SAVE_HINT = t == null ? "" : String(t);
-  const el = $("saved"); if(el) el.textContent = SAVE_HINT;
-  document.querySelectorAll(".navsave").forEach(b => { b.textContent = SAVE_HINT; });
+  const el = $("saved");
+  if(el){ el.textContent = SAVE_HINT; el.classList.toggle("dirty", FILE_DIRTY); }
+  document.querySelectorAll(".navsave").forEach(b => {
+    b.textContent = SAVE_HINT; b.classList.toggle("dirty", FILE_DIRTY); });
+  document.querySelectorAll(".savebtn").forEach(b => b.classList.toggle("dirty", FILE_DIRTY));
+  paintFileStatus();
+}
+/* THE FILENAME, AND WHAT SAVE WILL ACTUALLY DO TO IT — painted wherever the
+ * save state shows (the step 1 file card, every other step's footer bar).
+ * Deliberately separate from SAVE_HINT above: that line rotates (a status
+ * right now, or a confirmation a moment ago); this is a fact that stays
+ * true regardless of what just happened, so folding it into the same
+ * rotating text would make it disappear the moment something else needed
+ * saying. Only the caption depends on FS_ACCESS/FILE_HANDLE — the dirty/
+ * clean word itself (in SAVE_HINT) stays the same wording in every case,
+ * so "unsaved" means one thing everywhere it appears — "Unsaved changes"
+ * here, "unsaved" on the per-report tags in the returns list (see
+ * renderReturnsList in wire.js). */
+function paintFileStatus(){
+  const name = (typeof S !== "undefined" && S.gss && typeof libFileName === "function")
+    ? libFileName() : "";
+  document.querySelectorAll(".filename, .navfile").forEach(el => { el.textContent = name; });
+  const cap = $("filecaption");
+  if(cap) cap.textContent = !name ? ""
+    : FS_ACCESS && FILE_HANDLE ? "Save updates this file directly."
+    : FS_ACCESS ? "Save will ask where to keep this — every Save after updates that same file."
+    : "Saves as a new download each time — this browser can't update a file in place.";
+  // Only worth offering once there is a real link to redirect — before that,
+  // Save itself is the "choose a location" this would otherwise duplicate.
+  const chg = $("filechange");
+  if(chg) chg.hidden = !(name && FS_ACCESS && FILE_HANDLE);
 }
 const esc = s => String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;")
   .replace(/>/g,"&gt;").replace(/"/g,"&quot;");
@@ -2954,6 +3209,8 @@ function buildDraftNow(){
 }
 
 function render(){
+  if(typeof checkAutoLock === "function") checkAutoLock();
+  if(typeof renderLockGate === "function") renderLockGate();
   const c = LB[S.gss];
   /* Marks the document as a demonstration, so the stylesheet can hide the
      clauses that are purely questions for an author. Set from state rather
@@ -10548,67 +10805,114 @@ function underpinningAll(){
  *   performance table. "Monitoring is against strategy" stops being a figure
  *   of speech and becomes the arithmetic.
  *
- * Everything stays in this browser. There is no server to put it on, which is
- * the same reason there is no account — and the same limitation: this is one
- * browser on one machine, and it says so rather than implying a vault.
+ * NOTHING HERE IS STORED. LIBRARY, below, is a plain variable — it lives as
+ * long as the tab does and not one moment longer. What puts something in it
+ * is opening a file; what takes it out again is closing the tab, refreshing,
+ * or simply never having opened one. The file you save to your own machine
+ * is the only copy that outlives this page, which is also why there is no
+ * account and no server: there is nothing here for either of them to hold.
  * ======================================================================== */
-const LIB_INDEX = "lb:index";
-// r1 lives inside the demo function in wire.js, so it is not ours to use.
 const lib1 = v => (v == null || !isFinite(v)) ? null : Math.round(v * 10) / 10;
 const libKey = (gss, report, fy0) => `lb:${gss||"none"}:${report}:${fy0}`;
 
-function libRead(){
-  try { return JSON.parse(localStorage.getItem(LIB_INDEX) || "[]"); }
-  catch(e){ return []; }
-}
-function libWrite(ix){
-  try { localStorage.setItem(LIB_INDEX, JSON.stringify(ix.slice(0, 60))); }
-  catch(e){ /* storage full or refused; the report itself is what matters */ }
-}
+/* THE LIBRARY. One array, one authority's worth of returns at a time in
+ * practice (a file is per-authority), each entry the lightweight facts a
+ * list can be built from PLUS the full body — there is no separate lazy-load
+ * step the way a browser-storage key would need, because keeping the whole
+ * thing in memory costs nothing a modern tab need worry about. Populated by
+ * opening a file (libImport) and kept in step with the report on screen by
+ * libNote, which every save-worthy change already calls. Emptied by nothing
+ * in particular — there is no "clear the library" action, because closing
+ * the tab already does it more completely than any button could. */
+let LIBRARY = [];
+
 /* Newest first, and one entry per authority-report-year: saving again
    replaces rather than accumulates, because "version 7 of the 2026/27
-   strategy" is a thing nobody wants to choose between. */
-function libNote(gss, report, fy0, extra){
-  const ix = libRead().filter(e => e.k !== libKey(gss, report, fy0));
-  ix.unshift(Object.assign({
-    k: libKey(gss, report, fy0), gss, report, fy0,
+   strategy" is a thing nobody wants to choose between. body is cloned in,
+   not aliased — an entry that shared its body object with S would pick up
+   S's next keystroke as its own, the same trap workPayload's own comment
+   warns snapshotPayload against. */
+function libNote(gss, report, fy0, body, extra){
+  const k = libKey(gss, report, fy0);
+  const i = LIBRARY.findIndex(e => e.k === k);
+  const entry = Object.assign({
+    k, gss, report, fy0,
     n: (LB[gss] && LB[gss].n) || S.otherName || "your authority",
-    at: new Date().toISOString(), by: whoAmI()
-  }, extra || {}));
-  libWrite(ix);
+    at: new Date().toISOString(), by: whoAmI(),
+    // See libTouchSaved below — dirty is per ENTRY, not a single flag for
+    // the whole file, because libNote only ever runs for the one report
+    // actually open (S), which is the only one that can have changed.
+    dirty: true
+  }, extra || {}, {body: JSON.parse(JSON.stringify(body))});
+  if(i >= 0) LIBRARY[i] = entry; else LIBRARY.unshift(entry);
 }
-/* And the way back out. Clearing a report has to clear its LINE IN THE INDEX
-   too, or the library goes on offering to reopen something that is no longer
-   there — the offer names a date and an author, so it reads as a real saved
-   version right up to the moment it loads nothing. */
+/* THE MOMENT A SAVE ACTUALLY SUCCEEDS, not the moment something was last
+ * typed. `at`/`by` above answer "when was this last touched in the
+ * browser" — libNote runs on every edit, long before any file exists to
+ * hold it. Once Save genuinely writes the file, every entry for that
+ * authority IS, as of now, exactly what the file holds — the whole file is
+ * rewritten each time (see wire.js's Save handler), never one entry at a
+ * time — so `at`/`by` get the same refresh for all of them, not something
+ * that needs tracking per report.
+ *
+ * `dirty` DOES need tracking per report, and this is where it is cleared —
+ * for every entry, not only the one open when Save was pressed, because a
+ * whole-file write makes ALL of them match the file now, whichever was
+ * actually being typed into. The point of the field: only the report
+ * actually open in this session can ever BECOME dirty again after this
+ * (libNote only ever runs for S.gss/S.report/S.fy0) — every other entry is
+ * exactly what was last loaded or last saved, and saying otherwise, which a
+ * single file-wide flag used to, is what had an untouched, already-saved
+ * report sitting in the list still reading unsaved because some OTHER
+ * report in the same file had a pending edit.
+ *
+ * Called from every successful write path (the FS-Access one, the
+ * DOWNLOADS one, and the plain-download fallback), never on a failed or
+ * cancelled one. */
+function libTouchSaved(gss, who, when){
+  LIBRARY.filter(e => e.gss === gss).forEach(e => { e.at = when; e.by = who; e.dirty = false; });
+}
+/* And the way back out. Clearing a report has to clear its LINE IN THE
+   LIBRARY too, or the picker goes on offering to reopen something that is no
+   longer there — the offer names a date and an author, so it reads as a real
+   saved version right up to the moment it loads nothing. */
 function libForget(gss, report, fy0){
-  libWrite(libRead().filter(e => e.k !== libKey(gss, report, fy0)));
+  LIBRARY = LIBRARY.filter(e => e.k !== libKey(gss, report, fy0));
 }
 
 function libFor(gss){
-  return libRead().filter(e => e.gss === gss);
+  return LIBRARY.filter(e => e.gss === gss);
 }
+/* A COPY OUT, NOT THE LIBRARY'S OWN OBJECT. Same reason libNote clones going
+   in: a caller that read the library's own body and then edited it in place
+   would be editing the library, silently, from three call sites that have no
+   reason to expect that. */
 function libLoad(k){
-  try { return JSON.parse(localStorage.getItem(k) || "null"); }
-  catch(e){ return null; }
+  const e = LIBRARY.find(x => x.k === k);
+  return e ? JSON.parse(JSON.stringify(e.body)) : null;
 }
 
 /* What a saved report would give this one, said before it is taken. A seed
    that silently replaces forty fields is not a convenience, it is a surprise;
-   the offer names the operation and what comes with it. */
+   the offer names the operation and what comes with it.
+   Always a same-type, prior-period entry now — libFill (wire.js) only ever
+   offers one of those in the picker. The old "monitor" half of this — an
+   authorised limit and a budget column, from whichever report happened to
+   be picked — moved to the Strategy-only lookup in libFill/libSeed, which
+   is never a choice: there is exactly one right answer (that year's Annual
+   Strategy) or there is none. Offering it as a pickable option let an
+   Outturn or a Quarterly report stand in as "the strategy" for another
+   report, or — worse — let a report being freshly OPENED as the Strategy
+   itself be offered a "monitor against" source, when nothing has set a
+   budget for it to monitor against yet. */
 function libOffer(e){
   const rep = (REPORTS.find(r => r.k === e.report) || {}).t || e.report;
-  const roll = e.report === S.report;
   return {
-    kind: roll ? "roll" : "monitor",
     label: `${rep} · ${fy(e.fy0)}`,
-    what: roll
-      ? (e.fy0 === S.fy0
-          ? "the same report, saved earlier — everything, unchanged"
-          : `rolled forward ${S.fy0 - e.fy0} year${S.fy0-e.fy0===1?"":"s"}: the grid moves `
-            + `with the years, and the wording, choices, counterparty policy and debt come as they are`)
-      : `what that strategy SET: its authorised limit as the limit approved, and its `
-        + `projected interest and income as your budget column`
+    what: e.fy0 === S.fy0
+      ? "the same report, saved earlier — everything, unchanged"
+      : `rolled forward ${S.fy0 - e.fy0} year${S.fy0-e.fy0===1?"":"s"}: the grid moves `
+        + `with the years, and the wording, choices, counterparty policy and debt come as they are`
   };
 }
 
@@ -10651,81 +10955,140 @@ const LIMIT_POLICY = ["al_approved","ob_approved","exp_fix_max","exp_var_max","i
 const libPolicy = L => LIMIT_POLICY.reduce((o,k) =>
   ((L||{})[k] == null || (L||{})[k] === "" ? o : (o[k] = L[k], o)), {});
 
-function libSeed(k){
-  const d = libLoad(k);
-  if(!d) return {ok:false, note:"That saved report could not be read."};
-  const roll = d.report === S.report;
-  const shift = Math.max(0, S.fy0 - d.fy0);
+/* TWO SOURCES, NEVER CONFLATED.
+ *
+ * rollSrc is a prior version of the SAME report type — Mid-year from
+ * Mid-year, Outturn from Outturn, Strategy from Strategy — and supplies the
+ * wording, choices, counterparty policy and what is held. monSrc is that
+ * YEAR'S Strategy and nothing else, and supplies the authorised limit and
+ * the budget column. Either can be absent; both can be present at once
+ * (rolling a Mid-year review forward from last year's while still measuring
+ * it against this year's Strategy), in which case each supplies only its
+ * own half. This split exists because the two used to travel together —
+ * whichever report was picked supplied both, or neither — which is how an
+ * Outturn ended up labelled "the limit approved" for a Strategy that had
+ * not been written yet, and how a Quarterly report stood in as "the
+ * strategy" for a Mid-year review's budget column. Caller: wire.js's
+ * useItFrom, which resolves the clicked row for one half and the best
+ * available candidate for the other, always as a library key — there is no
+ * upload fallback any more; Open a file already puts a colleague's reports
+ * into the same library this reads from, so a second way to reach the same
+ * data never earned the confusion it cost.
+ *
+ * Each of rollSrc/monSrc is either a library key or, still accepted here
+ * though no current caller passes one, an already-parsed report body — by
+ * the time it reaches here it is just a body either way, and this function
+ * does not care where one came from. */
+function libSeed(rollSrc, monSrc){
+  const rollDoc = !rollSrc ? null : (typeof rollSrc === "string" ? libLoad(rollSrc) : rollSrc);
+  const monDoc = !monSrc ? null : (typeof monSrc === "string" ? libLoad(monSrc) : monSrc);
+  if(!rollDoc && !monDoc) return {ok:false, note:"That saved report could not be read."};
 
-  // Carried either way: the words, the answers, the policy, what is held.
-  S.text = Object.assign({}, d.text || {});
-  // Through the same migration as restoreVersion: a report opened from a file
-  // and one restored from the browser must answer the same questions.
-  if(d.choices) S.choices = (typeof migrateChoices === "function")
-    ? migrateChoices(Object.assign({}, d.choices))
-    : Object.assign({}, d.choices);
-  S.cp = d.cp ? JSON.parse(JSON.stringify(d.cp)) : S.cp;
-  S.loans = (d.loans || []).map(x => Object.assign({}, x));
-  S.portfolio = (d.portfolio || []).map(x => Object.assign({}, x));
-  S.portfolioText = d.portfolioText || ""; S.portfolioNote = d.portfolioNote || "";
+  /* WORDING, CHOICES, POLICY, WHAT IS HELD. From the roll source if there is
+     one. Where there is not — the first Mid-year review this authority has
+     ever built, say — the Strategy stands in, exactly as it always has:
+     better than a blank page, even if it is not itself a prior Mid-year
+     review. */
+  const wd = rollDoc || monDoc;
+  const roll = !!rollDoc;
+  const shift = roll ? Math.max(0, S.fy0 - rollDoc.fy0) : 0;
+
+  /* A SEEDED REPORT IS ALWAYS A FRESH ONE, WHATEVER WAS ON SCREEN A MOMENT
+   * AGO. libSeed only ever writes the fields a source actually supplies, so
+   * a lock and an override history left over from whichever report S held
+   * before this call — the one just rolled forward FROM, still sitting in
+   * memory — would otherwise ride straight through untouched and come out
+   * the other side describing a report that was never itself issued,
+   * overridden, or even saved. Not from wd/monDoc either: a freshly seeded
+   * report starts unlocked regardless of its source's own lock state. */
+  S.locked = false; S.lockedAt = null; S.lockedReason = null; S.overrides = [];
+  S.issued = false; S.issuedAt = null;
+
+  S.text = Object.assign({}, wd.text || {});
+  // Through the same migration as applyVersion: a report opened from a file
+  // and one already open in this session must answer the same questions.
+  if(wd.choices) S.choices = (typeof migrateChoices === "function")
+    ? migrateChoices(Object.assign({}, wd.choices))
+    : Object.assign({}, wd.choices);
+  S.cp = wd.cp ? JSON.parse(JSON.stringify(wd.cp)) : S.cp;
+  S.loans = (wd.loans || []).map(x => Object.assign({}, x));
+  S.portfolio = (wd.portfolio || []).map(x => Object.assign({}, x));
+  S.portfolioText = wd.portfolioText || ""; S.portfolioNote = wd.portfolioNote || "";
   // The maturity ladders are typed, not derived, so they are exactly the kind
   // of work a previous version exists to save doing again.
-  S.mat = d.mat ? JSON.parse(JSON.stringify(d.mat)) : {d:{}, i:{}};
-  S.minliq = d.minliq == null ? S.minliq : d.minliq;
-  S.logo = d.logo || S.logo;
-  S.hra = d.hra || S.hra;
-  S.group = d.group ? JSON.parse(JSON.stringify(d.group)) : (S.group || {});
+  S.mat = wd.mat ? JSON.parse(JSON.stringify(wd.mat)) : {d:{}, i:{}};
+  S.minliq = wd.minliq == null ? S.minliq : wd.minliq;
+  S.logo = wd.logo || S.logo;
+  S.hra = wd.hra || S.hra;
+  S.group = wd.group ? JSON.parse(JSON.stringify(wd.group)) : (S.group || {});
   // The maturity-structure bands are limits members set, not figures from a
   // period, so they carry whichever way this load is going.
-  S.mstruct = d.mstruct ? JSON.parse(JSON.stringify(d.mstruct)) : {};
+  S.mstruct = wd.mstruct ? JSON.parse(JSON.stringify(wd.mstruct)) : {};
   /* The actual year-end does NOT roll forward. Last year's report opened on
      the year before it; this one opens on a year that has since closed, and
      its figures come from a set of accounts we have not seen. Carrying the
      old one would put a two-year-old actual under a heading that says it is
      the most recent. */
-  if(roll && shift) S.actual = {}; else S.actual = d.actual || S.actual || {};
-  S.g = migrateGrid(roll ? libRollGrid(d.g, shift) : d.g, S.years);
+  if(roll && shift) S.actual = {}; else S.actual = wd.actual || S.actual || {};
+  S.g = migrateGrid(roll ? libRollGrid(wd.g, shift) : wd.g, S.years);
 
   let note;
   if(roll){
-    /* A report that looks forward carries no actuals. Rolling last year's
-       outturn figures into this year's report would put a period that has
-       happened under a heading that has not. */
-    // The policy survives; the period does not.
-    S.perf = {}; S.mon = {}; S.limits = libPolicy(d.limits);
     note = shift
-      ? `Rolled forward ${shift} year${shift===1?"":"s"} from ${fy(d.fy0)}. The grid moved with `
+      ? `Rolled forward ${shift} year${shift===1?"":"s"} from ${fy(rollDoc.fy0)}. The grid moved with `
         + `the years; wording, choices, counterparty policy and debt came as they were. `
         + `Actuals were not carried — they belong to a period that has ended.`
-      : `Loaded the ${fy(d.fy0)} version as it was saved.`;
+      : `Loaded the ${fy(rollDoc.fy0)} version as it was saved.`;
   } else {
+    const repName = (REPORTS.find(r => r.k === S.report) || {}).t || "report";
+    note = `There is no earlier ${repName} of your own yet, so wording, choices, counterparty `
+      + `policy and debt were loaded from the ${fy(monDoc.fy0)} strategy instead.`;
+  }
+
+  /* THE APPROVED LIMIT AND THE BUDGET COLUMN. From that year's Strategy
+     alone, whether or not it also supplied the wording above — a Mid-year
+     review rolled forward from last year's Mid-year review still measures
+     against THIS year's strategy, not last year's. A report that looks
+     forward (the Strategy itself, monKey never set for one) or a roll with
+     no Strategy found for this year carries no budget: the policy survives
+     — a maturity structure or exposure ceiling members already set should
+     not vanish — but the period facts do not, and there is nothing yet to
+     measure against. */
+  if(monDoc){
     /* MONITOR AGAINST. This is the one that earns the feature. */
-    const m = buildModel(Object.assign({}, d, {g: migrateGrid(d.g, d.years || S.years)}),
-                         d.hra === "no" ? "gf" : "all");
+    const m = buildModel(Object.assign({}, monDoc, {g: migrateGrid(monDoc.g, monDoc.years || S.years)}),
+                         monDoc.hra === "no" ? "gf" : "all");
     const y0 = m[0] || {};
     /* A strategy that recorded the limit MEMBERS approved beats the one the
        projection derived: the approved figure is the fact, the derived one is
        our arithmetic about it. Which was used is then stated, because the
        message named the derived figure while quietly using the other. */
-    const fromSaved = d.limits && d.limits.al_approved != null;
-    const al = fromSaved ? d.limits.al_approved : lib1(y0.al);
-    S.limits = Object.assign(libPolicy(d.limits), {al_approved: al});
+    const fromSaved = monDoc.limits && monDoc.limits.al_approved != null;
+    const al = fromSaved ? monDoc.limits.al_approved : lib1(y0.al);
+    S.limits = Object.assign(libPolicy(monDoc.limits), {al_approved: al});
     S.perf = S.perf || {};
     const put = (k, v) => { if(v == null) return;
       S.perf[k] = Object.assign({}, S.perf[k], {budget: lib1(v)}); };
     put("intpay", y0.intpay);
     put("intinc", y0.intinc);
     S.perf = Object.assign({}, S.perf);
-    note = `Seeded from the ${fy(d.fy0)} strategy. Its authorised limit of £${m1(al || 0)}m `
+    note += ` Its authorised limit of £${m1(al || 0)}m `
       + `— ${fromSaved ? "the figure recorded as approved" : "derived from its own projection"} `
       + `— is entered as the limit approved, and the interest and income it projected are your `
       + `budget column, so the variances are against what members actually agreed.`;
+  } else {
+    S.perf = {}; S.mon = {}; S.limits = libPolicy(wd.limits);
   }
 
   /* What last year said, kept so this year can be compared with it rather
-     than merely replacing it. Five figures, not a second copy of the grid. */
-  const pm = buildModel(Object.assign({}, d, {g: migrateGrid(d.g, d.years || S.years)}),
-                        d.hra === "no" ? "gf" : "all");
+     than merely replacing it. Five figures, not a second copy of the grid.
+     The Strategy wins when both sources are present: S.limits/S.perf above
+     already reflect it, and "against the strategy" is the more informative
+     comparison for a monitoring report than "against last year's Mid-year
+     review" would be. */
+  const pd = monDoc || rollDoc;
+  const pm = buildModel(Object.assign({}, pd, {g: migrateGrid(pd.g, pd.years || S.years)}),
+                        pd.hra === "no" ? "gf" : "all");
   const p0 = pm[0] || {};
   /* THE APPROVED COLUMN IS THE STRATEGY'S ROW FOR THE YEAR BEING MONITORED,
      WHICH IS NOT ALWAYS ITS FIRST.
@@ -10741,14 +11104,14 @@ function libSeed(k){
    * "what the last report said when it was written", which is a different
    * question and has a different right answer. */
   const pa = pm.find(r => r.fy === S.fy0) || p0;
-  S.prior = {fy0: d.fy0, report: d.report, cfr: p0.cfr, lb: p0.lb, el: p0.el,
+  S.prior = {fy0: pd.fy0, report: pd.report, cfr: p0.cfr, lb: p0.lb, el: p0.el,
              al: p0.al, ntp: p0.ntp,
              indFy: pa.fy,
              ind: {capex: lib1(pa.capex), cfr: lib1(pa.cfr), debt: lib1(pa.el),
                    inv: lib1(pa.ei), lb: lib1(pa.lb),
                    afford: pa.afford == null ? null
                      : Math.round(pa.afford * 100) / 100}};
-  return {ok:true, note, kind: roll ? "roll" : "monitor"};
+  return {ok:true, note, kind: roll ? (monDoc ? "roll+monitor" : "roll") : "monitor"};
 }
 
 /* One line in the draft, where a comparative belongs: beside the figure it
@@ -10787,22 +11150,20 @@ function priorLine(){
 /* ===========================================================================
  * A version as a file, and a version that is finished.
  *
- * WHY A FILE AND NOT A DATABASE. The library holds 20KB a version against
- * 12.8MB of headroom -- 642 reports fit, so capacity was never the problem.
- * What browser storage cannot do is leave the browser: a team of three cannot
- * share a draft, the section 151 officer cannot see what the accountant
- * wrote, a new laptop starts empty, and clearing site data throws away a
- * year of negotiated wording with no warning and nothing to restore from.
+ * WHY A FILE AND NOT A DATABASE. What a server would give the tool — three
+ * people sharing a draft, the section 151 officer seeing what the accountant
+ * wrote, a new laptop starting from where the old one left off — is real,
+ * but it costs the thing the page's first line promises: no account, no
+ * server that sees these figures. It would also make us the controller of
+ * 300 councils' unpublished financial plans, which is a serious undertaking
+ * to enter by accident.
  *
- * A server would fix all of that and cost the thing the page currently
- * promises in its first line -- no account, nothing leaves your browser --
- * which is a real asset against advisers and not one to spend casually. It
- * would also make us the controller of 300 councils' unpublished financial
- * plans, which is a serious undertaking to enter by accident.
- *
- * A file fixes the same three problems and costs none of it. The council puts
- * it on its own network drive, where its retention policy and its backups
- * already apply, and mails it to a colleague like any other working paper.
+ * A file gets the same three things without any of that. The council puts it
+ * on its own network drive, where its retention policy and its backups
+ * already apply, and mails it to a colleague like any other working paper —
+ * and it is the ONLY copy, which is the point: there is nothing quietly
+ * sitting in this browser for a cleared cache or a reinstalled one to lose,
+ * and nothing for this tool to get out of step with.
  *
  * AND A VERSION THAT IS FINISHED IS DIFFERENT FROM ONE THAT IS SAVED. The
  * report that went to committee is the one next year should start from and
@@ -10836,11 +11197,8 @@ function libFileName(){
 
 function libExport(){
   const mine = libFor(S.gss);
-  const versions = mine.map(e => {
-    const raw = localStorage.getItem(e.k);
-    return raw ? {report:e.report, fy0:e.fy0, issued:!!e.issued, at:e.at,
-                  by: e.by || "", body:JSON.parse(raw)} : null;
-  }).filter(Boolean);
+  const versions = mine.map(e => ({report:e.report, fy0:e.fy0, issued:!!e.issued, at:e.at,
+                                    by: e.by || "", body: e.body}));
   return JSON.stringify({
     f: "pwlbreport", v: FILE_V,
     n: (LB[S.gss] || {}).n || S.otherName || "",
@@ -10852,7 +11210,10 @@ function libExport(){
 
 /* Read one back. Refuses anything that is not one of ours rather than
    half-loading it: a file that silently produces an empty report is worse
-   than one that is turned away. */
+   than one that is turned away. Populates the library and hands back which
+   entry is newest, so the caller (wire.js's openLibraryFile) can put it on
+   screen directly — there is no browser copy to write through any more, so
+   there is nothing here for a page reload to pick up. */
 function libImport(text){
   let d;
   try { d = JSON.parse(text); }
@@ -10866,79 +11227,50 @@ function libImport(text){
              : null;
   if(!list || !list.length) return {ok:false, note:"That file contains no reports."};
 
-  const ix = libRead();
-  let n = 0, issued = 0, firstKey = null;
+  let n = 0, issued = 0, first = null;
   list.forEach(x => {
     if(!x || !x.body) return;
     const gss = x.body.gss || d.gss || S.gss;
-    const key = libKey(gss, x.report, x.fy0);
-    try { localStorage.setItem(key, JSON.stringify(x.body)); }
-    catch(e){ return; }
-    const at = ix.findIndex(y => y.k === key);
-    if(at >= 0) ix.splice(at, 1);
+    const k = libKey(gss, x.report, x.fy0);
+    const i = LIBRARY.findIndex(y => y.k === k);
     // Keep whoever saved it; opening someone's file does not make it yours.
-    ix.unshift({k:key, gss, report:x.report, fy0:x.fy0,
-                n: d.n || "your authority", at: x.at || d.at || new Date().toISOString(),
-                by: x.by || d.by || "", issued: !!x.issued, hra: x.body.hra});
+    const entry = {k, gss, report:x.report, fy0:x.fy0,
+                    n: d.n || "your authority", at: x.at || d.at || new Date().toISOString(),
+                    by: x.by || d.by || "", issued: !!x.issued, hra: x.body.hra,
+                    body: x.body};
+    if(i >= 0) LIBRARY[i] = entry; else LIBRARY.unshift(entry);
     n++; if(x.issued) issued++;
-    // list is newest-first (the same order libWrite keeps lb:index in), so the
-    // first body actually written is the one to land on.
-    if(firstKey === null) firstKey = key;
+    // list is newest-first (the file's own save order), so the first body
+    // actually written is the one to land on.
+    if(first === null) first = entry;
   });
-  if(!n) return {ok:false, note:"Nothing in that file could be stored — storage may be full."};
-  libWrite(ix);
-  /* THE REPORT WAS THERE; THE PAGE JUST DID NOT KNOW TO SHOW IT.
-   *
-   * The caller reloads the page right after this returns (openLibraryFile
-   * below), and the page-load restore reads lb:last to decide what to bring
-   * back. saveVersion sets it on every autosave, but this function wrote the
-   * body and the index straight to storage without it — so opening a file in
-   * a browser that had nothing loaded landed on "no authority chosen" with
-   * the whole report sitting correctly in storage underneath, findable only
-   * by someone who knew to open dev tools and look. The generic authority
-   * picker does not get you back to it either: choosing an authority seeds
-   * that authority's real PWLB book fresh, which is a different action from
-   * resuming a specific saved report. */
-  try { localStorage.setItem("lb:last", firstKey); } catch(e){}
-  return {ok:true, n,
+  if(!n) return {ok:false, note:"Nothing in that file could be read."};
+  return {ok:true, n, entry:first, name: d.n,
           note: `Loaded ${n} report${n===1?"":"s"} for ${esc(d.n || "that authority")}`
               + (issued ? `, ${issued} marked as issued` : "")
-              + ". They are in the list above, ready to start from."};
-}
-
-/* Issued: the version that actually went to members. */
-function libIssue(k, on){
-  const ix = libRead();
-  const e = ix.find(x => x.k === k);
-  if(!e) return;
-  e.issued = !!on;
-  e.issuedAt = on ? new Date().toISOString() : null;
-  libWrite(ix);
-}
-function libIsIssued(){
-  const e = libRead().find(x => x.k === libKey(S.gss, S.report, S.fy0));
-  return !!(e && e.issued);
+              + "."};
 }
 
 /* ===========================================================================
  * Whose work is this, and what am I about to lose?
  *
  * Once a file goes on a shared drive, three people have it and the questions
- * change. Not "is it saved" — it always is — but "whose version is this",
- * "what am I replacing", and "whose work am I writing over".
+ * change. Not "is it saved" — that always means the same one thing now,
+ * whether the file was written by this hand or another — but "whose version
+ * is this", "what am I replacing", and "whose work am I writing over".
  *
- * WHAT THIS CAN AND CANNOT DO. Every version now carries who last saved it
- * and when, so a colleague opening the file can see it. What no amount of
- * care here can detect is the concurrent edit: if Jane saves the file at
- * three o'clock and I opened it at ten, my file simply does not contain her
+ * WHAT THIS CAN AND CANNOT DO. Every version carries who last saved it and
+ * when, so a colleague opening the file can see it. What no amount of care
+ * here can detect is the concurrent edit: if Jane saves the file at three
+ * o'clock and I opened it at ten, my file simply does not contain her
  * afternoon. Only a shared server could see that, and we deliberately do not
  * have one. So the tool does the honest half — it shows whose work is in
  * front of you, and says plainly that changes made elsewhere since you opened
  * the file are not in what you are about to write.
  * ======================================================================== */
-const WHO_KEY = "lb:who";
-function whoAmI(){ try { return localStorage.getItem(WHO_KEY) || ""; } catch(e){ return ""; } }
-function setWho(n){ try { localStorage.setItem(WHO_KEY, (n||"").slice(0,60)); } catch(e){} }
+let WHO = "";
+function whoAmI(){ return WHO; }
+function setWho(n){ WHO = (n||"").slice(0,60); }
 const byLine = e => (e && e.by) ? esc(e.by) : "not named";
 function whenLine(iso){
   if(!iso) return "unknown";
@@ -10956,10 +11288,9 @@ function libInspect(text){
              : d.body ? [{report:d.report, fy0:d.fy0, issued:!!d.issued, at:d.at,
                           by:d.by, body:d.body}] : [];
   if(!list.length) return {ok:false, note:"That file contains no reports."};
-  const held = libRead();
   const rows = list.map(x => {
     const gss = (x.body && x.body.gss) || d.gss;
-    const mine = held.find(y => y.k === libKey(gss, x.report, x.fy0));
+    const mine = LIBRARY.find(y => y.k === libKey(gss, x.report, x.fy0));
     const rep = (REPORTS.find(r => r.k === x.report) || {}).t || x.report;
     const fAt = x.at || d.at, mAt = mine && mine.at;
     return {label: `${rep} · ${fy(x.fy0)}`,
@@ -11674,14 +12005,19 @@ function renderNav(){
    * takes back only the panel you are looking at. */
   const bar = document.createElement("div");
   bar.className = "stepbar";
-  bar.innerHTML = `<span class="navsave">${esc(SAVE_HINT)}</span>
+  const dirty = typeof FILE_DIRTY !== "undefined" && FILE_DIRTY;
+  const navFileName = (S.gss && typeof libFileName === "function") ? libFileName() : "";
+  bar.innerHTML = `<span class="navstatus"><span class="navdot" aria-hidden="true"></span>
+      <span class="navfile">${esc(navFileName)}</span>
+      <span class="navsave${dirty ? " dirty" : ""}">${esc(SAVE_HINT)}</span></span>
     <span class="stepacts">
       ${STEP === 0 ? "" : `<button type="button" class="lnk" data-undo
           title="Undo the last change">Undo</button>`}
       ${stepClearable(STEP)
         ? `<button type="button" class="lnk" data-clearstep>Clear this step</button>` : ""}
-      <button type="button" class="lnk" data-savefile>Save to a file</button>
       <button type="button" class="lnk" data-openfile>Open a file</button>
+      <button type="button" class="savebtn${dirty ? " dirty" : ""}"
+        data-savefile>Save</button>
     </span>`;
   nav.appendChild(bar);
 
@@ -12058,50 +12394,52 @@ async function downloadCSV(){
 
 /* ---- save and restore, per version ---------------------------------------
    Keyed on the report type, so a strategy and an outturn for the same council
-   do not overwrite each other. Browser storage only for now: nothing leaves
-   the machine, which is also why two people cannot yet work on one report.  */
+   do not overwrite each other. Nothing here is browser storage — see LIBRARY
+   in library.js — so this key is only ever a way to find an entry already
+   in memory, never a place anything gets written outside it. */
 /* Keyed by YEAR as well as by authority and report. It was not, so the
    2027/28 strategy overwrote the 2026/27 one and there was never a library to
    seed the next report from — only ever the last thing you saved. */
 const KEY = () => libKey(S.gss, S.report, S.fy0);
-const KEY_OLD = () => `lb:${S.gss||"none"}:${S.report}`;
-/* THE BROWSER REMEMBERS. NOBODY SHOULD HAVE TO ASK IT TO.
+/* THE FILE REMEMBERS. THE BROWSER DOES NOT, ANY MORE.
  *
- * There were four controls here — save this version, restore, save to a file,
- * open a file — and between them a mental model nobody should have to hold.
- * The honest one is much smaller:
+ * There were four controls here once — save this version, restore, save to
+ * a file, open a file — with autosave quietly writing the browser the whole
+ * time underneath them, so "saved" meant two different things depending on
+ * which button you meant. The honest, and much smaller, model:
  *
- *   the browser always has your work            (no button)
- *   want it somewhere safe, or shared?          save to a file
- *   want it back, or on another machine?        open the file
+ *   working on it right now?              it lives on this page, nowhere else
+ *   want it kept?                         Save — writes the file
+ *   want to pick it up again, or share it? Open a file
  *
- * So saving is automatic, and "restore" is gone: restoring IS opening the
- * file, which is the same gesture as getting it onto a colleague's machine
- * and needs no separate concept.
- *
- * Debounced, because this runs off render() and render() runs on a keystroke.
+ * So there is no autosave any more, and no "restore" either: this page holds
+ * exactly what you have typed since it last opened a file or was told to
+ * start blank, and not one keystroke more. Debounced, because this runs off
+ * render() and render() runs on a keystroke — the delay is so a burst of
+ * typing settles before the library's copy (see markDirty) is updated, not
+ * so anything reaches storage.
  */
+/* A PENDING WRITE HAS TO BE CANCELLABLE, EXPLICITLY, BY NAME.
+ *
+ * Anything that replaces S wholesale — resetReport, a delete, "Clear this
+ * report" — calls clearTimeout(_auto) first, or this debounced timer would
+ * otherwise fire a moment later and write the state being replaced FROM
+ * back into the library, right over the entry the reset was trying to
+ * remove or blank. A latch that stopped writing in general once existed
+ * here for the same reason; naming the one timer that actually needs
+ * stopping replaced it. */
 let _auto = null;
-/* A LATCH THAT STOPS ANYTHING WRITING. It was raised for the ?reel= mode,
-   which framed the tool on the landing page and would otherwise have saved
-   its demonstration over a real visitor's own draft — same authority, same
-   report type, same year, same key. That mode is gone; the latch is what
-   "Clear this report" sets before it reloads, because autosave runs on a
-   timer and would otherwise write the state back over the key it had just
-   removed. */
-let NO_SAVE = false;
 
 function autoSave(){
-  if(NO_SAVE) return;
   // Before an authority is chosen there is nothing to file it under.
   if(!S.gss) return;
   clearTimeout(_auto);
-  _auto = setTimeout(() => { saveVersion(true); }, 900);
+  _auto = setTimeout(markDirty, 900);
 }
 
 /* THE WHOLE OF A REPORT, IN ONE SHAPE.
  *
- * Built here rather than inline in saveVersion, because three things now need
+ * Built here rather than inline in markDirty, because three things now need
  * it: the autosave, the snapshot taken before a demonstration overwrites
  * everything, and the pristine state captured at boot. A second copy of this
  * list would drift, and the drift is silent — a field missing from one of them
@@ -12117,6 +12455,8 @@ function workPayload(){
       logo:S.logo, logoDemo:S.logoDemo, mstruct:S.mstruct, asAt:S.asAt, minliq:S.minliq, cp:S.cp, prior:S.prior,
       otherName:S.otherName, natOverride:S.natOverride,
       demoSrc:S.demoSrc, demoName:S.demoName, demoKind:S.demoKind,
+      locked:S.locked, lockedAt:S.lockedAt, lockedReason:S.lockedReason, overrides:S.overrides,
+      issued:S.issued, issuedAt:S.issuedAt,
       at:new Date().toISOString()};
 }
 
@@ -12135,25 +12475,45 @@ function snapshotPayload(){
   return JSON.parse(JSON.stringify(workPayload()));
 }
 
-function saveVersion(quiet){
-  // Belt and braces: fillDemo calls this directly, and libNote below writes to
-  // the library index as well. One guard on the timer is not enough.
-  if(NO_SAVE) return;
-  try{
-    localStorage.setItem(KEY(), JSON.stringify(workPayload()));
-    // Saving again does not un-issue what was already issued.
-    libNote(S.gss, S.report, S.fy0, {hra:S.hra, issued: libIsIssued()});
-    localStorage.setItem("lb:last", KEY());
-    if(typeof libFill === "function") libFill();
-    stampSaved(quiet ? "Saved in this browser" : "Saved");
-  }catch(e){ saveHint("Could not save — browser storage is unavailable."); }
+/* KEEPS THE LIBRARY IN STEP WITH THE SCREEN. NOTHING HERE WRITES ANYWHERE
+ * THAT OUTLIVES THE TAB.
+ *
+ * This used to be saveVersion, and it used to write the browser — that write
+ * is what "saved" quietly meant, whatever Save (the file) also did. Now the
+ * only thing that makes a report outlast this page is pressing Save, so this
+ * just keeps LIBRARY (library.js), the returns list and the roll-forward
+ * picker's copy of the current report current — the same job, minus the one
+ * write that made it look safer than it was. FILE_DIRTY is what actually
+ * answers "is this saved": true from here, false only from a completed Save.
+ */
+function markDirty(quiet){
+  // SCENARIO MODE'S ENTIRE GUARANTEE LIVES HERE. Every input handler in the
+  // tool eventually reaches this function, directly or through autoSave's
+  // timer — so this is the one place a promise made on a banner ("nothing
+  // here is saved") can actually be kept, rather than trusted to every
+  // panel that might write a figure. See scenarioActive() above.
+  if(typeof scenarioActive === "function" && scenarioActive()){
+    if(!quiet) saveHint("Exploring what-if changes — nothing here is being saved.");
+    return;
+  }
+  libNote(S.gss, S.report, S.fy0, workPayload(), {hra:S.hra, issued: S.issued,
+    locked:S.locked, lockedAt:S.lockedAt, overrideCount: (S.overrides||[]).length});
+  FILE_DIRTY = true;
+  if(typeof libFill === "function") libFill();
+  // The explanation of WHAT Save does now lives in the file caption (see
+  // paintFileStatus in ui.js), painted once and staying true regardless of
+  // dirty state — this phrase only has to say THAT it needs saving, in the
+  // same words every doc editor already uses for this exact state, and the
+  // same root word the returns list uses for the same state (renderReturnsList).
+  saveHint("Unsaved changes");
 }
 /* A grid saved by an older build carries only the columns that existed then.
    The model reads every column by name, so a missing one is not a missing
-   figure — it is a crash. And restoreVersion's own try/catch swallowed that
-   crash, stamped "Restored", and left a broken page behind: the worst shape a
-   failure can take, because nothing tells anyone. Filling from COLS makes the
-   restore survive this column addition and every future one. */
+   figure — it is a crash. And applyVersion's own try/catch used to swallow
+   that crash and leave a broken page behind with no message at all — the
+   worst shape a failure can take, because nothing tells anyone. Filling
+   from COLS makes the load survive this column addition and every future
+   one. */
 /* THE HRA SPLIT USED TO BE ONE FIGURE, AND IT WAS THE ACTUAL.
  *
  * It is now budget, actual and prior year, so an HRA line has something to be
@@ -12212,20 +12572,20 @@ function migrateGrid(g, years){
    ever filled at a time.
 
    AT MODULE SCOPE, and that is the whole point. It lived inside init() beside
-   the list that uses it, and restoreVersion — a top-level function — reads it
+   the list that uses it, and applyVersion — a top-level function — reads it
    too. A const in another scope is not a syntax error, so node --check passed;
-   it is a ReferenceError at run time, and restoreVersion's try/catch swallowed
-   it. The visible symptom was a restored demonstration with half its state
-   applied and no message at all. */
+   it is a ReferenceError at run time, and applyVersion's own try/catch used to
+   swallow it. The visible symptom was an opened demonstration with half its
+   state applied and no message at all. */
 const DEMO_GSS = "demo";
 
 /* APPLYING ONE, wherever it came from.
  *
- * Split out of restoreVersion so that a payload held in memory can be applied
- * by the same code that applies one read from storage. Two appliers would be
- * two chances to forget a field, and this is the path where forgetting one is
- * worst: restoreVersion's own try/catch used to swallow a half-applied state
- * and leave a broken page with no message. */
+ * One function for every way a payload arrives — opened from a file, picked
+ * from the library, undone, rolled forward — so there is exactly one place
+ * that can forget a field, not one per caller. That used to matter more than
+ * it should have: this function's own try/catch used to swallow a
+ * half-applied state and leave a broken page with no message. */
 function applyVersion(d){
     S.fy0=d.fy0; S.hra=d.hra; S.years=d.years||51; S.loans=d.loans||[];
     S.g=migrateGrid(d.g, d.years||51);
@@ -12255,6 +12615,13 @@ function applyVersion(d){
     // out of the saved payload when the step was added, so saving and
     // restoring silently discarded it.
     S.cp=d.cp||null;
+    S.locked=!!d.locked; S.lockedAt=d.lockedAt||null; S.lockedReason=d.lockedReason||null;
+    S.overrides=Array.isArray(d.overrides)?d.overrides:[];
+    S.issued=!!d.issued; S.issuedAt=d.issuedAt||null;
+    // A report just opened starts protected again, whatever was true of it in
+    // the browser tab that overrode or explored it last — see overrideActive()
+    // and scenarioActive() below.
+    OVERRIDE_KEY=null; SCENARIO_KEY=null;
     $("fy0").value=S.fy0; $("hra").value=S.hra; $("horizon").value=S.years;
     if($("asat")) $("asat").value = S.asAt || MKT.as_at || "";
     if($("minliq")) $("minliq").value = S.minliq==null ? "" : S.minliq;
@@ -12273,26 +12640,234 @@ function applyVersion(d){
     document.dispatchEvent(new CustomEvent("lb:applied"));
 }
 
-function restoreVersion(quiet){
-  try{
-    // Anything saved before the key carried a year lives under the old one.
-    const raw = localStorage.getItem(KEY()) || localStorage.getItem(KEY_OLD());
-    if(!raw){ saveHint("Nothing saved for this authority, report and year yet."); return; }
-    applyVersion(JSON.parse(raw));
-    stampSaved(quiet ? "Picked up where you left off" : "Restored");
-  }catch(e){ saveHint("Could not restore that version."); }
+// Issued lives on S directly now (see workPayload/applyVersion) rather than
+// in a browser-side index entry, so this is just a read of the live state —
+// kept as a function because checkAutoLock and the picker both ask the same
+// question and a rename here should not mean editing three call sites.
+function libIsIssued(){ return !!S.issued; }
+
+/* ===========================================================================
+ * LOCKING. A report that went to members, or whose year is long over, is the
+ * record of what was actually said or actually happened — editing it after
+ * the fact rewrites history nobody else can see was rewritten. So it stops
+ * taking input, the same way a filed return does: still there to read, not
+ * there to change, unless someone says in as many words why they are
+ * changing it anyway.
+ *
+ * TWO TRIGGERS, "ISSUED OR YEAR-END", NEITHER OF THEM A DECISION THE READER
+ * MAKES. Issued is the officer's own act, ticked on step 1. Year-end is the
+ * calendar: nobody has to remember to lock a return, because the clock does
+ * it. The two are handled differently because a TMS and a backward-looking
+ * return are due at opposite ends of their own year — a TMS is meant to be
+ * approved before its year starts, so once that year has itself finished
+ * there is no honest reason still to be drafting it; an Outturn or Mid-year
+ * report is necessarily begun only once its year has already ended, so the
+ * same test would lock it at birth. It gets a year's grace instead, to the
+ * end of the year that follows — long enough for any real committee cycle,
+ * short enough that a return nobody ever issued does not stay open forever.
+ * ======================================================================== */
+/* 31 March, end of day, of the given calendar year — where a UK local
+   authority financial year always ends, whichever nation. */
+const fyEndUTC = y => Date.UTC(y, 2, 31, 23, 59, 59);
+function reportYearEndsAt(){
+  const back = (typeof BACK_REPORTS !== "undefined") ? BACK_REPORTS : ["mid","out","quart"];
+  return fyEndUTC(S.fy0 + (back.includes(S.report) ? 2 : 1));
 }
-function stampSaved(word){
-  const raw = localStorage.getItem(KEY());
-  let when = "";
-  try{ when = new Date(JSON.parse(raw).at).toLocaleString("en-GB",
-    {dateStyle:"medium",timeStyle:"short"}); }catch(e){}
-  /* Plain text through the one hint, so the footer bar on every step shows the
-     same words as the line on step 1. It was already escaping every part it
-     interpolated, so there was nothing here that needed to be markup. */
-  saveHint(`${word} — ${REPORTS.find(r=>r.k===S.report).t}`
-    + (when ? `, ${when}` : "")
-    + ". Save to a file to keep it beyond this browser.");
+function fyHasEnded(){ return Date.now() > reportYearEndsAt(); }
+
+/* Locked automatically; unlocked only by a stated override, and only for the
+   report open right now, and only for as long as this tab has it open —
+   reopening the same report later finds it protected again. A permanent
+   unlock is not an override, it is turning the lock off, and that is not
+   what "correct this one entry" was asked for. */
+let OVERRIDE_KEY = null;
+function overrideActive(){ return OVERRIDE_KEY !== null && OVERRIDE_KEY === KEY(); }
+/* SCENARIO MODE: THE OTHER REASON TO EDIT SOMETHING LOCKED, AND A DIFFERENT
+ * ONE FROM OVERRIDE. Override says the saved record was wrong and corrects
+ * it in place, with a reason kept against it forever. Scenario mode says
+ * the record is right and asks "what if it had been different" — moving a
+ * rate, a balance, a choice, to see what would have followed — and none of
+ * that belongs anywhere near the actual record. So where override writes
+ * through to storage straight away, scenario mode's whole point is that
+ * markDirty() never runs at all while it is on: see the guard at the top
+ * of that function. Leaving the report, reloading the page, or pressing
+ * "Exit scenario mode" all do the same thing — the in-memory scratch is
+ * thrown away and the real saved version is put back — because there is
+ * nothing else to reconcile: nothing was ever written. */
+let SCENARIO_KEY = null;
+function scenarioActive(){ return SCENARIO_KEY !== null && SCENARIO_KEY === KEY(); }
+function exitScenario(){
+  SCENARIO_KEY = null;
+  const body = libLoad(KEY());
+  if(body){ try{ applyVersion(body); }catch(e){} }
+  renderLockGate();
+  saveHint("Scenario changes discarded — this is the saved record again.");
+}
+
+function checkAutoLock(){
+  if(!S.gss || S.locked) return;
+  const issued = typeof libIsIssued === "function" && libIsIssued();
+  if(!issued && !fyHasEnded()) return;
+  S.locked = true;
+  S.lockedAt = new Date().toISOString();
+  S.lockedReason = issued ? "issued" : "year-end";
+  markDirty(true);
+}
+
+const LOCK_GATED_STEPS = [2, 3, 4, 5, 6, 7];   // STEP_CLEARS' own keys, by number
+
+function lockWhySentence(){
+  if(S.lockedReason === "issued") return "It was marked as issued to members";
+  if(S.lockedReason === "year-end") return "Its financial year is long over";
+  return "It is locked";
+}
+function fmtWhen(iso){
+  const d = iso && new Date(iso);
+  return d && isFinite(d) ? d.toLocaleDateString("en-GB",
+    {day:"numeric", month:"short", year:"numeric"}) : "";
+}
+
+function overrideHistoryHTML(){
+  const rows = S.overrides || [];
+  if(!rows.length) return "";
+  return `<details class="overridehist"><summary>${rows.length} earlier correction${
+    rows.length===1?"":"s"} to this locked report</summary>
+    <ul>${rows.map(o => `<li><b>${esc(fmtWhen(o.at) || "")}</b>
+      ${byLine(o)} — ${esc(o.reason || "")}</li>`).join("")}</ul>
+  </details>`;
+}
+function lockGateHTML(){
+  const when = fmtWhen(S.lockedAt);
+  return `<div class="lockmsg">
+    <h3>This report is locked</h3>
+    <p>${esc(lockWhySentence())}${when ? `, ${esc(when)}` : ""}. It stands as the record of
+      what was approved or reported at the time, so this step will not take input.</p>
+    ${overrideHistoryHTML()}
+    <details class="unlockbox"><summary>Unlock to correct an error</summary>
+      <p class="warn">Only for a mistake in what was entered — not for something that has
+        changed since. This does not update any later report already built from this one's
+        original figures; correct that separately too if it matters there.</p>
+      <label for="unlockreason">Why you are unlocking this</label>
+      <textarea id="unlockreason" rows="2"
+        placeholder="e.g. the 2026/27 CFR was mistyped and corrected after issue"></textarea>
+      <div class="ltools" style="margin-top:8px">
+        <button type="button" class="primary" id="unlockgo" disabled>Unlock to correct this report</button>
+      </div>
+    </details>
+    <details class="scenariobox"><summary>Explore what-if changes, without saving them</summary>
+      <p class="warn">For asking "what would this have shown if a figure had been different" —
+        not for fixing a mistake, which is what the correction above is for. <b>Nothing typed
+        here is kept.</b> Leaving this report, reloading the page, or pressing "Exit scenario
+        mode" all throw it away, and the saved record is never touched.</p>
+      <div class="ltools" style="margin-top:8px">
+        <button type="button" class="primary" id="scenariogo">Start exploring — nothing will be saved</button>
+      </div>
+    </details>
+  </div>`;
+}
+function overrideStripHTML(){
+  const latest = (S.overrides || [])[S.overrides.length - 1];
+  return `<b>Editing a locked report.</b> ${latest ? esc(latest.reason) : ""}
+    This will not update any later report already built from the original figures.`;
+}
+function scenarioStripHTML(){
+  return `<b>Exploring what-if changes — nothing here is being saved.</b>
+    Leave this report or reload the page and it is gone; the saved record is untouched.
+    <button type="button" class="libswap" id="scenarioexit">Exit scenario mode</button>`;
+}
+function wireLockGate(banner){
+  const ta = banner.querySelector("#unlockreason"), go = banner.querySelector("#unlockgo");
+  if(ta && go){
+    ta.addEventListener("input", () => { go.disabled = !ta.value.trim(); });
+    go.addEventListener("click", () => {
+      const reason = ta.value.trim();
+      if(!reason) return;
+      if(!confirm("Unlock this locked report to correct it? This is recorded against the "
+        + "report, and will not update any later report already built from it.")) return;
+      OVERRIDE_KEY = KEY(); SCENARIO_KEY = null;
+      S.overrides = S.overrides || [];
+      S.overrides.push({at: new Date().toISOString(), by: whoAmI(), reason});
+      markDirty(true);
+      saveHint("Unlocked to correct — check anything already built from this report's "
+        + "earlier figures, it will not update on its own.");
+      renderLockGate();
+    });
+  }
+  const sg = banner.querySelector("#scenariogo");
+  if(sg) sg.addEventListener("click", () => {
+    if(!confirm("Explore what-if changes to this locked report? Nothing you change will be "
+      + "saved — leaving the report or reloading the page throws it all away.")) return;
+    OVERRIDE_KEY = null; SCENARIO_KEY = KEY();
+    saveHint("Exploring what-if changes — nothing here is being saved.");
+    renderLockGate();
+  });
+}
+/* THE ONE PLACE THAT DECIDES WHAT A LOCK STOPS. Six panels, six different
+   ways of taking input — a grid, a set of checkboxes, free text, an upload.
+   Gating each of them individually is six places to keep in step with
+   whatever the next one adds. This gates the box they all render into
+   instead, so a seventh panel is covered by writing it, not by remembering
+   to wire it in here too. */
+function renderLockGate(){
+  const locked = !!S.locked, overridden = overrideActive(), scenario = scenarioActive();
+  const bypassed = overridden || scenario;
+  const gated1 = locked && !bypassed;
+  /* Step 1 mixes navigation (which authority, which report, which year —
+     always live, or there would be no way off a locked report) with report
+     content of its own (the HRA model, the horizon, the logo, the as-at
+     date). Only the content is gated; picking a different report is never
+     an edit to this one. */
+  ["hra", "horizon", "asat", "logo", "logoclear"].forEach(id => {
+    const el = $(id);
+    if(el) el.disabled = gated1;
+  });
+  LOCK_GATED_STEPS.forEach(n => {
+    const panel = document.querySelector(`.panel[data-step="${n}"]`);
+    const body = panel && panel.querySelector(".pbody");
+    if(!panel || !body) return;
+    let banner = panel.querySelector(".lockbanner");
+    let ostrip = panel.querySelector(".overridestrip");
+    let sstrip = panel.querySelector(".scenariostrip");
+    if(locked && !bypassed){
+      body.inert = true;
+      if(!banner){
+        banner = document.createElement("div");
+        banner.className = "lockbanner";
+        panel.insertBefore(banner, body);
+      }
+      banner.hidden = false;
+      banner.innerHTML = lockGateHTML();
+      wireLockGate(banner);
+      if(ostrip) ostrip.hidden = true;
+      if(sstrip) sstrip.hidden = true;
+    } else {
+      body.inert = false;
+      if(banner) banner.hidden = true;
+      if(locked && scenario){
+        if(!sstrip){
+          sstrip = document.createElement("div");
+          sstrip.className = "scenariostrip";
+          panel.insertBefore(sstrip, body);
+        }
+        sstrip.hidden = false;
+        sstrip.innerHTML = scenarioStripHTML();
+        sstrip.querySelector("#scenarioexit").addEventListener("click", exitScenario);
+        if(ostrip) ostrip.hidden = true;
+      } else if(locked && overridden){
+        if(!ostrip){
+          ostrip = document.createElement("div");
+          ostrip.className = "overridestrip";
+          panel.insertBefore(ostrip, body);
+        }
+        ostrip.hidden = false;
+        ostrip.innerHTML = overrideStripHTML();
+        if(sstrip) sstrip.hidden = true;
+      } else {
+        if(ostrip) ostrip.hidden = true;
+        if(sstrip) sstrip.hidden = true;
+      }
+    }
+  });
 }
 
 /* CLEAR ONE STEP, NOT THE WHOLE REPORT.
@@ -12412,6 +12987,17 @@ function undoPaint(){
    * genuinely the empty state and not somebody's saved work. */
   const PRISTINE = snapshotPayload();
   let PRE_DEMO = null;
+  /* APPLYVERSION ALIASES, IT DOES NOT COPY: `S.text = d.text || {}` (and the
+   * same for S.g, S.choices, S.limits, ...) POINTS S at the object living
+   * inside whatever payload was passed, it does not clone it. Fine for the
+   * usual callers, which hand over a JSON.parse(raw) made fresh for that one
+   * call and never touched again. PRISTINE is not that — it is one object
+   * reused every time a report gets reset to blank, and the first reset
+   * already makes S.text literally BE PRISTINE.text. Type one letter after
+   * that and PRISTINE is permanently poisoned with it, silently, for the
+   * rest of the session: the next "blank" report comes back holding
+   * whatever the previous one had typed. Clone before every reuse. */
+  const resetReport = payload => applyVersion(JSON.parse(JSON.stringify(payload)));
   const keys=Object.keys(LB).sort((a,b)=>LB[a].n.localeCompare(LB[b].n));
   /* ANYONE WHO WRITES THIS REPORT SHOULD BE ABLE TO USE THIS.
    *
@@ -12549,15 +13135,39 @@ function undoPaint(){
       fillDemo(e.target.value.slice(5));
       return;
     }
-    // Leaving a demonstration: see the note above the handler.
-    if(S.gss === DEMO_GSS){
-      const theirs = hasWork();
-      if(!theirs || confirm("Start a clean report for "
-          + ((LB[e.target.value] || {}).n || "this authority") + "?\n\n"
+    /* SWITCHING AUTHORITY BLANKS THE REPORT; IT DOES NOT CARRY ONE ACROSS.
+     *
+     * Nothing here loads the new authority's own saved report — that is what
+     * "Use it" and the returns list are for. Before this, nothing here reset
+     * S.text/S.g/S.choices/S.limits/etc. either, so whatever was on screen
+     * for the LAST authority silently became the new one's report, word for
+     * word and figure for figure — a real risk of one council's committee
+     * paper carrying another's wording. resetReport(PRISTINE) is the same
+     * whole-payload reset used everywhere else a report needs to genuinely
+     * start over, not a second, drifting list of fields to clear.
+     *
+     * Leaving a demonstration keeps its own path: PRE_DEMO exists
+     * specifically to bring back what was really being worked on before the
+     * demonstration covered it, which "blank" would wrongly discard too. */
+    const leavingDemo = S.gss === DEMO_GSS;
+    if(hasTypedWork()){
+      const who = (LB[e.target.value] || {}).n || "this authority";
+      const msg = leavingDemo
+        ? "Start a clean report for " + who + "?\n\n"
           + "Your changes to the demonstration would be discarded. "
-          + "Cancel to carry them across instead."))
-        applyVersion(PRE_DEMO || PRISTINE);
+          + "Cancel to carry them across instead."
+        : "Switch to " + who + "?\n\n"
+          + "What is on screen now would be cleared — it is held in this browser only, "
+          + "not saved to a file. Save to a file first if you want to keep it, or Cancel "
+          + "to stay here.";
+      if(!confirm(msg)){ e.target.value = councilValue(); return; }
     }
+    resetReport(leavingDemo ? (PRE_DEMO || PRISTINE) : PRISTINE);
+    // A different authority is a different file, whatever was linked a
+    // moment ago — see FILE_HANDLE's own comment in ui.js. Report-type
+    // switches and roll-forwards never reach this line, so the link
+    // survives exactly the operations that stay within one authority.
+    FILE_HANDLE = null;
     S.gss=e.target.value; const c=LB[S.gss];
     S.loans=S.loans.filter(l=>!l.pwlb);
     // No PWLB row for a body whose book we do not hold: a line saying "PWLB
@@ -12572,8 +13182,12 @@ function undoPaint(){
        dropped on the way out instead. */
     if(S.logoDemo){ S.logo = null; S.logoDemo = false; }
     logoRow();
+    // applyVersion above already reset locked/lockedAt/lockedReason/overrides
+    // along with everything else; render() re-evaluates the new authority's
+    // own lock state from its own saved data immediately, rather than
+    // leaving the banner showing what was true a moment ago.
     otherShown(); renationaliseText(); loanRows(); applyLoans(); renderSections(); libFill();
-    $("issued").checked = libIsIssued(); });
+    $("issued").checked = libIsIssued(); render(); });
   /* RE-PICKING THE DEMONSTRATION YOU ARE ALREADY ON.
   
      The control shows the demonstration that is loaded, which is the truth.
@@ -12596,17 +13210,17 @@ function undoPaint(){
     if(e.target.value === "") e.target.value = councilValue();
   });
   /* START AGAIN.
-  
-     RELOADING RATHER THAN RESETTING THE STATE BY HAND. S has some forty keys
-     and the blank value of each is written in one place, in ui.js. Listing
-     them again here would be a second copy that drifts — and the first field
-     somebody adds without remembering this handler is a field that survives a
-     reset, which is worse than no reset at all. Clearing the two storage keys
-     and reloading gets the real initial state, whatever it is that day.
-  
-     NO_SAVE first, because autosave runs on a timer and on the way out: it
-     would otherwise write the state back over the key between the click and
-     the reload, and the report would come back from the dead. */
+
+     resetReport(PRISTINE) IS THE SAME WHOLE-PAYLOAD RESET the authority,
+     report and year pickers already use, rather than a second, hand-kept
+     list of forty fields to blank — the first field somebody adds without
+     remembering this handler is a field that would survive a reset built
+     that way, which is worse than no reset at all.
+
+     No reload needed: there is nothing in the browser for a reload to clear
+     out from under this any more, so the reset can just happen in place. A
+     pending debounced write is cleared first regardless, since it would
+     otherwise land a moment later and put the library entry straight back. */
   const rst = $("resetall");
   if(rst) rst.addEventListener("click", () => {
     const who = (LB[S.gss] || {}).n || S.otherName || "this authority";
@@ -12614,20 +13228,62 @@ function undoPaint(){
       + ((REPORTS.find(r => r.k === S.report) || {}).t || S.report) + ", " + fy(S.fy0)
       + "?\n\nEvery figure, answer and paragraph goes, and this cannot be undone here. "
       + "Files you have saved to your own machine are not touched.")) return;
-    NO_SAVE = true;
-    try{
-      localStorage.removeItem(KEY());
-      localStorage.removeItem(KEY_OLD());
-      if(typeof libForget === "function") libForget(S.gss, S.report, S.fy0);
-    }catch(_){}
-    location.reload();
+    clearTimeout(_auto);
+    libForget(S.gss, S.report, S.fy0);
+    resetReport(PRISTINE);
+    // "RETURNS YOU TO A BLANK FORM" — the button's own words, above, meant
+    // the authority too, not only its content. Left selected, seedHoldings()
+    // below pulls that authority's REAL published PWLB total straight back
+    // into "What you hold" — c.o from its own record, not anything typed —
+    // so the step read as still holding the old report's figures even though
+    // every other step had genuinely gone blank. Deselecting first is what
+    // makes that reseed a true blank template instead: seedHoldings() reads
+    // LB[S.gss], and with no authority there is nothing for it to pull.
+    S.gss = ""; $("council").value = "";
+    // Same authority-switch reset the council picker's own handler runs —
+    // otherShown() is what syncs #otherreg's visible value (and the
+    // otherbox/otherregbox pair's hidden state) from S.natOverride/S.otherName.
+    // Missing here meant S.natOverride cleared correctly but the "Which
+    // regime" dropdown itself kept showing whatever was chosen before, for
+    // as long as it stayed hidden — visible again the moment "Other" was
+    // picked, pre-filled with an answer nobody had just given it.
+    otherShown();
+    seedHoldings();
+    fundTabs(); buildLedger(); loanRows(); applyLoans(); countClauses();
+    if(typeof cpRender === "function") cpRender();
+    renderSections(); render(); libFill();
+    $("issued").checked = libIsIssued();
+    saveHint("Cleared. Files you have saved to your own machine are not touched.");
   });
 
   $("othername").addEventListener("input", e=>{
     LB.other.n = e.target.value.trim(); S.otherName = LB.other.n; render(); });
   $("otherreg").addEventListener("change", e=>{
     S.natOverride = e.target.value; renationaliseText(); renderSections(); render(); });
-  $("rtype").addEventListener("change", e=>{ S.report=e.target.value;
+  $("rtype").addEventListener("change", e=>{
+    /* SAME FIX AS THE AUTHORITY PICKER, FOR A CHANGED REPORT TYPE. Not for a
+       demonstration, though: the demo's figures are one generated dataset
+       shown through whichever report type is selected, not a separate saved
+       report per type, and fillDemo never re-fills on a report-type change —
+       blanking here would just erase the demonstration under its own reader. */
+    if(S.gss !== DEMO_GSS){
+      if(hasTypedWork()){
+        const repName = (REPORTS.find(r=>r.k===e.target.value)||{}).t || "this report";
+        if(!confirm("Switch to " + repName + "?\n\n"
+            + "What is on screen now would be cleared — it is held in this browser only, "
+            + "not saved to a file. Save to a file first if you want to keep it, or Cancel "
+            + "to stay here.")){
+          e.target.value = S.report; return;
+        }
+      }
+      resetReport(PRISTINE);
+      // PRISTINE has no authority, so no PWLB debt either — but the
+      // authority itself has not changed, and its loan book is a fact about
+      // it, not about which report is open. Re-seed it, same as the
+      // authority picker does when there is nothing there to protect.
+      seedHoldings();
+    }
+    S.report=e.target.value;
     saveHint(""); renderSections(); render(); libFill(); });
   // The report's as-at date. Defaults to the data we hold, and is free to be
   // moved either side of it.
@@ -12649,12 +13305,42 @@ function undoPaint(){
     renderSections(); render();
   });
 
-  $("fy0").addEventListener("change", e=>{ S.fy0=+e.target.value;
-    buildLedger(); loanRows(); applyLoans(); libFill(); });
+  $("fy0").addEventListener("change", e=>{
+    // SAME FIX AS THE AUTHORITY PICKER, FOR A CHANGED YEAR. (gss, report,
+    // fy0) together are the key a saved report lives under — see libKey — so
+    // a different fy0 is as much a different report as a different
+    // authority or report type is, and gets the same treatment, demo
+    // exemption included.
+    //
+    // CAPTURED BEFORE THE RESET, NOT READ FROM e.target AFTER IT. applyVersion
+    // (inside resetReport) sets $("fy0").value = S.fy0 as part of restoring
+    // fy0/hra/horizon — the very same <select> this handler is reading. Read
+    // e.target.value after that call and it is not what the user just chose
+    // any more, it is whatever PRISTINE's own fy0 is — so the switch silently
+    // landed on the wrong year with no confirm, no cancel, nothing to see.
+    const chosen = e.target.value;
+    if(S.gss !== DEMO_GSS){
+      if(hasTypedWork()){
+        const yr = fy(+chosen);
+        if(!confirm("Switch to " + yr + "?\n\n"
+            + "What is on screen now would be cleared — it is held in this browser only, "
+            + "not saved to a file. Save to a file first if you want to keep it, or Cancel "
+            + "to stay here.")){
+          e.target.value = String(S.fy0); return;
+        }
+      }
+      resetReport(PRISTINE);
+      // Same reason as the report-type picker just above: the authority has
+      // not changed, only the year, so its loan book is re-seeded rather
+      // than left blank by a reset built for a fresh authority.
+      seedHoldings();
+    }
+    S.fy0=+chosen; e.target.value = chosen;
+    buildLedger(); loanRows(); applyLoans(); libFill(); render(); });
   $("hra").addEventListener("change", e=>{ S.hra=e.target.value; fundTabs(); render(); });
-  // The logo is read into a data URI and kept in browser storage with the
-  // rest of the version, so it survives a save and travels inside the exported
-  // file rather than as a link to somewhere that may not resolve.
+  // The logo is read into a data URI and kept on S with the rest of the
+  // report, so it travels inside the exported file rather than as a link
+  // to somewhere that may not resolve.
   $("logo").addEventListener("change", e=>{
     const f=e.target.files && e.target.files[0]; if(!f) return;
     if(f.size > 512*1024){
@@ -12927,15 +13613,46 @@ function undoPaint(){
       return Object.keys(g).some(k => (g[k] || []).some(v => v));
     });
   }
+  /* THE SAME QUESTION, WITHOUT THE ONE ANSWER THAT IS ALWAYS YES.
+   *
+   * hasWork() treats any S.cp as work — right for a demo-to-demo switch,
+   * where a filled counterparty policy really does mean the demonstration
+   * did something. But counterparty.js seeds S.cp with a minimal default the
+   * moment the counterparty panel first renders (`if(!S.cp) S.cp = {...}`),
+   * which happens during boot, before any authority is even chosen. So
+   * S.cp is truthy for every reader from the moment the page finishes
+   * loading, for the whole session — hasWork() has always said "yes" to
+   * that alone. Harmless for the rare demo switch it was written to guard;
+   * useless as a guard on something that happens on every authority, report
+   * and year change, which is what switching to blank a report needs. This
+   * asks the same question a different way: has any counterparty SECTOR
+   * actually been turned on, which is the one part of a freshly-seeded S.cp
+   * that a default never sets. */
+  function hasTypedWork(){
+    if(S.demoStamp && S.demoStamp === workFingerprint()) return false;
+    const someAmt = a => (a || []).some(x => x && x.amt && !x.pwlb);
+    if(someAmt(S.loans) || someAmt(S.portfolio)) return true;
+    if(Object.keys(S.text || {}).some(k => (S.text[k] || "").trim())) return true;
+    if(Object.keys(S.limits || {}).some(k => S.limits[k])) return true;
+    if(Object.keys(S.perf || {}).length) return true;
+    if(Object.keys((S.cp && S.cp.sec) || {}).length) return true;
+    if(S.group && S.group.on) return true;
+    const m2 = S.mat || {};
+    if(["d","i"].some(w => Object.keys(m2[w] || {}).some(k => m2[w][k]))) return true;
+    return ["gf","hra"].some(f => {
+      const g = (S.g || {})[f] || {};
+      return Object.keys(g).some(k => (g[k] || []).some(v => v));
+    });
+  }
 
   function fillDemo(which){
-    /* AUTOSAVE MADE THIS DESTRUCTIVE. Filling a demonstration replaces every
-       figure and every paragraph, and with nothing to press afterwards the
-       replacement is now written to the browser a second later. Ask once, and
-       only where there is actually saved work to lose. */
-    const held = S.gss && localStorage.getItem(KEY()) && hasWork();
+    /* THIS IS DESTRUCTIVE AND THERE IS NO UNDO PATH BACK FROM IT. Filling a
+       demonstration replaces every figure and every paragraph, straight into
+       the page you are looking at, with no separate "save" step to have
+       skipped. Ask once, and only where there is actually work to lose. */
+    const held = S.gss && hasWork();
     if(held && !confirm("This replaces everything with a demonstration authority, "
-      + "including work already saved in this browser. Save to a file first if you "
+      + "including work you have not saved to a file. Save to a file first if you "
       + "want to keep it.\n\nFill the demonstration?")){
       $("council").value = councilValue(); return;
     }
@@ -12943,6 +13660,10 @@ function undoPaint(){
        put it back. Only on the way IN: filling a second demonstration must not
        overwrite the real report the first one covered up. */
     if(S.gss !== DEMO_GSS) PRE_DEMO = snapshotPayload();
+    // A demonstration is not the file that was open a moment ago — if the
+    // confirm above was accepted, whatever was linked stays linked to the
+    // (now-discarded) real report, not to demo data. See FILE_HANDLE in ui.js.
+    FILE_HANDLE = null;
 
     const D = DEMOS[which];
     /* THE FIGURES ARE A REAL AUTHORITY'S. THE NAME IS NOT.
@@ -13042,6 +13763,13 @@ function undoPaint(){
        teaches the reader to expect one. */
     S.mstruct = {u12:{lo:0, hi:25}, m24:{lo:0, hi:25}, y5:{lo:0, hi:50},
                  y10:{lo:0, hi:75}, y10p:{lo:0, hi:100}};
+    /* THE SAME BUG THIS SECTION'S OWN COMMENT ALREADY WARNS ABOUT, FOR A
+       NEWER FIELD. A demonstration is not a real authority's locked, once-
+       corrected report — but fillDemo only ever writes the fields it builds,
+       and a lock plus an override history left over from whatever report was
+       on screen a moment ago would otherwise walk straight into a
+       demonstration that was never itself issued or corrected. */
+    S.locked = false; S.lockedAt = null; S.lockedReason = null; S.overrides = [];
     /* LOBOs are the defensible call to treat as variable — until the option
        is exercised the rate is fixed, but it is what could reprice at short
        notice, which is the question the indicator asks. */
@@ -13386,40 +14114,305 @@ function undoPaint(){
      would do. Refreshed whenever the authority, the report or the year
      changes, because all three decide which saved reports are relevant and
      which of the two seedings applies. */
-  function libFill(){
-    const box = $("libbox"), pick = $("libpick");
-    if(!box || !pick) return;
-    /* An issued version is offered ahead of a working save of the same
-       report: the one that went to members is the one to start from. */
-    const mine = libFor(S.gss).filter(e => !(e.report === S.report && e.fy0 === S.fy0))
-      .sort((a,b) => (b.issued?1:0) - (a.issued?1:0));
-    box.hidden = !mine.length;
-    if(!mine.length){ $("libwhat").textContent = ""; return; }
-    pick.innerHTML = mine.map(e =>
-      `<option value="${esc(e.k)}">${esc(libOffer(e).label)}${
-        e.issued ? " · issued" : ""}</option>`).join("");
-    libSay();
+  /* The Strategy for the year being built — never offered as a pick, because
+     there is exactly one right answer or there is none. */
+  const libMonEntry = () => S.report === "tmss" ? null
+    : libFor(S.gss).find(e => e.report === "tmss" && e.fy0 === S.fy0);
+  function libFill(){ renderReturnsList(); }
+  /* EVERY RETURN HELD FOR THIS AUTHORITY — ONE TABLE FOR EVERYTHING IT CAN
+   * DO: reference every one of them, delete one, and, only on the rows that
+   * are actually a valid source for what is open right now, "Use it".
+   *
+   * ONE TABLE, NOT TWO. This used to be a separate "Bring in your figures"
+   * card above this one — a dropdown of roll-forward candidates, a "Use it"
+   * button below it, and an "upload a colleague's file instead" escape
+   * hatch duplicated for both the roll source and the monitor source. Four
+   * things on screen for what is really one question: which of the reports
+   * already here is worth pulling from. Folding the picker into the list
+   * means the candidates are exactly whichever rows already show, and the
+   * upload escape hatch — never well understood, and redundant with Open a
+   * file, which already puts a colleague's reports into this same table —
+   * is gone rather than hidden.
+   *
+   * SUITABILITY IS THE SAME RULE THE OLD DROPDOWN FILTERED BY, just read per
+   * row instead of built into one list: a roll-forward candidate is the
+   * SAME report type, strictly an EARLIER year — the one whose wording is
+   * actually relevant, and only ever looking backward, because "roll
+   * forward" describes the direction the years move, not just that the
+   * years differ. Without the fy0 < S.fy0 half of this, opening 2027/28
+   * then coming back to 2026/27 would offer 2027/28 as something to roll
+   * 2026/27 forward FROM — a later, possibly-still-blank year standing in
+   * as an earlier one's wording source. A monitor candidate is THIS year's
+   * Annual Strategy and nothing else (libMonEntry), and there is at most
+   * one. Neither is offered on the report already open — it is not a
+   * source for itself. */
+  function renderReturnsList(){
+    const host = $("retlist");
+    if(!host) return;
+    const all = S.gss ? libFor(S.gss).slice()
+      .sort((a,b) => (b.fy0 - a.fy0) || String(a.report).localeCompare(b.report)) : [];
+    host.hidden = all.length === 0;
+    if(!all.length){ host.innerHTML = ""; return; }
+    const curKey = KEY();
+    const monEntry = libMonEntry();
+    host.innerHTML = `<div class="retcard">
+      <div class="rethead">Reports in this file
+        <p>What's currently loaded &mdash; from the file you opened, plus anything written since.
+          &ldquo;Use it&rdquo; appears only where a report is an actual match for what's open now.</p>
+      </div>
+      <div class="retrows">${all.map(e => {
+        const repName = (REPORTS.find(r=>r.k===e.report)||{}).t || e.report;
+        const cur = e.k === curKey;
+        /* "draft" stays the CSS class name for the unsaved case (unchanged
+         * styling hook) — the WORD shown is "unsaved", the same root word
+         * the file-status strip's "Unsaved changes" uses for the same state
+         * (see paintFileStatus/markDirty), so one state has one name
+         * wherever it shows. Kept to one word here, matching every other
+         * tag in this list (saved / issued / locked) — the strip has the
+         * room to spell it out, a table cell does not.
+         *
+         * PER ENTRY, NOT THE WHOLE-FILE FLAG — see libNote/libTouchSaved in
+         * library.js. Only the report actually open can ever be dirty in a
+         * given session, so e.dirty is what says whether THIS row's content
+         * has been written to the file since it last changed; FILE_DIRTY is
+         * a different, correct-for-its-own-purpose question ("does the file
+         * need saving at all") used by the header strip, not this table —
+         * using it here read an untouched, already-saved report as unsaved
+         * whenever some OTHER report in the file had a pending edit. */
+        const status = e.locked ? "locked" : (e.issued ? "issued" : (e.dirty ? "draft" : "saved"));
+        const statusWord = status === "draft" ? "unsaved" : status;
+        const whoWhen = `${status === "draft" ? "Last edited" : "Last saved"} by ${esc(byLine(e))}, ${esc(whenLine(e.at))}`;
+        const isRoll = !cur && e.report === S.report && e.fy0 < S.fy0;
+        const isMon = !cur && monEntry && e.k === monEntry.k;
+        const useTitle = isRoll ? esc(libOffer(e).what)
+          : isMon ? "Sets the authorised limit and budget column from this strategy" : "";
+        return `<div class="retrow ${cur?"cur":""}">
+          <span class="retmain">${esc(repName)} &middot; ${esc(fy(e.fy0))}${
+            cur?' <span class="retnow">open now</span>':""}
+            <span class="retst ${status}">${statusWord}</span>${e.overrideCount
+              ? ` <span class="retst corrected" title="Edited after locking, ${e.overrideCount} time${
+                  e.overrideCount===1?"":"s"} — open it to see why">corrected</span>` : ""}</span>
+          <span class="retwho">${whoWhen}</span>
+          <span class="retacts">
+            ${isRoll ? `<button type="button" class="usebtn" data-use="${esc(e.k)}"
+                data-role="roll" title="${useTitle}">Use it &mdash; roll forward</button>` : ""}
+            ${isMon ? `<button type="button" class="usebtn mon" data-use="${esc(e.k)}"
+                data-role="mon" title="${useTitle}">Use it &mdash; monitor against</button>` : ""}
+            <button type="button" class="retdel" data-k="${esc(e.k)}"
+              ${e.locked ? "disabled" : ""}
+              title="${e.locked ? "A locked report cannot be deleted" : ""}">Delete</button>
+          </span>
+        </div>`;
+      }).join("")}</div>
+    </div>`;
+    host.querySelectorAll(".retdel").forEach(b => {
+      if(b.disabled) return;
+      b.addEventListener("click", () => {
+        const k = b.dataset.k;
+        const e = libFor(S.gss).find(x => x.k === k);
+        if(!e || e.locked) return;
+        const repName = (REPORTS.find(r=>r.k===e.report)||{}).t || e.report;
+        const wasCurrent = k === curKey;
+        ask(`Delete the ${repName} · ${fy(e.fy0)}`,
+          `<p>This takes it out of what is open right now — there is no undo, and no copy
+             kept anywhere unless you already saved one to a file.</p>
+           ${askRows([{label: `${esc(repName)} · ${fy(e.fy0)}`,
+             line: `last saved by ${byLine(e)}, ${whenLine(e.at)}`, tag: "", tagText: ""}])}
+           ${wasCurrent ? `<p><b>This is the report open right now.</b> Deleting it clears
+             this step back to blank.</p>` : ""}`,
+          "Delete it", () => {
+            // A pending debounced write from before the delete would otherwise
+            // land a moment later and put this exact entry straight back.
+            clearTimeout(_auto);
+            libForget(e.gss, e.report, e.fy0);
+            if(wasCurrent){
+              resetReport(PRISTINE);
+              renderReturnsList();
+              saveHint(`Deleted ${repName} · ${fy(e.fy0)}. This step is now blank.`);
+            } else {
+              renderReturnsList();
+              FILE_DIRTY = true;
+              saveHint(`Deleted ${repName} · ${fy(e.fy0)}.`);
+            }
+          });
+      });
+    });
+    host.querySelectorAll(".usebtn").forEach(b => {
+      b.addEventListener("click", () => useItFrom(b.dataset.use, b.dataset.role));
+    });
   }
-  function libSay(){
-    const e = libFor(S.gss).find(x => x.k === $("libpick").value);
-    $("libwhat").innerHTML = e ? esc(libOffer(e).what) : "";
-  }
-  $("libpick").addEventListener("change", libSay);
-  $("libgo").addEventListener("click", ()=>{
-    const r = libSeed($("libpick").value);
+  /* THE ONE ACTION BEHIND EVERY "USE IT" BUTTON, whichever row it was
+   * clicked from. libSeed takes both halves — rolled wording and the
+   * monitor budget — in one call, because they are not two things applied
+   * one after another, they are one report's starting point (see the note
+   * above libSeed itself on why the two are tracked separately but always
+   * seeded together). So whichever row supplied the click, the OTHER half
+   * is filled in automatically from the best candidate for it — the same
+   * issued-first choice libFill used to make for the roll dropdown — so
+   * every "Use it" button gives the same complete result the old
+   * dropdown-plus-button combination always did, never just half of it. */
+  function useItFrom(key, role){
+    const monEntry = libMonEntry();
+    let rollSrc, monSrc;
+    if(role === "roll"){
+      rollSrc = key;
+      monSrc = monEntry ? monEntry.k : null;
+    } else {
+      monSrc = key;
+      const candidates = libFor(S.gss)
+        .filter(e => e.report === S.report && e.fy0 < S.fy0)
+        .sort((a,b) => (b.issued?1:0) - (a.issued?1:0));
+      rollSrc = candidates.length ? candidates[0].k : null;
+    }
+    const r = libSeed(rollSrc, monSrc);
     if(!r.ok){ saveHint(r.note); return; }
     $("hra").value = S.hra;
     if($("minliq")) $("minliq").value = S.minliq == null ? "" : S.minliq;
     fundTabs(); buildLedger(); loanRows(); countClauses();
     if(typeof cpRender === "function") cpRender();
-    renderSections(); render();
+    renderSections(); render(); renderReturnsList();
     saveHint(r.note);
-  });
+  }
   window.libFill = libFill;
 
   /* A version as a file: the council's own network drive, its own retention
-     policy, its own backups — and a colleague can open it. */
+     policy, its own backups — and a colleague can open it.
+
+     THREE WAYS THIS CAN ACTUALLY WRITE, IN PRIORITY ORDER, and the dialog
+     below has to describe whichever one is about to run rather than one
+     blended story — updating a file in place, choosing where a new link will
+     live, and downloading a fresh copy every time are three different things
+     to tell someone about to click a button:
+       1. FS_ACCESS + FILE_HANDLE — a real file already opened or already
+          saved to this session. Writes straight back to it. No new filename,
+          no pile of copies.
+       2. FS_ACCESS, nothing linked yet — showSaveFilePicker() once, to ask
+          where it should live, and keeps the handle it returns for every
+          Save after this one in the same tab.
+       3. Neither — Firefox, Safari, or this tool run from a file:// URL:
+          exactly what Save always did, an anonymous download that a browser
+          will not silently overwrite, hence the "-2", "-3" warning. */
+  /* A HANG IS ITS OWN KIND OF FAILURE, AND THE WORST ONE HERE: getFile(),
+   * queryPermission() and createWritable() are all promises, and if the
+   * browser's own file layer stalls resolving one of them — a moved file on
+   * a network share that is still being resolved, a permission re-check
+   * that never comes back — nothing downstream ever reaches a catch block.
+   * Save would just sit there having visibly done nothing, which is worse
+   * than any wrong message, because there is no message at all. Racing the
+   * real attempt against a plain timer means something always answers. */
+  function withTimeout(promise, ms){
+    let t;
+    const timer = new Promise((_, reject) => { t = setTimeout(
+      () => reject(Object.assign(new Error("timed out"), {name: "TimeoutError"})), ms); });
+    // Cleared either way: an unresolved timer left running past a real
+    // resolution would reject, later, into nothing listening for it —
+    // a spurious unhandled-rejection warning over a race already decided.
+    return Promise.race([promise, timer]).finally(() => clearTimeout(t));
+  }
+  async function writeToHandle(handle, data){
+    /* CHECKED BEFORE ANYTHING IS WRITTEN, NOT AFTER: Chromium's handle is
+     * bound to the PATH it was granted at, not to the file entry itself —
+     * confirmed the hard way, not assumed. So a file moved out from under a
+     * held handle does not make createWritable() fail; createWritable() is a
+     * write-mode open, and like most of those, it creates whatever is
+     * missing rather than refusing — silently, with nothing to catch. The
+     * moved file sits untouched while an unrelated new one reappears at the
+     * old path, which is a worse failure than an error would have been,
+     * because nothing says it happened. getFile() is a read, and does
+     * notice the file is gone, so it runs first, purely as a check — its
+     * result is never used for anything. */
+    await handle.getFile();
+    // Permission can lapse even for a handle already held — a browser can
+    // revoke it after enough time passes, not just on the first ask — so
+    // this is checked before every write, never assumed from the last one.
+    if((await handle.queryPermission({mode: "readwrite"})) !== "granted"
+       && (await handle.requestPermission({mode: "readwrite"})) !== "granted"){
+      throw Object.assign(new Error("permission denied"), {code: "denied"});
+    }
+    const w = await handle.createWritable();
+    await w.write(data); await w.close();
+  }
+  /* ONE PLACE THAT TURNS A FAILED WRITE INTO WORDS, used by both the normal
+   * Save button and "Change file" below — a write can fail the same few
+   * ways from either caller, and a person reading the message should not be
+   * able to tell which button they pressed from how it is worded.
+   *
+   * NotFoundError is the one that matters most: the file this handle points
+   * to is gone from where it was granted — moved, renamed, or deleted. The
+   * handle is bound to that PATH, not to the file itself (confirmed against
+   * a real move, not assumed — an earlier version of this comment claimed
+   * the opposite), so ANY move breaks it, not only some. See writeToHandle's
+   * own comment for why that is caught by getFile() before anything writes.
+   *
+   * Logged to the console on every path through here, not just shown as a
+   * word: a message can only ever be as precise as the error it is built
+   * from, and the one time this needed to be more precise than "couldn't
+   * write to that file", the console was the only place the real name of
+   * what went wrong was going to be visible at all. */
+  function classifyWriteError(err){
+    console.error("PWLBreports: file write failed —", err && err.name, err);
+    if(err && err.name === "NotFoundError")
+      return "This file couldn't be found — it may have moved, been renamed, or been "
+        + "deleted. Choose where to save a fresh copy.";
+    if(err && err.name === "TimeoutError")
+      return "That took too long to reach the file — it may be on a drive that has gone "
+        + "offline. Choose where to save instead.";
+    if(err && err.code === "denied")
+      return "This browser withdrew permission to write to that file — Save again to "
+        + "choose a location.";
+    return "Couldn't write to that file — Save again to choose a location.";
+  }
+  /* "CHANGE FILE" — the honest version of an editable path box. A web page
+   * is never told a handle's actual location (that boundary is why the file
+   * card can show a filename but never a folder), so there is no path to
+   * show or let someone edit. What IS possible: reopen the real picker,
+   * hinted (startIn) to open near wherever the current handle points, so
+   * redirecting Save is at most two clicks even though nothing here can
+   * display where "near" actually is. Always offered once something is
+   * linked (see paintFileStatus) — not just after a failed write — because
+   * "the file moved and I know it" should not require waiting for Save to
+   * fail first. */
+  async function changeFileLocation(){
+    const data = libExport();
+    const nv = (JSON.parse(data).versions || []).length;
+    if(!nv){ saveHint("Save a version first, then there is something to write."); return; }
+    let handle;
+    try{
+      handle = await window.showSaveFilePicker({suggestedName: libFileName(),
+        types: [{description: "PWLBreports file", accept: {"application/json": [".json"]}}],
+        ...(FILE_HANDLE ? {startIn: FILE_HANDLE} : {})});
+    }catch(err){
+      if(err && err.name !== "AbortError") saveHint("Could not choose a new location.");
+      return;
+    }
+    const oldName = FILE_HANDLE && FILE_HANDLE.name;
+    try{
+      await withTimeout(writeToHandle(handle, data), 8000);
+      FILE_HANDLE = handle;
+      FILE_DIRTY = false;
+      libTouchSaved(S.gss, whoAmI(), new Date().toISOString());
+      renderReturnsList();
+      // Named explicitly when the file itself changed, not just re-picked
+      // the same one: the old file is not being kept in step from here on,
+      // and that is the one fact "Change file" exists to surface.
+      saveHint(oldName && oldName !== handle.name
+        ? `Now saving to ${handle.name} — ${oldName} is no longer being updated.`
+        : `Updated ${handle.name}.`);
+    }catch(err){
+      // The OLD link is untouched by a failed relink — still whatever it
+      // was before this was pressed, not cleared just because the NEW
+      // location did not work out.
+      saveHint(classifyWriteError(err));
+    }
+  }
+  if(FS_ACCESS && $("filechange")) $("filechange").addEventListener("click", changeFileLocation);
   $("libfile").addEventListener("click", async ()=>{
+    // Save has to capture what is actually on screen, not whatever the
+    // debounced timer last got round to — the two can differ by up to 900ms
+    // of typing, and Save is the only thing that writes anywhere durable now,
+    // so there is no autosave a moment later to make up the difference.
+    clearTimeout(_auto);
+    markDirty(true);
     const data = libExport();
     const nv = (JSON.parse(data).versions || []).length;
     if(!nv){
@@ -13429,9 +14422,37 @@ function undoPaint(){
     const held = libFor(S.gss);
     const mine = whoAmI();
     const others = held.filter(e => e.by && e.by !== mine);
+    const linked = FS_ACCESS && FILE_HANDLE;
     const doSave = async () => {
+    if(FS_ACCESS){
+      try{
+        if(!FILE_HANDLE){
+          FILE_HANDLE = await window.showSaveFilePicker({suggestedName: name,
+            types: [{description: "PWLBreports file", accept: {"application/json": [".json"]}}]});
+        }
+        await withTimeout(writeToHandle(FILE_HANDLE, data), 8000);
+        FILE_DIRTY = false;
+        libTouchSaved(S.gss, mine, new Date().toISOString());
+        renderReturnsList();
+        saveHint(`Updated ${FILE_HANDLE.name}.`);
+      }catch(err){
+        if(err && err.name === "AbortError"){ saveHint("Save cancelled."); return; }
+        // A moved/deleted file, a revoked permission, anything unexpected —
+        // the link is no longer trustworthy, so forget it rather than keep
+        // failing silently against a handle that no longer works. The next
+        // Save asks where to save fresh, same as a first save would — or
+        // "Change file" (see above) can be reached the moment this is
+        // noticed, not only after Save fails against it.
+        FILE_HANDLE = null;
+        saveHint(classifyWriteError(err));
+      }
+      return;
+    }
     if(DOWNLOADS){
       try{ await DOWNLOADS.save({filename:name, data});
+           FILE_DIRTY = false;
+           libTouchSaved(S.gss, mine, new Date().toISOString());
+           renderReturnsList();
            saveHint(`Saved ${nv} report${nv===1?"":"s"} as ${name}.`); }
       catch(err){ saveHint((err && err.code) === "declined"
         ? "Save cancelled." : "Saving is not available here."); }
@@ -13442,18 +14463,37 @@ function undoPaint(){
     a.download = name;
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(()=>URL.revokeObjectURL(a.href), 2000);
-    saveHint(`Downloading ${name} — ${nv} report${nv===1?"":"s"}.`);
+    // The best signal a plain download gives: no completion event exists to
+    // wait for, so triggering it is taken as meaning it happened.
+    FILE_DIRTY = false;
+    libTouchSaved(S.gss, mine, new Date().toISOString());
+    renderReturnsList();
+    saveHint(`Saved ${nv} report${nv===1?"":"s"} as ${name}.`);
     };
     /* WHOSE WORK IS IN THIS FILE. The honest limit is stated rather than
-       hidden: without a shared server nothing here can see a colleague's
-       edits made since this file was opened, so the file about to be written
-       does not contain them. Naming who last touched each report is what lets
-       a person notice. */
-    ask(`Save ${nv} report${nv===1?"":"s"} to a file`,
-      `<p>This writes everything held here for ${esc((LB[S.gss]||{}).n || S.otherName
-         || "this authority")}. If a colleague has saved the shared file since you opened
-        it, their changes are <b>not</b> in this one — there is no server to see them,
-        which is also why nothing you enter ever leaves your browser.</p>
+       hidden, in every one of the three cases below: without a shared server
+       nothing here can see a colleague's edits made since this file was
+       opened, so the file about to be written does not contain them. Naming
+       who last touched each report is what lets a person notice — the
+       askRows list two paragraphs down, unchanged by which of the three is
+       about to run, because that warning is true regardless. */
+    const bodyHTML = linked
+      ? `<p>Updates <b>${esc(FILE_HANDLE.name)}</b> in place — the file you opened, or already
+          saved to, this session. If a colleague has saved it since you opened it, this
+          overwrites their changes; there is no server involved, so neither of you can see the
+          other's edits coming.</p>`
+      : FS_ACCESS
+      ? `<p>Choose where to keep <b>${esc(name)}</b>. Every Save after this updates that same
+          file directly — no new copies, and nothing you enter ever leaves your browser.</p>`
+      : `<p>This writes everything held here for ${esc((LB[S.gss]||{}).n || S.otherName
+         || "this authority")} to <b>${esc(name)}</b> in your downloads. Because a browser
+        won't overwrite a file with the same name, saving again later adds a new copy —
+        "-2", "-3", and so on — rather than replacing this one. Always work from whichever
+        one is newest; treat the rest as backups. If a colleague has saved the shared file
+        since you opened it, their changes are <b>not</b> in this one — there is no server
+        to see them, which is also why nothing you enter ever leaves your browser.</p>`;
+    ask(`Save ${nv} report${nv===1?"":"s"}${linked ? "" : " to a file"}`,
+      `${bodyHTML}
        ${askRows(held.map(e => ({
           label: `${esc((REPORTS.find(r=>r.k===e.report)||{}).t || e.report)} · ${fy(e.fy0)}`,
           line: `last saved by ${byLine(e)} ${whenLine(e.at)}`,
@@ -13461,7 +14501,7 @@ function undoPaint(){
           tagText: e.issued ? "issued" : ""})))}
        ${others.length ? `<p><b>${others.length} of these was last saved by someone
          else.</b> Writing this file hands your copy of their work on.</p>` : ""}`,
-      "Save to a file", doSave);
+      linked ? "Save" : "Save to a file", doSave);
   });
   /* One panel, used by both file actions. It stops and shows exactly what is
      about to happen, per report, before it happens. */
@@ -13486,6 +14526,69 @@ function undoPaint(){
   $("whoami").value = whoAmI();
   $("whoami").addEventListener("input", e=>{ setWho(e.target.value); });
 
+  /* THE ACTUAL "OPEN A FILE" LOGIC, WHEREVER THE TEXT CAME FROM.
+   *
+   * Two callers: the plain <input type=file> + FileReader path every browser
+   * gets (openLibraryFile, below), and — where FS_ACCESS holds — a real
+   * FileSystemFileHandle from showOpenFilePicker (openViaFilePicker, below),
+   * which this then keeps as FILE_HANDLE so Save can write straight back to
+   * the same file instead of downloading a new one. `handle` is null for the
+   * first path; everything else is identical, because it should be — a file
+   * opened either way carries the same reports and deserves the same
+   * itemized confirmation before anything on screen gets replaced. */
+  function applyOpenedFileText(text, handle){
+    const look = libInspect(text);
+    if(!look.ok){ saveHint(look.note); return; }
+    /* WHAT WILL BE LOST, NAMED. A generic "this will overwrite your data"
+       is a warning nobody can act on; this says which report, whose it is,
+       and whether the copy in the file is older than the one here. */
+    const rows = look.rows.map(r => ({
+      label: r.label,
+      line: r.state === "new"
+        ? `not held here · in the file, saved by ${byLine({by:r.fileBy})} ${whenLine(r.fileAt)}`
+        : `here: ${byLine({by:r.mineBy})} ${whenLine(r.mineAt)} · `
+          + `file: ${byLine({by:r.fileBy})} ${whenLine(r.fileAt)}`,
+      tag: r.state, tagText: r.state === "new" ? "adds"
+           : r.state === "older" ? "replaces with older" : "replaces"}));
+    ask(`Open ${esc(look.who)} — ${look.n} report${look.n===1?"":"s"}`,
+      `<p>This replaces what is open for each report below with the file's own copy.
+        Anything on screen now that you have not saved to a file will be gone.</p>
+       ${askRows(rows)}
+       ${look.older ? `<p style="color:var(--alert)"><b>${look.older} of them is older
+         than the copy here.</b> Opening the file will put the earlier version back.</p>` : ""}`,
+      `Open and replace ${look.replacing || look.n}`,
+      () => {
+        const r = libImport(text);
+        if(!r.ok){ saveHint(r.note); return; }
+        /* NO RELOAD. There is no browser copy for a reload to pick back up
+           any more — the file's own entries are already in LIBRARY, in
+           memory, the moment libImport returns, so the newest one goes
+           straight onto the page the same way any other seed does. */
+        const entry = r.entry;
+        S.gss = entry.body.gss || entry.gss;
+        S.report = entry.body.report || entry.report;
+        applyVersion(JSON.parse(JSON.stringify(entry.body)));
+        $("council").value = councilValue();
+        $("rtype").value = S.report;
+        seedHoldings();
+        fundTabs(); buildLedger(); loanRows(); applyLoans(); countClauses();
+        if(typeof cpRender === "function") cpRender();
+        renderSections(); render(); libFill();
+        $("issued").checked = libIsIssued();
+        /* WHAT JUST LOADED IS WHAT IS IN THE FILE, BY DEFINITION — render()
+           above schedules the normal debounced autosave regardless, the
+           same as any other change would, and that would otherwise fire a
+           moment later and claim a freshly opened, untouched file needs
+           saving again. Cancelled here, after every render has settled. */
+        clearTimeout(_auto);
+        FILE_DIRTY = false;
+        // The whole point of opening it this way: Save from here on writes
+        // straight back to this file, not a fresh download. null for the
+        // FileReader path, where there was never a real handle to keep.
+        FILE_HANDLE = handle || null;
+        saveHint(r.note);
+      });
+  }
   /* ONE HANDLER, TWO WAYS IN. The file picker is offered on step 1 beside the
      save controls and again on step 0, where somebody who already has a
      version should be told to open it BEFORE typing anything. Attaching the
@@ -13495,35 +14598,31 @@ function undoPaint(){
     const f = e.target.files && e.target.files[0];
     if(!f) return;
     const rd = new FileReader();
-    rd.onload = () => {
-      const text = String(rd.result);
-      const look = libInspect(text);
-      if(!look.ok){ saveHint(look.note); return; }
-      /* WHAT WILL BE LOST, NAMED. A generic "this will overwrite your data"
-         is a warning nobody can act on; this says which report, whose it is,
-         and whether the copy in the file is older than the one here. */
-      const rows = look.rows.map(r => ({
-        label: r.label,
-        line: r.state === "new"
-          ? `not held here · in the file, saved by ${byLine({by:r.fileBy})} ${whenLine(r.fileAt)}`
-          : `here: ${byLine({by:r.mineBy})} ${whenLine(r.mineAt)} · `
-            + `file: ${byLine({by:r.fileBy})} ${whenLine(r.fileAt)}`,
-        tag: r.state, tagText: r.state === "new" ? "adds"
-             : r.state === "older" ? "replaces with older" : "replaces"}));
-      ask(`Open ${esc(look.who)} — ${look.n} report${look.n===1?"":"s"}`,
-        `<p>This replaces what is in the browser for each report below. Anything on
-          screen now that you have not saved to a file will be gone.</p>
-         ${askRows(rows)}
-         ${look.older ? `<p style="color:var(--alert)"><b>${look.older} of them is older
-           than the copy here.</b> Opening the file will put the earlier version back.</p>` : ""}`,
-        `Open and replace ${look.replacing || look.n}`,
-        () => { const r = libImport(text);
-                $("saved").innerHTML = r.note;
-                if(r.ok){ libFill(); location.reload(); } });
-    };
+    rd.onload = () => applyOpenedFileText(String(rd.result), null);
     rd.onerror = () => { saveHint("That file could not be read."); };
     rd.readAsText(f);
     e.target.value = "";
+  }
+  /* THE FS_ACCESS PATH: a real handle instead of a one-shot file read, so
+     Save (below) has something to write back to. Every "Open a file" control
+     is a <label for="..."> pointing at one of these inputs (see openLibraryFile's
+     own comment on why there are three) — intercepting the label's click is
+     what lets one listener cover all three without touching their markup, now
+     or when a fourth one is added the same way the third was. */
+  async function openViaFilePicker(){
+    let handle;
+    try{
+      [handle] = await window.showOpenFilePicker({
+        types: [{description: "PWLBreports file", accept: {"application/json": [".json"]}}]
+      });
+    }catch(err){
+      if(err && err.name !== "AbortError") saveHint("Could not open that file.");
+      return;
+    }
+    let text;
+    try{ text = await (await handle.getFile()).text(); }
+    catch(err){ saveHint("That file could not be read."); return; }
+    applyOpenedFileText(text, handle);
   }
   /* DELEGATED, because one of the three does not exist yet. The pickers on
      step 0 and step 1 are in the markup; the one inside the approved-column
@@ -13534,17 +14633,26 @@ function undoPaint(){
     if(e.target && e.target.matches && e.target.matches("input[data-libopen]"))
       openLibraryFile(e);
   });
+  if(FS_ACCESS) document.addEventListener("click", e => {
+    const label = e.target.closest && e.target.closest("label[for]");
+    if(!label) return;
+    const input = document.getElementById(label.getAttribute("for"));
+    if(!input || !input.matches("input[data-libopen]")) return;
+    e.preventDefault();
+    openViaFilePicker();
+  });
   $("issued").addEventListener("change", e=>{
-    const k = KEY();
-    if(!localStorage.getItem(k)){
-      e.target.checked = false;
-      saveHint("Save this version before marking it issued."); return;
-    }
-    libIssue(k, e.target.checked);
+    S.issued = e.target.checked;
+    S.issuedAt = e.target.checked ? new Date().toISOString() : null;
+    // Marking it issued locks it; un-marking it does not unlock it — that is
+    // what the override on the locked steps is for, with its own reason.
+    if(e.target.checked) checkAutoLock();
+    markDirty(true);
     saveHint(e.target.checked
       ? "Marked as issued. Next year's report will start from this one."
       : "No longer marked as issued.");
     libFill();
+    renderLockGate();
   });
   // The indicator picker lives inside the rendered draft, so it is delegated.
   document.addEventListener("click", e=>{
@@ -13662,43 +14770,18 @@ function undoPaint(){
     const b=e.target.closest("button"); if(!b) return;
     S.sec=b.dataset.s; renderSections(); });
 
-  /* PICK UP WHERE THEY LEFT OFF. The browser remembering is only half of it;
-     the tool has to open on what it remembered, or the user is looking at a
-     blank page wondering where their work went. */
-  const lastKey = localStorage.getItem("lb:last");
-  const last = lastKey ? libRead().find(e => e.k === lastKey) : null;
-  // LB[last.gss] is the right gate for a real authority — it catches a stale
-  // GSS code from a reorganisation that has dropped out of the current list.
-  // It is the wrong gate for a demonstration: LB.demo does not exist until
-  // fillDemo() runs, so it was never true on a fresh load, and a saved
-  // demonstration could not come back from a refresh though its whole
-  // 49KB+ payload sat intact in localStorage the entire time. applyVersion
-  // already rebuilds LB[DEMO_GSS] from the payload's own demoSrc/demoName
-  // (see "A DEMONSTRATION SAVED TO A FILE MUST COME BACK AS ITSELF" above,
-  // written for Open a file, which has the identical shape) — it just
-  // needed the chance to run.
-  if(last && (LB[last.gss] || last.gss === DEMO_GSS)){
-    S.gss = last.gss; S.report = last.report; S.fy0 = last.fy0;
-    $("council").value = councilValue(); $("rtype").value = S.report; $("fy0").value = S.fy0;
-    restoreVersion(true);
-    // councilValue() above ran before restoreVersion supplied S.demoKind, so
-    // a demonstration other than the "no HRA" default showed the right
-    // group but the wrong of the three entries in it.
-    if(S.gss === DEMO_GSS) $("council").value = councilValue();
-  }
-  // Seeded here rather than in the state declaration: it needs the council to
-  // be known, because the PWLB row's amount comes from that council's book.
+  /* NOTHING TO PICK UP. EVERY LOAD STARTS BLANK.
+   *
+   * This page used to remember what you had open across a refresh, because
+   * autosave quietly wrote it to the browser the whole time — so it had to
+   * reopen on it, or a refresh looked like your work had vanished when it
+   * had actually just gone quiet in storage nobody could see. There is
+   * nothing to reopen any more: Open a file is how you get back to a report
+   * that already exists, the same action whether it is this machine or a
+   * new one, and a blank first screen says exactly that rather than
+   * implying a memory the tool no longer has. */
   seedHoldings();
-  // After the restore, so the row shows whatever came back with it. Called
-  // from in here and never from applyVersion: logoRow is declared inside
-  // init(), and a top-level function reaching in is a ReferenceError that
-  // restoreVersion's own try/catch would swallow.
   logoRow();
-  // Same reason, and needs to be explicit here too: the lb:applied listener
-  // below is not registered yet at this point in init(), so the event
-  // restoreVersion(true) just fired above went nowhere. Without this, a
-  // refresh brought "other body" back selected with the name and regime
-  // fields blank even though LB.other.n/S.natOverride had the right values.
   otherShown(true);
   fundTabs(); buildLedger(); loanRows(); renderSections(); render(); libFill();
   $("issued").checked = libIsIssued();
