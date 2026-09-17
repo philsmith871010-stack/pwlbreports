@@ -1306,6 +1306,8 @@ svg.ctip .hits rect{cursor:crosshair}
    Deliberately plain. This is the page a section 151 officer looks at last,
    and anything that reads as a badge or a score would undo the one thing it
    is for. No ticks, no percentage, no green wash: four counts and a list. */
+.secdec{margin:0 0 18px;padding:12px 14px;background:var(--sunken);border-radius:var(--r-sm)}
+.secdec h3{margin:0 0 8px}
 .gaps{margin-top:14px}
 .gaps.none{font-family:var(--sans);font-size:13.5px;color:var(--ink2);padding:12px 14px;
   background:var(--sunken);border-radius:var(--r-sm)}
@@ -2189,15 +2191,9 @@ td.nask{background:repeating-linear-gradient(45deg,var(--hair),var(--hair) 4px,
     </div>
   </section>
 
-  <section class="panel" data-step="4">
-    <div class="phead"><span class="n">4</span><h2>Choices that decide the wording</h2>
-      <span class="why">Some text the Code requires whatever you do. The rest depends on
-        these answers — a council with no HRA should not be told about two-pool debt.</span></div>
-    <div class="pbody">
-      <div class="setup" id="choices"></div>
-      <div class="ltools"><span class="hintline" id="clausecount"></span></div>
-    </div>
-  </section>
+  <!-- THERE IS NO STEP 4. Each choice sits beside the wording section it
+       decides (renderSections + CHOICE_SECTION), and the paper's own toggles
+       on the draft (#paperopts). The number is retired, not reused. -->
 
   <section class="panel" data-step="5">
     <div class="phead"><span class="n">5</span><h2>Counterparty policy</h2></div>
@@ -2252,6 +2248,11 @@ td.nask{background:repeating-linear-gradient(45deg,var(--hair),var(--hair) 4px,
       <button type="button" id="copydoc">Copy the draft</button>
       <span class="sp"></span><span class="hintline" id="dhint"></span>
     </div>
+    <!-- THE PAPER'S SHAPE. Executive summary, options, consultation, the
+         implications headings, the author: what the committee paper carries
+         around the content. Decided here, where the paper is. -->
+    <div class="setup" id="paperopts"></div>
+    <div class="ltools"><span class="hintline" id="clausecount"></span></div>
     <!-- WHAT IS STILL OPEN, ABOVE THE DOCUMENT. Only gaps and things the tool
          cannot judge — never the list of what was found, which nobody read and
          which buried these. Each row hands you to the step that closes it. -->
@@ -7220,6 +7221,87 @@ function clauseCount(sec){
 }
 
 /* ===========================================================================
+ * EVERY CHOICE LIVES BESIDE WHAT IT DECIDES. There is no Choices step any
+ * more (Phil's call, and the right one: twenty-two questions on one page, then
+ * fifteen pieces of prose on another, with the reader left to remember which
+ * decision each one hung off). The map below is not invented — it is read off
+ * the clause rules above: a choice governs the section whose clauses test it.
+ * The ten "include this heading?" toggles govern no section at all; they shape
+ * the paper, so they sit on the draft.
+ *
+ * A choice can name more than one section, because a decision that matters on
+ * a forward report can matter on a backward one in a different chapter —
+ * rescheduling shapes the borrowing strategy (4) and the period's activity (8).
+ * It is the same S.choices key wherever it is shown, so it cannot disagree
+ * with itself.
+ * ======================================================================== */
+const CHOICE_SECTION = {
+  cycle:["intro"], committee:["intro"],
+  adviser:["context"], datasource:["context"],
+  advance:["borrow"], resched:["borrow","activity"],
+  pooled:["invest"], mifid:["invest"],
+  mrpmethod:["mrp"], lfmethod:["mrp"], vrp:["mrp"],
+  nontreas:["nontreasury"], commprop:["nontreasury"], commborrow:["nontreasury"]
+};
+const PAPER_GROUPS = ["Front matter and closing", "Implications headings"];
+
+/* NOT ASKED WHEN IT CANNOT APPLY. "Was any of it acquired with borrowing?" is
+   a question about commercial property; with none held it is noise, and an
+   unanswered noise question still counted against the reader. */
+function choiceAsked(c){
+  if(!inNation(c)) return false;
+  if(c.k === "commborrow") return (S.choices || {}).commprop === "yes";
+  return true;
+}
+function choicesForSection(secK){
+  return CHOICES.filter(c => choiceAsked(c) && (CHOICE_SECTION[c.k] || []).indexOf(secK) >= 0);
+}
+function choicesForPaper(){
+  return CHOICES.filter(c => choiceAsked(c) && PAPER_GROUPS.indexOf(c.g) >= 0);
+}
+/* One control, the same everywhere it is drawn. Ported from the old step's
+   renderer unchanged — the blank option on every select is deliberate; a
+   question is answered when somebody answers it. */
+function choiceFieldHTML(c){
+  const C = S.choices || {};
+  const v = C[c.k] == null ? "" : C[c.k];
+  if(c.type === "text")
+    return `<input type="text" id="c_${c.k}" data-c="${c.k}" value="${esc(v)}"
+              placeholder="${esc(c.ph||"")}">`;
+  const opts = c.type === "yesno" ? [["yes","Yes"],["no","No"]] : c.opts;
+  return `<select id="c_${c.k}" data-c="${c.k}">
+    <option value=""${v?"":" selected"}>—</option>
+    ${opts.map(([k,t])=>`<option value="${k}"${v===k?" selected":""}>${esc(t)}</option>`).join("")}
+  </select>`;
+}
+function choiceRowsHTML(list){
+  const C = S.choices || {};
+  return list.map(c => `<div class="qrow ${c.type==="yesno"?"narrow":""} ${C[c.k]?"done":""}">
+    <label for="c_${c.k}">${esc(c.l)}</label>${choiceFieldHTML(c)}</div>`).join("");
+}
+/* The block at the top of a wording section: decide, then say it. */
+function sectionChoicesHTML(secK){
+  const list = choicesForSection(secK);
+  if(!list.length) return "";
+  const C = S.choices || {};
+  const answered = list.filter(c => C[c.k]).length;
+  return `<section class="cgroup secdec">
+    <h3>Decisions for this section<i>${answered} of ${list.length}</i></h3>
+    ${choiceRowsHTML(list)}
+  </section>`;
+}
+/* The block on the draft: what the paper carries around the content. */
+function paperChoicesHTML(){
+  return PAPER_GROUPS.map(g => {
+    const list = choicesForPaper().filter(c => c.g === g);
+    if(!list.length) return "";
+    const answered = list.filter(c => (S.choices||{})[c.k]).length;
+    return `<section class="cgroup"><h3>${esc(g)}<i>${answered} of ${list.length}</i></h3>
+      ${choiceRowsHTML(list)}</section>`;
+  }).join("");
+}
+
+/* ===========================================================================
  * Limits, actuals and compliance — only for a report that looks backwards.
  *
  * A strategy SETS limits. An outturn or a monitoring report says whether the
@@ -8227,6 +8309,10 @@ function renderSections(){
   }).join("");
   const s = VIS.find(x=>x.k===S.sec) || VIS[0];
   let body = `<h4>${s.n}. ${esc(natText(s.t))}</h4><p class="lead">${esc(s.lead)}</p>`;
+  /* DECIDE, THEN SAY IT. The choices that govern this section's clauses sit
+     above its prose — see CHOICE_SECTION in clauses.js for where each one
+     comes from. Same S.choices key as anywhere else it might be drawn. */
+  if(typeof sectionChoicesHTML === "function") body += sectionChoicesHTML(s.k);
   if(s.kind==="auto"){
     body += autoNote(s.k);
   } else {
@@ -11648,7 +11734,7 @@ const CHECKS = [
    t:"Actual debt is compared against the limits members approved",
    run(){
      const rows = complianceRows();
-     if(!rows.length) return {v:"gap", go:4,
+     if(!rows.length) return {v:"gap", go:7,   // the limits are entered on step 7, not the old choices step
        note:"The approved limits and the maximum reached are not entered, so no comparison "
           + "is made. This is the question the report exists to answer."};
      const bad = rows.filter(r=>!r.ok);
@@ -11947,7 +12033,9 @@ const STEPS = [
   {n:1, k:"setup",     t:"Set up",   s:"authority and which report"},
   {n:2, k:"portfolio", t:"What you hold", s:"debt and investments"},
   {n:3, k:"figures",   t:"Your figures", s:"the projection"},
-  {n:4, k:"choices",   t:"Choices",      s:"which clauses apply"},
+  /* NO STEP 4. Every choice now sits beside the wording section it decides,
+     and the paper's own toggles on the draft — see CHOICE_SECTION in
+     clauses.js. Retired, not reused. */
   {n:5, k:"counterparty", t:"Counterparty policy", s:"who you will lend to"},
   {n:6, k:"wording",   t:"Wording",      s:"the commentary"},
   /* NOT k:"figures" — step 3 already is, and STEPS.find(k === "figures")
@@ -12052,23 +12140,6 @@ function stepStatus(k){
     return {state:"done", note:`${yrs} year${yrs===1?"":"s"} entered · CFR reconciles`, need:null};
   }
 
-  if(k === "choices"){
-    // Defaults are legitimate — the draft is complete without touching this
-    // step — so answering none of it is not "empty" the way a step with no
-    // legitimate default is. But it is not "part" either at zero: "part"
-    // means work is under way, and nobody has opened this step yet. Only
-    // once at least one answer is actually the authority's own does it
-    // become a step in progress rather than a step not yet started.
-    const asked = CHOICES.filter(inNation);
-    const n = asked.filter(c => (S.choices[c.k]||"") !== "").length;
-    const cl = [...new Set(CLAUSES.map(c=>c.sec))]
-      .reduce((a,sec)=>a + clauseCount(sec), 0);
-    return {state: n === asked.length ? "done" : n ? "part" : "",
-            note:`${n} of ${asked.length} answered · ${cl} clauses included`,
-            need: n === asked.length ? null
-              : "The rest keep sensible defaults, so the draft is complete either way — but they are your answers to give."};
-  }
-
   if(k === "wording"){
     const qs = visibleSections().flatMap(s => s.qs || []);
     const done = qs.filter(q => (S.text[q.k]||"").trim().length > 40).length;
@@ -12162,6 +12233,13 @@ function showStep(n){
      stayed that way since (see the note above STEPS). */
   const lo = STEPS[0].n, hi = STEPS[STEPS.length - 1].n;
   STEP = Math.max(lo, Math.min(hi, n));
+  /* A RETIRED NUMBER LANDS ON THE NEXT REAL STEP. Two numbers no longer have
+     a panel (4 and 9); an old link, a stale check target or a Next from step
+     3 must not open onto nothing. */
+  if(!STEPS.some(s => s.n === STEP)){
+    const after = STEPS.map(s => s.n).filter(x => x > STEP);
+    STEP = after.length ? after[0] : hi;
+  }
   document.querySelectorAll("[data-step]").forEach(el => {
     el.hidden = (+el.dataset.step !== STEP);
   });
@@ -12207,7 +12285,8 @@ function renderNav(){
   if(!panel) return;
   const cur = STEPS.find(s => s.n === STEP);
   const st = stepStatus(cur.k);
-  const prev = STEPS.find(s => s.n === STEP-1), next = STEPS.find(s => s.n === STEP+1);
+  const i = STEPS.findIndex(s => s.n === STEP);
+  const prev = STEPS[i-1], next = STEPS[i+1];
   const nav = document.createElement("div");
   nav.className = "stepnav";
   nav.innerHTML =
@@ -13003,7 +13082,7 @@ function checkAutoLock(){
   markDirty(true);
 }
 
-const LOCK_GATED_STEPS = [2, 3, 4, 5, 6, 7];   // STEP_CLEARS' own keys, by number
+const LOCK_GATED_STEPS = [2, 3, 5, 6, 7];   // STEP_CLEARS' own keys, by number (4 is retired)
 
 function lockWhySentence(){
   if(S.lockedReason === "issued") return "It was marked as issued to members";
@@ -14579,67 +14658,41 @@ const askRows = rows => `<div class="asklist">${rows.map(r => `<div class="askro
 
   // Choices. Each one either lets a clause in or keeps it out, so the count
   // moves as they answer and the draft changes underneath.
+  /* THE PAPER'S OWN CHOICES, ON THE DRAFT. The rest of what this used to draw
+     — every choice that governs a wording section — is drawn by
+     renderSections beside the section it governs (see CHOICE_SECTION in
+     clauses.js). Kept under its old name because every caller that needed the
+     choices redrawn still does; they just live in two hosts now. */
   function renderChoices(){
-    const C = S.choices;
-    const avail = CHOICES.filter(inNation);
-    // Question left, control right, on one line. Stacked label-over-field in
-    // an auto-fit grid, a long question wrapped over three lines and its
-    // control ended up beside a DIFFERENT question's text; the commonest
-    // report of this step was not knowing which box answered what.
-    const field = c => {
-      const v = C[c.k] == null ? "" : C[c.k];
-      if(c.type === "text")
-        return `<input type="text" id="c_${c.k}" data-c="${c.k}" value="${esc(v)}"
-                  placeholder="${esc(c.ph||"")}">`;
-      const opts = c.type === "yesno" ? [["yes","Yes"],["no","No"]] : c.opts;
-      /* THE BLANK IS ON EVERY SELECT, not only the yes/no ones. A dropdown of
-         real options with no blank shows its first option, so an MRP method
-         nobody had chosen sat on screen looking chosen — and the only way to
-         answer "asset life" deliberately was to pick something else and come
-         back. A question is answered when somebody answers it. */
-      return `<select id="c_${c.k}" data-c="${c.k}">
-        <option value=""${v?"":" selected"}>—</option>
-        ${opts.map(([k,t])=>`<option value="${k}"${v===k?" selected":""}>${esc(t)}</option>`).join("")}
-      </select>`;
-    };
-    const draw = () => { $("choices").innerHTML = CHOICE_GROUPS.map(g => {
-      const list = avail.filter(c => c.g === g);
-      if(!list.length) return "";
-      const answered = list.filter(c => C[c.k]).length;
-      return `<section class="cgroup">
-        <h3>${esc(g)}<i>${answered} of ${list.length}</i></h3>
-        ${list.map(c => `<div class="qrow ${c.type==="yesno"?"narrow":""} ${C[c.k]?"done":""}">
-          <label for="c_${c.k}">${esc(c.l)}</label>${field(c)}</div>`).join("")}
-      </section>`;
-    }).join(""); };
-    if(typeof keepFocus === "function") keepFocus($("choices"), draw); else draw();
-    /* ONE LETTER AND YOU WERE OUT OF THE BOX.
-    
-       This rebuilt the whole question list synchronously on every keystroke,
-       and the rebuild replaces every input in it — so typing into the adviser,
-       the committee or the market-data source destroyed the box after the
-       first character and dropped focus to <body>. A dropdown survived it
-       because you only touch a dropdown once; a text field did not, and there
-       are four of them.
-    
-       The same defect the period's figures and the wording step had, in the
-       one panel that never got the fix. Debounced so the rebuild happens once
-       you pause, and wrapped in keepFocus so the box you are in comes back
-       with what you typed and the caret where you left it. */
-    $("choices").querySelectorAll("input,select").forEach(el =>
-      el.addEventListener("input", e => {
-        S.choices[e.target.dataset.c] = e.target.value;
-        countClauses();
-        clearTimeout(S._c);
-        S._c = setTimeout(() => { renderSections(); render(); renderChoices(); }, 400);
-      }));
+    const host = $("paperopts");
+    if(host){
+      const draw = () => { host.innerHTML = paperChoicesHTML(); };
+      if(typeof keepFocus === "function") keepFocus(host, draw); else draw();
+    }
     countClauses();
   }
+  /* ONE LISTENER FOR EVERY CHOICE CONTROL, WHEREVER IT IS DRAWN. Delegated,
+     because both hosts rebuild themselves and a handler bound per render is a
+     handler bound to an element that is about to be replaced. The debounce
+     and keepFocus around the rebuilds are what stopped the adviser box
+     throwing you out after one letter — see the note that used to live here
+     and now lives on keepFocus. */
+  document.addEventListener("input", e => {
+    const t = e.target;
+    if(!t || !t.dataset || !t.dataset.c) return;
+    S.choices[t.dataset.c] = t.value;
+    countClauses();
+    clearTimeout(S._c);
+    S._c = setTimeout(() => { renderSections(); render(); renderChoices(); }, 400);
+  });
   function countClauses(){
     const secs=[...new Set(CLAUSES.map(c=>c.sec))];
     const n=secs.reduce((a,s)=>a+clauseCount(s),0);
     const always=CLAUSES.filter(c=>c.always).length;
-    const unanswered=CHOICES.filter(c=>!(S.choices[c.k]||"").trim()).length;
+    // Only the questions actually put to this authority — not a Scottish
+    // council's MRP method, not "acquired with borrowing?" with no property.
+    const unanswered=CHOICES.filter(c=>choiceAsked(c) && !(S.choices[c.k]||"").trim()).length;
+    if(!$("clausecount")) return;
     $("clausecount").innerHTML = `<b>${n}</b> clause${n===1?"":"s"} in the draft —
       ${always} the Code requires whatever you choose, ${n-always} because of your answers.`
       + (unanswered?` <b>${unanswered}</b> question${unanswered===1?"":"s"} still unanswered.`:"");
