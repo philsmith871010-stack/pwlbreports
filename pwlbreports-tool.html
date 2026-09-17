@@ -1473,6 +1473,91 @@ svg.ctip .hits rect{cursor:crosshair}
 .issuedbox{display:inline-flex;align-items:center;gap:6px}
 /* The one place the tool stops and asks. It carries a list, so it is a panel
    rather than a confirm() — a table does not fit in a browser dialog. */
+/* What is open, at the top of Set up. Read, not filled. */
+.setupsum{display:flex;flex-wrap:wrap;gap:0 26px;align-items:flex-start;
+  padding:0 0 16px;border-bottom:1px solid var(--hair);margin-bottom:16px}
+.setupsum .ss-i{display:flex;flex-direction:column;gap:2px;padding:4px 0}
+.setupsum .ss-k{font-family:var(--sans);font-size:11px;font-weight:600;letter-spacing:.06em;
+  text-transform:uppercase;color:var(--muted)}
+.setupsum .ss-v{font-family:var(--sans);font-size:14.5px;font-weight:600;color:var(--ink)}
+.setupsum .ss-go{margin-left:auto;align-self:center}
+.setupsum .ss-none{font-family:var(--sans);font-size:13.5px;color:var(--muted);padding:4px 0}
+/* One control left on this step, so it sits where a first field sits rather
+   than centred in the middle of a grid built for eight. */
+.panel[data-step="1"] .setup{display:flex;justify-content:flex-start}
+.panel[data-step="1"] .setup .issuedcell{margin:0}
+/* A stashed control on loan to the start screen keeps its own label and hint
+   but takes the modal's field spacing, so the two views look like one form. */
+.startslot > div{display:flex;flex-direction:column;gap:5px}
+.startslot label{font-family:var(--sans);font-size:12.5px;font-weight:600;color:var(--ink2)}
+.startslot label .hint{display:block;font-weight:400;font-size:11.5px;color:var(--muted);
+  margin-top:2px;line-height:1.45}
+.startslot select,.startslot input{font-family:var(--sans);font-size:14px;padding:9px 11px;
+  border-radius:7px;border:1px solid var(--line2);background:var(--card);color:var(--ink);width:100%}
+.startslot > div[hidden]{display:none}
+
+/* ---- the start screen ------------------------------------------------------
+ *
+ * WHERE A SESSION BEGINS, AND THE ONLY PLACE THE REPORT IS CHOSEN.
+ *
+ * Two models are in every reader's head already: a spreadsheet they save, and
+ * a cloud system that saves itself. This tool is neither, and the confusion
+ * that costs us is not knowing which. So the first thing anyone sees says it
+ * plainly — your reports live in one file, on your machine — and offers the
+ * two doors that follow from it: open the file you have, or start one.
+ *
+ * NOT .askbox. That is a confirm: two buttons, a veil you can click away, and
+ * a question already framed. This is a screen with three routes and a form
+ * behind one of them, and on a first visit there is nothing behind it to click
+ * away to. Same card, border and shadow so they read as one family.
+ *
+ * It sets the REAL controls on step 1 and fires their own change events rather
+ * than reimplementing what they do. Every one of them carries handler logic —
+ * fillDemo, autoInherit, seedHoldings, otherShown — that took months to get
+ * right, and a second path into the same state is a second path to keep in
+ * step with the first. */
+.startveil{position:fixed;inset:0;z-index:80;background:rgba(15,23,32,.55)}
+.startbox{position:fixed;z-index:81;inset:0;margin:auto;width:min(560px,calc(100% - 32px));
+  height:max-content;max-height:calc(100% - 48px);overflow:auto;
+  background:var(--card);border:1px solid var(--line2);border-radius:var(--r);
+  box-shadow:0 24px 60px rgba(0,0,0,.34)}
+.starthead{padding:24px 26px 16px;border-bottom:1px solid var(--hair)}
+.starthead h2{font-family:var(--serif);font-size:21px;font-weight:600;margin:0 0 7px;
+  line-height:1.2;color:var(--ink)}
+.starthead p{font-family:var(--sans);font-size:13px;line-height:1.6;color:var(--ink2);margin:0}
+.startbody{padding:18px 26px 22px;display:flex;flex-direction:column;gap:11px}
+.startfoot{padding:14px 26px;background:var(--sunken);border-top:1px solid var(--hair);
+  display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.startfoot p{font-family:var(--sans);font-size:12px;line-height:1.5;color:var(--ink2);
+  margin:0;max-width:42ch}
+.startdoor{display:flex;gap:13px;align-items:flex-start;text-align:left;width:100%;
+  padding:14px 16px;border:1px solid var(--line2);border-radius:8px;background:var(--card);
+  cursor:pointer;font-family:var(--sans);color:inherit}
+.startdoor:hover{border-color:var(--accent);background:var(--sunken)}
+.startdoor.primary{border-color:var(--accent);border-width:2px}
+.startdoor .sd-ic{width:29px;height:29px;flex:none;border-radius:7px;background:var(--sunken);
+  display:grid;place-items:center;color:var(--accent);margin-top:1px}
+.startdoor .sd-ic svg{width:16px;height:16px}
+.startdoor .sd-t{font-size:14.5px;font-weight:600;color:var(--ink);display:block}
+.startdoor .sd-s{font-size:12.5px;color:var(--muted);line-height:1.5;display:block;margin-top:2px}
+.startor{display:flex;align-items:center;gap:11px;color:var(--muted);font-family:var(--sans);
+  font-size:11px;text-transform:uppercase;letter-spacing:.08em;font-weight:600}
+.startor::before,.startor::after{content:"";height:1px;background:var(--hair);flex:1}
+.startfield{display:flex;flex-direction:column;gap:5px}
+.startfield label{font-family:var(--sans);font-size:12.5px;font-weight:600;color:var(--ink2)}
+.startfield select,.startfield input{font-family:var(--sans);font-size:14px;padding:9px 11px;
+  border-radius:7px;border:1px solid var(--line2);background:var(--card);color:var(--ink);width:100%}
+.startnote{font-family:var(--sans);font-size:12.5px;line-height:1.55;color:var(--ink2);
+  background:var(--sunken);border-radius:7px;padding:11px 13px;margin:0}
+.startrep{display:flex;justify-content:space-between;align-items:center;gap:11px;flex-wrap:wrap;
+  padding:10px 13px;border:1px solid var(--hair);border-radius:8px}
+.startrep .sr-n{font-family:var(--sans);font-size:13.5px;font-weight:600;color:var(--ink)}
+.startrep .sr-s{font-family:var(--sans);font-size:11.5px;color:var(--muted);display:block}
+.startrep .sr-a{display:flex;gap:6px;align-items:center}
+.startempty{font-family:var(--sans);font-size:13px;color:var(--muted);margin:0}
+@media (max-width:520px){
+  .starthead,.startbody,.startfoot{padding-left:18px;padding-right:18px}
+}
 .askbox{position:fixed;inset:auto 0 0 0;margin:0 auto 24px;max-width:640px;z-index:70;
   background:var(--card);border:1px solid var(--line2);border-radius:var(--r);
   padding:20px 24px;box-shadow:0 24px 60px rgba(0,0,0,.3)}
@@ -1800,6 +1885,17 @@ td.nask{background:repeating-linear-gradient(45deg,var(--hair),var(--hair) 4px,
         <span class="ribbon-status" id="saved"></span>
       </div>
       <div class="ribbon-acts">
+        <!-- BACK TO THE START SCREEN, which is the only way to change the
+             report type: every section, the wording, the indicators and the
+             period figures differ by report, so swapping it underneath a
+             half-written one is not an edit, it is a different document. -->
+        <button type="button" class="ribbon-btn" id="startbtn"
+          title="Start screen — which report, which authority">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V20h14V9.5"/><path d="M9.5 20v-6h5v6"/>
+          </svg>
+        </button>
         <button type="button" class="ribbon-btn" id="libfile" title="Save">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -1862,8 +1958,20 @@ td.nask{background:repeating-linear-gradient(45deg,var(--hair),var(--hair) 4px,
 
   <main id="stepwrap">
   <section class="panel" data-step="1">
-    <div class="phead"><span class="n">1</span><h2>Your authority and report</h2></div>
-    <div class="pbody"><div class="setup">
+    <div class="phead"><span class="n">1</span><h2>What you are working on</h2></div>
+    <div class="pbody">
+      <!-- WHAT IS OPEN, NOT WHAT TO CHOOSE. Every field that used to live on
+           this step is now asked once on the start screen, because each of
+           them is either a fact about the file (which authority, whether it
+           has an HRA) or a fact that fixes the whole document (which report,
+           which year, which market date). Changing the report type underneath
+           a half-written one is not an edit, it is a different document — so
+           the way to change any of it is to go back, and this says so. The
+           controls themselves are not copied here: they are MOVED, between
+           this stash and the start screen, so there is exactly one #council in
+           the page and every handler hanging off it still works. -->
+      <div class="setupsum" id="setupsum"></div>
+      <div id="setupstash" hidden>
       <div><label for="council">Authority</label>
         <select id="council"></select></div>
       <div class="otherbox" id="otherbox" hidden>
@@ -1896,17 +2004,28 @@ td.nask{background:repeating-linear-gradient(45deg,var(--hair),var(--hair) 4px,
       <div><label for="hra">HRA</label>
         <select id="hra"><option value="no">No HRA</option><option value="one">One pool</option>
         <option value="two">Two pool</option></select></div>
-      
-      <div><label for="horizon">Horizon</label>
-        <select id="horizon"></select></div>
+      <!-- HORIZON WAS A QUESTION, AND IS NOW AN ANSWER. It offered 10, 20, 30,
+           40 or 50 years and everybody took 50, because the Code wants "at
+           least the entirety of any existing borrowing commitments" and PWLB
+           maturities run out that far. A question with one sensible answer is
+           a question that costs every reader a decision and gives nobody a
+           different report, so YEARS below is fixed at 51 rows — the actual
+           year plus fifty forward — and the control is gone. A file saved
+           with a shorter horizon still opens: applyVersion pads it out, and
+           a year left blank is nil, so nothing is lost or invented. -->
       <!-- Council logo moved to the ribbon (#logorow/#logoshow/#logoclear —
            see .railwrap markup): a crest is a file-level fact, not a
            per-question one, and it competed for space here with the
            questions that actually vary report to report. -->
-      <div class="issuedcell"><label class="cpmini issuedbox"><input type="checkbox" id="issued">
-        Issued to members</label></div>
       <div><label for="whoami">Saved by</label>
         <input type="text" id="whoami" placeholder="your name" maxlength="60"></div>
+      </div><!-- /#setupstash -->
+      <div class="setup">
+      <!-- ISSUED STAYS. It is not setup: it is a thing you do TO the report
+           that is open, on the day it goes to committee, and it locks the
+           report when you do it. -->
+      <div class="issuedcell"><label class="cpmini issuedbox"><input type="checkbox" id="issued">
+        Issued to members</label></div>
     </div>
     <!-- "Bring in your figures" and, later, the always-open "Reports in this
          file" card that replaced it both used to live here. Both are gone
@@ -1917,6 +2036,19 @@ td.nask{background:repeating-linear-gradient(45deg,var(--hair),var(--hair) 4px,
          wire.js's renderReturnsList/useItFrom/toggleReportsPanel. -->
     </div>
   </section>
+
+  <!-- The start screen. Built by startShow() in wire.js; see the note above
+       .startveil for why it is not an .askbox. -->
+  <div class="startveil" id="startveil" hidden></div>
+  <div class="startbox" id="startbox" hidden role="dialog" aria-modal="true"
+       aria-labelledby="starttitle">
+    <div class="starthead">
+      <h2 id="starttitle"></h2>
+      <p id="startsub"></p>
+    </div>
+    <div class="startbody" id="startbody"></div>
+    <div class="startfoot" id="startfoot"></div>
+  </div>
 
   <div class="askbox" id="askbox" hidden>
     <h3 id="asktitle"></h3>
@@ -2468,8 +2600,18 @@ const colAsked = (c, i) => !(c.mtfp && i >= MTFP);
 
 const MTFP = 5;   // years most authorities actually forecast — marked, not enforced
 
+/* HOW FAR EVERY REPORT RUNS. Fifty forward years plus the actual year, and no
+   longer a question: the Horizon control offered 10, 20, 30, 40 or 50 and the
+   answer was always 50, because the Code wants the projection to cover "at
+   least the entirety of any existing borrowing commitments" and PWLB
+   maturities reach that far. A question with one sensible answer costs every
+   reader a decision and gives nobody a different report. S.years still exists
+   and is still saved, so a file written under a shorter horizon opens and is
+   padded up to this on restore (see applyVersion). */
+const YEARS = 51;
+
 let S = {gss:"", report:"", fy0:2026, asAt:null, natOverride:null,
-         view:{ind:"all", fund:"all"}, hra:"no", fund:"gf", years:51,
+         view:{ind:"all", fund:"all"}, hra:"no", fund:"gf", years:YEARS,
          loans:[], g:{}, text:{}, sec:"intro",
          /* NOTHING IS ANSWERED ON THEIR BEHALF. This seeded two of the nineteen
             questions — an MRP method and a reporting cycle — so a council that had
@@ -12596,7 +12738,21 @@ function applyVersion(d){
     // the browser tab that overrode or explored it last — see overrideActive()
     // and scenarioActive() below.
     OVERRIDE_KEY=null; SCENARIO_KEY=null;
-    $("fy0").value=S.fy0; $("hra").value=S.hra; $("horizon").value=S.years;
+    /* A FILE SAVED BEFORE THE HORIZON WAS FIXED CARRIES ITS OWN. It could be
+       11, 21, 31 or 41 rows; every grid downstream now assumes YEARS. Pad it
+       rather than refuse it — a year nobody entered is nil, which is what the
+       blank rows mean anyway, so this adds no figure the author did not have.
+       Trim the other way too, for the same reason in reverse: a longer grid
+       would run past the columns the report draws. */
+    if(S.years !== YEARS){
+      const was = S.years; S.years = YEARS;
+      ["gf","hra"].forEach(f => COLS.forEach(c => {
+        const a = (S.g[f] && S.g[f][c.k]) || [];
+        S.g[f][c.k] = YEARS <= was ? a.slice(0, YEARS)
+                                   : a.concat(new Array(YEARS - a.length).fill(0));
+      }));
+    }
+    $("fy0").value=S.fy0; $("hra").value=S.hra;
     if($("asat")) $("asat").value = S.asAt || MKT.as_at || "";
     if($("minliq")) $("minliq").value = S.minliq==null ? "" : S.minliq;
     buildLedger(); loanRows(); renderSections(); cpRender(); render();
@@ -12797,10 +12953,10 @@ function renderLockGate(){
   const gated1 = locked && !bypassed;
   /* Step 1 mixes navigation (which authority, which report, which year —
      always live, or there would be no way off a locked report) with report
-     content of its own (the HRA model, the horizon, the logo, the as-at
-     date). Only the content is gated; picking a different report is never
+     content of its own (the HRA model, the logo, the as-at date). Only the
+     content is gated; picking a different report is never
      an edit to this one. */
-  ["hra", "horizon", "asat", "logo", "logoclear"].forEach(id => {
+  ["hra", "asat", "logo", "logoclear"].forEach(id => {
     const el = $(id);
     if(el) el.disabled = gated1;
   });
@@ -13130,18 +13286,6 @@ const askRows = rows => `<div class="asklist">${rows.map(r => `<div class="askro
     + REPORTS.map(r=>`<option value="${r.k}">${esc(r.t)}</option>`).join("");
   let ys=""; for(let y=2024;y<=2028;y++) ys+=`<option value="${y}"${y===2026?" selected":""}>${fy(y)}</option>`;
   $("fy0").innerHTML=ys;
-  // The Code wants "at least the entirety of any existing borrowing
-  // commitments", so 50 is the default rather than a maximum.
-  $("horizon").innerHTML=[11,21,31,41,51].map(n=>
-    `<option value="${n}"${n===51?" selected":""}>${n-1} years</option>`).join("");
-  $("horizon").addEventListener("change", e=>{
-    const old=S.years; S.years=+e.target.value;
-    ["gf","hra"].forEach(f=>COLS.forEach(c=>{
-      const a=S.g[f][c.k];
-      S.g[f][c.k] = S.years<=old ? a.slice(0,S.years)
-                                 : a.concat(new Array(S.years-old).fill(0));
-    }));
-    buildLedger(); applyLoans(); });
 
   function fundTabs(){
     const on = S.hra!=="no";
@@ -15225,8 +15369,288 @@ const askRows = rows => `<div class="asklist">${rows.map(r => `<div class="askro
     // path through applyVersion — page-load restore, undo, leaving a
     // demonstration — needs the "other body" name and regime put back on
     // screen, not just held correctly in S/LB.other underneath a blank box.
-    renderChoices(); logoRow(); otherShown(true); undoPaint();
+    renderChoices(); logoRow(); otherShown(true); undoPaint(); setupSummary();
   });
+
+  /* =========================================================================
+   * THE START SCREEN
+   *
+   * See the note above .startveil in body.html for why this exists and why it
+   * is not an .askbox. In short: a reader arrives holding one of two mental
+   * models — a spreadsheet they save, or a system that saves itself — and the
+   * only thing that costs us is their not knowing which one they are in. So
+   * the first screen says it, and the two doors follow from it.
+   *
+   * IT DRIVES THE REAL CONTROLS. Every value it collects is written to the
+   * same <select> on step 1 that a reader would have used, and its own change
+   * event is fired, so fillDemo, autoInherit, seedHoldings, otherShown and
+   * every guard around them run exactly as they always have. A second path
+   * into the same state would be a second path to keep in step with the first,
+   * and this file has the scars to prove how that ends.
+   * ====================================================================== */
+  const SV = {veil:"startveil", box:"startbox", t:"starttitle",
+              sub:"startsub", body:"startbody", foot:"startfoot"};
+  const ICON = {
+    open:'<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
+    plus:'<path d="M12 5v14M5 12h14"/>',
+    eye :'<path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12z"/><circle cx="12" cy="12" r="2.6"/>'
+  };
+  const svg = d => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+    stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
+  const door = (key, icon, title, sub, primary) =>
+    `<button type="button" class="startdoor${primary?" primary":""}" data-door="${key}">
+       <span class="sd-ic">${svg(icon)}</span>
+       <span><span class="sd-t">${esc(title)}</span><span class="sd-s">${esc(sub)}</span></span>
+     </button>`;
+
+  /* THE PROMISE LIVES HERE NOW. It used to be one of four cards on a "Before
+     you start" step, which went when that step did; the live build carried no
+     statement about where a reader's figures go at all. This is a better home
+     than the card ever was: explaining the file and making the promise are the
+     same sentence, said at the one moment anyone is asking the question. */
+  const PROMISE = `<p>There is no account and no upload. Nothing you type reaches a
+    server &mdash; the only thing this page fetches is the published PWLB and SONIA
+    rates.</p>`;
+
+  /* THE CONTROLS ARE LENT, NOT COPIED.
+   *
+   * Each field the start screen asks for is the SAME element that used to sit
+   * on step 1 — moved into the screen while it is open and moved back to
+   * #setupstash when it closes. Two elements with one id would be one id too
+   * many: every handler in this file finds its control with $("council"),
+   * document.getElementById returns whichever came first, and the other would
+   * quietly stop working. One element, borrowed, keeps fillDemo, autoInherit,
+   * seedHoldings, otherShown and every guard around them working untouched —
+   * and keeps #otherreg's real option values (england/wales/scotland/combined)
+   * rather than a second list to drift from them. */
+  const LENT = ["council", "othername", "otherreg", "rtype", "fy0", "asat", "hra", "whoami"];
+  const cellOf = id => { const el = $(id); return el && el.closest("div"); };
+  function startLend(){
+    document.querySelectorAll("#startbox .startslot").forEach(slot => {
+      const cell = cellOf(slot.getAttribute("data-slot"));
+      if(cell) slot.appendChild(cell);
+    });
+  }
+  function startReturn(){
+    const stash = $("setupstash");
+    if(!stash) return;
+    LENT.forEach(id => { const c = cellOf(id); if(c && !stash.contains(c)) stash.appendChild(c); });
+  }
+  const slot = (id, label) =>
+    `<div class="startslot" data-slot="${id}"${label ? ` aria-label="${esc(label)}"` : ""}></div>`;
+
+  /* WHAT IS OPEN, SAID ON THE STEP THAT USED TO ASK IT. Read-only on purpose:
+     the way to change any of it is the start screen, because the report type
+     decides which sections exist, which wording is drafted and which
+     indicators are carried, and swapping it under a half-written report is a
+     different document rather than an edit. */
+  function setupSummary(){
+    const host = $("setupsum");
+    if(!host) return;
+    if(!S.gss || !S.report){
+      host.innerHTML = `<p class="ss-none">No report open.</p>
+        <span class="ss-go"><button type="button" class="primary" data-startgo="1">Choose a report</button></span>`;
+      return;
+    }
+    const who = S.gss === DEMO_GSS
+      ? ((LB[DEMO_GSS] || {}).n || "Demonstration")
+      : ((LB[S.gss] || {}).n || S.otherName || "this authority");
+    const rep = (REPORTS.find(r => r.k === S.report) || {}).t || S.report;
+    const pool = S.hra === "no" ? "No HRA" : S.hra === "one" ? "HRA, one pool" : "HRA, two pools";
+    const item = (k, v) => `<span class="ss-i"><span class="ss-k">${esc(k)}</span>
+      <span class="ss-v">${esc(v)}</span></span>`;
+    host.innerHTML =
+        item("Authority", who)
+      + item("Report", rep)
+      + item("Year", fy(S.fy0))
+      + item("Market data", fmtWhen(S.asAt || MKT.as_at) || "—")
+      + item("Pooling", pool)
+      + `<span class="ss-go"><button type="button" data-startgo="1">Change</button></span>`;
+  }
+
+  let startView = "doors";
+  function startOpen(view){
+    startView = view || "doors";
+    $(SV.veil).hidden = false;
+    $(SV.box).hidden = false;
+    startRender();
+  }
+  function startClose(){
+    startReturn();
+    $(SV.veil).hidden = true;
+    $(SV.box).hidden = true;
+    setupSummary();
+  }
+  /* A REPORT IS OPEN WHEN BOTH HALVES ARE. Either alone is a half-made state
+     the rest of the tool cannot draw — an authority with no report type has no
+     sections, a report type with no authority has no loan book — which is
+     exactly the state this screen exists to stop anyone being dropped into. */
+  const reportOpen = () => !!(S.gss && S.report);
+
+  function startRender(){
+    /* BEFORE THE innerHTML BELOW, NOT AFTER. A lent control sitting inside a
+       view about to be rewritten would be destroyed with it, taking #council
+       out of the page for good. */
+    startReturn();
+    const V = startView;
+    if(V === "doors"){
+      $(SV.t).textContent = "Welcome to PWLBreports";
+      $(SV.sub).innerHTML = "Your reports live in a single file on your own computer "
+        + "&mdash; like a spreadsheet. Open the one you already have, or start a new one.";
+      $(SV.body).innerHTML =
+        door("open", ICON.open, "Open my reports file",
+             "If you have used PWLBreports before, everything you saved is in that file — every report, every year.", true)
+      + door("new", ICON.plus, "Start a new file",
+             "First time here, or starting a fresh set of reports for an authority.")
+      + `<div class="startor">or</div>`
+      + door("demo", ICON.eye, "Look around a worked example",
+             "A complete demonstration authority with figures already in it. Nothing here touches a real report.");
+      $(SV.foot).innerHTML = PROMISE;
+    }
+
+    else if(V === "new"){
+      $(SV.t).textContent = "Start a new file";
+      $(SV.sub).textContent = "Two things about the authority, then you are in. "
+        + "These stay with the file — you will not be asked again.";
+      $(SV.body).innerHTML =
+          slot("council") + slot("othername") + slot("otherreg") + slot("hra")
+        + `<p class="startnote"><b>Not sure about pooling?</b> One pool is the common
+             case: the HRA and General Fund share one loans pool with an interest
+             recharge. Two pools means the HRA holds its own debt.</p>`;
+      $(SV.foot).innerHTML =
+        `<button type="button" id="s-back">Back</button>
+         <button type="button" class="primary" id="s-next">Continue</button>`;
+    }
+
+    else if(V === "report"){
+      $(SV.t).textContent = "Which report today?";
+      $(SV.sub).textContent = "The report type is set here and stays set — every "
+        + "section below depends on it. Come back to this screen to start a different one.";
+      $(SV.body).innerHTML =
+          slot("rtype") + slot("fy0") + slot("asat") + slot("whoami");
+      $(SV.foot).innerHTML =
+        `<button type="button" id="s-back">Back</button>
+         <button type="button" class="primary" id="s-go">Start the report</button>`;
+    }
+
+    else if(V === "demo"){
+      $(SV.t).textContent = "A worked example";
+      $(SV.sub).textContent = "A complete authority with figures, commentary and a "
+        + "finished draft. Nothing you do here touches a real report.";
+      $(SV.body).innerHTML = DEMO_ORDER.map(([k, label]) =>
+        `<button type="button" class="startdoor" data-door="demo:${k}">
+           <span class="sd-ic">${svg(ICON.eye)}</span>
+           <span><span class="sd-t">${esc(label.replace("Demonstration · ", ""))}</span></span>
+         </button>`).join("");
+      $(SV.foot).innerHTML = `<button type="button" id="s-back">Back</button>`;
+    }
+
+    else if(V === "reports"){
+      const rows = libFor(S.gss);
+      const who = (LB[S.gss] || {}).n || S.otherName || "this authority";
+      $(SV.t).textContent = who;
+      $(SV.sub).textContent = rows.length
+        ? `${rows.length} report${rows.length===1?"":"s"} in this file.`
+        : "Nothing saved in this file yet.";
+      $(SV.body).innerHTML = (rows.length
+        ? rows.map(e => {
+            const nm = (REPORTS.find(x=>x.k===e.report)||{}).t || e.report;
+            return `<div class="startrep">
+              <span><span class="sr-n">${esc(nm)} ${esc(fy(e.fy0))}</span>
+                <span class="sr-s">${e.issued ? "Issued &middot; " : ""}${esc(whenLine(e.at))}</span></span>
+              <span class="sr-a"><button type="button" data-open="${esc(e.k)}">Open</button></span></span>
+            </div>`; }).join("")
+        : `<p class="startempty">Start the first one below.</p>`)
+        + `<div class="startor">or</div>`
+        + door("another", ICON.plus, "Start another report",
+               "A new year, or a different report for this authority. It picks up what is already in the file.");
+      /* A WAY OUT OF THIS FILE, ALWAYS. The ribbon button lands here whenever
+         an authority is set, so if this view only offered "back to my report"
+         there was no route from a file you have open to a different file or a
+         different authority — a dead end reached by the ordinary path, which
+         is the worst kind. Both doors, every time. */
+      $(SV.foot).innerHTML =
+        `<button type="button" id="s-back">Open a different file</button>`
+        + (reportOpen()
+            ? `<button type="button" class="primary" id="s-close">Back to my report</button>`
+            : "");
+    }
+    startLend();
+  }
+
+  /* ONE DELEGATED LISTENER, because every view above is rebuilt from scratch
+     each time it is shown — binding per render would stack a new handler on
+     the box for every visit. */
+  $(SV.box).addEventListener("click", e => {
+    const t = e.target.closest("[data-door],[data-open],#s-back,#s-next,#s-go,#s-close");
+    if(!t) return;
+    const d = t.getAttribute("data-door");
+    if(d && /^demo:/.test(d)){
+      $("council").value = d;
+      $("council").dispatchEvent(new Event("change", {bubbles:true}));
+      startClose();
+      return;
+    }
+    if(d === "open"){ $("libopen").click(); return; }
+    if(d === "new"){ startOpen("new"); return; }
+    if(d === "demo"){ startOpen("demo"); return; }
+    if(d === "another"){ startOpen("report"); return; }
+    if(t.id === "s-close"){ startClose(); return; }
+    if(t.id === "s-back"){ startOpen("doors"); return; }
+
+    if(t.id === "s-next"){
+      /* The control it validates IS #council — the reader edited the real one,
+         so its own change handler has already run and S.gss is set. Nothing to
+         copy across; only somewhere to go next. */
+      if(!$("council").value){ $("council").focus(); return; }
+      startOpen("report");
+      return;
+    }
+
+    if(t.id === "s-go"){
+      if(!$("rtype").value){ $("rtype").focus(); return; }
+      startClose();
+      return;
+    }
+
+    /* OPENING A SAVED REPORT IS SETTING THE PAIR THAT NAMES IT. There is no
+       "load this key" to call — KEY() is built from gss, report and year, and
+       the autosave restore below finds the body for whatever pair the controls
+       say. So this drives the same two selects a reader would have, in the
+       same order the #rtype handler needs (year first, then type), and every
+       guard and inherit around them runs exactly as it always does. */
+    const k = t.getAttribute("data-open");
+    if(k){
+      const e2 = libFor(S.gss).find(x => x.k === k);
+      if(e2){
+        $("fy0").value = e2.fy0;
+        $("fy0").dispatchEvent(new Event("change", {bubbles:true}));
+        $("rtype").value = e2.report;
+        $("rtype").dispatchEvent(new Event("change", {bubbles:true}));
+      }
+      startClose();
+    }
+  });
+
+  /* REOPENING IT IS THE ONLY WAY TO CHANGE THE REPORT TYPE. Phil's call, and
+     the right one: the sections, the wording, the indicators and the period
+     figures all differ by report, so changing it underneath a half-written one
+     is not an edit, it is a different document. */
+  const toStart = () => startOpen(S.gss ? "reports" : "doors");
+  $("startbtn").addEventListener("click", toStart);
+  /* Delegated: the summary is rebuilt whenever the report changes, so a
+     handler bound to its button would be bound to an element already gone. */
+  document.addEventListener("click", e => {
+    if(e.target && e.target.closest && e.target.closest("[data-startgo]")) toStart();
+  });
+
+  /* ON LOAD: only when there is nothing to come back to. A reader who
+     refreshed mid-report, or whose file was just imported, lands back in their
+     report rather than being asked to choose one again. */
+  setupSummary();
+  /* A control left in a view from a previous life of this page belongs in the
+     stash before anything else reads it. */
+  if(!reportOpen()) startOpen("doors"); else startReturn();
 
   wireSteps();
   wireNumericFields();
