@@ -1139,36 +1139,6 @@ table.dtab td.wrap{white-space:normal;line-height:1.5}
 .warn{font-family:var(--sans);margin:10px 0 0;padding:9px 12px;border-radius:var(--r-sm);
   background:rgba(179,53,42,.09);border-left:3px solid var(--alert);font-size:12px;color:var(--ink2)}
 
-/* A locked report's panel is still in the DOM — the inputs are real, and a
-   correction only needs a reason typed above them, not a rebuild of the
-   panel. inert freezes the lot in one line rather than one per field, and
-   nothing keeps that list of fields in sync as panels change. */
-[inert]{opacity:.45}
-.lockbanner{font-family:var(--sans);margin:0 0 16px;padding:14px 16px;border-radius:var(--r-sm);
-  background:var(--sunken);border-left:3px solid var(--orange)}
-.lockbanner h3{margin:0 0 6px;font-size:14px;color:var(--ink)}
-.lockbanner p{margin:0 0 8px;font-size:12.5px;line-height:1.6;color:var(--ink2)}
-.lockbanner .unlockbox{margin-top:10px;border-top:1px solid var(--line2);padding-top:10px}
-.lockbanner .unlockbox summary{cursor:pointer;font-size:12.5px;font-weight:600;color:var(--ink2)}
-.lockbanner .unlockbox[open] summary{margin-bottom:8px}
-.lockbanner .overridehist{margin:0 0 10px}
-.lockbanner .overridehist summary{cursor:pointer;font-size:12px;font-weight:600;color:var(--alert)}
-.lockbanner .overridehist ul{margin:6px 0 0;padding-left:18px}
-.lockbanner .overridehist li{font-size:12px;color:var(--ink2);margin-bottom:4px}
-.lockbanner textarea{width:100%;box-sizing:border-box;font-family:var(--sans);font-size:12.5px;
-  border-radius:var(--r-sm);border:1px solid var(--line2);padding:7px 9px;resize:vertical}
-.overridestrip{font-family:var(--sans);margin:0 0 16px;padding:9px 12px;border-radius:var(--r-sm);
-  background:rgba(179,53,42,.09);border-left:3px solid var(--alert);font-size:12px;color:var(--ink2)}
-.overridestrip b{color:var(--ink)}
-/* Orange, not red — a correction and a what-if are different kinds of
-   editing a locked report, and this strip has to read as the calmer one:
-   nothing here can go wrong, because nothing here is kept. */
-.scenariostrip{font-family:var(--sans);margin:0 0 16px;padding:9px 12px;border-radius:var(--r-sm);
-  background:var(--sunken);border-left:3px solid var(--orange);font-size:12px;color:var(--ink2)}
-.scenariostrip b{color:var(--ink)}
-.scenariostrip #scenarioexit{margin-left:8px}
-
-
 /* ---- spreadsheet behaviour ------------------------------------------------
  * The selection is a background rather than a border, because a border on a
  * cell in a dense grid shifts everything a pixel and the whole table twitches
@@ -1218,16 +1188,6 @@ svg.ctip .hits rect{cursor:crosshair}
 .secdec h3{margin:0 0 8px}
 /* The folded strip above the draft */
 .gapstrip{display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px;margin-top:12px}
-.gapstrip.none{font-family:var(--sans);font-size:13.5px;color:var(--ink2);padding:10px 14px;
-  background:var(--sunken);border-radius:var(--r-sm)}
-.gapstog{display:inline-flex;align-items:center;gap:14px;padding:6px 12px 6px 6px;border:1px solid var(--line2);
-  border-radius:var(--r-sm);background:var(--card);cursor:pointer;font-family:var(--sans)}
-.gapstog:hover{border-color:var(--accent)}
-.gapstog .ck{margin:0}
-.gapstog .cav{width:8px;height:8px;border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);
-  transform:rotate(45deg);transition:transform .15s;margin:0 4px 3px 2px}
-.gapstog[aria-expanded="true"] .cav{transform:rotate(-135deg);margin-bottom:-3px}
-.gapsbody{margin-top:8px}
 .dchgnote{font-family:var(--sans);font-size:13px;color:var(--ink2)}
 .dchgnote b{color:var(--orange)}
 .dchgnote .lnk{margin-left:6px}
@@ -1239,44 +1199,10 @@ svg.ctip .hits rect{cursor:crosshair}
 #docnavlist a.dchg b{color:var(--orange)}
 #docnavlist a.dchg::after{content:"";display:inline-block;width:6px;height:6px;border-radius:50%;
   background:var(--orange);margin-left:6px;vertical-align:middle}
-.gaps{margin-top:14px}
-.gaps.none{font-family:var(--sans);font-size:13.5px;color:var(--ink2);padding:12px 14px;
-  background:var(--sunken);border-radius:var(--r-sm)}
-.gapshead{display:flex;flex-wrap:wrap;align-items:center;gap:10px 18px;margin:0 0 6px}
-.gapsnote{font-family:var(--sans);font-size:12.5px;color:var(--muted);flex:1 1 32ch;line-height:1.5}
+/* The rail's open-items pill: how many of the check's findings a step would
+   close (checkGapsByStep, check.js; renderRail, steps.js). */
 .rstep .ropen{display:inline-block;margin-left:6px;font-family:var(--mono);font-size:10px;
   padding:1px 6px;border-radius:999px;background:var(--orange);color:#fff;vertical-align:middle}
-.ckhead{border-bottom:1px solid var(--line);padding-bottom:16px;margin-bottom:6px}
-.cktot{display:flex;gap:10px;flex-wrap:wrap}
-.ck{display:inline-flex;align-items:baseline;gap:7px;font-family:var(--sans);font-size:12px;
-  color:var(--ink2);border:1px solid var(--line2);border-radius:var(--r-sm);padding:7px 12px}
-.ck b{font-family:var(--mono);font-size:17px;font-weight:600;color:var(--ink);
-  font-variant-numeric:tabular-nums}
-.ck.out{border-color:var(--alert)}
-.ck.out b{color:var(--alert)}
-.ck.conf{border-color:var(--l-al)}
-.ck.na{color:var(--muted)}
-.cknote{font-family:var(--sans);font-size:13px;line-height:1.6;color:var(--ink2);
-  margin:14px 0 0;max-width:76ch}
-.ckgrp{margin-top:22px}
-.ckgrp h4{font-family:var(--sans);font-size:11px;letter-spacing:.09em;text-transform:uppercase;
-  color:var(--muted);font-weight:700;margin:0 0 8px}
-/* "out" and "conf", not "gap" and "yours": .gap already belongs to the draft,
-   where it means a paragraph still to be written -- italic, alert-coloured and
-   washed. These rows silently inherited all three. */
-.ckrow{display:grid;grid-template-columns:132px 1fr;gap:14px;align-items:start;
-  padding:12px 0;border-top:1px solid var(--hair)}
-.cktag{font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;
-  color:var(--muted);padding-top:2px}
-.ckrow.out .cktag{color:var(--alert);font-weight:600}
-.ckrow.conf .cktag{color:var(--l-al);font-weight:600}
-.ckt{font-family:var(--sans);font-size:13.5px;font-weight:600;color:var(--ink);display:block}
-.cksrc{font-family:var(--mono);font-size:10.5px;color:var(--muted);display:block;margin-top:2px}
-.ckbody p{font-family:var(--sans);font-size:13px;line-height:1.6;color:var(--ink2);
-  margin:6px 0 0;max-width:80ch}
-.cklink{font-family:var(--sans);font-size:12px;font-weight:600;color:var(--accent);
-  background:none;border:0;padding:0;cursor:pointer;text-decoration:underline}
-@media(max-width:660px){.ckrow{grid-template-columns:1fr;gap:4px}}
 /* The period-performance grid: three columns, and a blank line simply does
    not appear in the report. Narrow inputs, because these are single figures
    rather than a fifty-year row. */
@@ -1393,7 +1319,7 @@ svg.ctip .hits rect{cursor:crosshair}
   background:color-mix(in srgb, var(--muted) 20%, var(--card));color:var(--muted)}
 .cpix.on i{background:var(--good);color:#fff}
 .cpindex .sp{flex:1;min-width:8px}
-/* The logo picker, on Set up beside the issued tick: a 34px button that shows
+/* The logo picker, on Set up: a button that shows
    the crest once one is chosen, with a small x to take it away again.
    #logorow/#logoshow/#logoclear keep their ids — logoRow() in wire.js paints
    them and does not care where they sit. */
@@ -1421,20 +1347,6 @@ svg.ctip .hits rect{cursor:crosshair}
    which is also what paintFileStatus (ui.js) paints into. This card, the
    per-step footer's copy of the same line, and the .fbtn buttons that used
    to sit in both places are gone rather than kept as unused CSS. */
-/* Every other .setup cell is a label (which flex:1s, pushing its control
-   down) followed by the control — that is what puts every control on the
-   same baseline along the row regardless of how many lines its own label
-   wrapped to. This cell has no separate label above its control, the
-   checkbox and its text ARE the one element, so margin-top:auto is what
-   gets it onto that same baseline instead of sitting wherever a plain
-   column flow would leave it. */
-/* A ROW, NOT A COLUMN. .setup > div > label makes every label on this grid a
-   column (its text above its control); this label IS the control, and a
-   column put the tick box floating above its own words. */
-.issuedcell .issuedbox{margin-top:auto;flex-direction:row;align-items:flex-start;gap:9px;
-  margin-bottom:0;flex:0 0 auto}
-.issuedcell .issuedbox input{margin-top:3px;flex:none}
-.issuedbox{display:inline-flex;align-items:center;gap:6px}
 /* The one place the tool stops and asks. It carries a list, so it is a panel
    rather than a confirm() — a table does not fit in a browser dialog. */
 /* What is open, at the top of Set up. Read, not filled. */
@@ -1449,8 +1361,6 @@ svg.ctip .hits rect{cursor:crosshair}
 /* One control left on this step, so it sits where a first field sits rather
    than centred in the middle of a grid built for eight. */
 .panel[data-step="1"] .setup{display:flex;justify-content:flex-start;gap:12px 32px;align-items:flex-end}
-.panel[data-step="1"] .setup .issuedcell{margin:0}
-.issuedcell .hint{display:block;font-weight:400;font-size:11.5px;color:var(--muted);margin-top:3px}
 /* A stashed control on loan to the start screen keeps its own label and hint
    but takes the modal's field spacing, so the two views look like one form. */
 .startslot > div{display:flex;flex-direction:column;gap:5px}
@@ -1538,8 +1448,6 @@ svg.ctip .hits rect{cursor:crosshair}
 .startdoor .sd-k{font-family:var(--sans);font-size:11px;font-weight:600;letter-spacing:.06em;
   text-transform:uppercase;color:var(--accent);display:block;margin-bottom:2px}
 .startrep.confirming{border-color:var(--alert);background:color-mix(in srgb,var(--alert) 5%,transparent)}
-.startrep .sr-lk{font-family:var(--mono);font-size:10.5px;text-transform:uppercase;
-  letter-spacing:.06em;color:var(--good);white-space:nowrap}
 .startrep button.danger{border-color:var(--alert);color:var(--alert)}
 .startrep .sr-tag{font-family:var(--mono);font-size:10.5px;text-transform:uppercase;
   letter-spacing:.06em;color:var(--muted);white-space:nowrap}
@@ -1972,15 +1880,10 @@ td.nask{background:repeating-linear-gradient(45deg,var(--hair),var(--hair) 4px,
         <input type="text" id="whoami" placeholder="your name" maxlength="60"></div>
       </div><!-- /#setupstash -->
       <div class="setup">
-      <!-- ISSUED STAYS. It is not setup: it is a thing you do TO the report
-           that is open, on the day it goes to committee, and it locks the
-           report when you do it. -->
-      <div class="issuedcell"><label class="cpmini issuedbox"><input type="checkbox" id="issued">
-        <span>Issued to members &mdash; this report is complete
-          <span class="hint">Tick once it has gone to committee. It locks the report, and
-            the next report picks up from it.</span></span></label></div>
       <!-- The council's crest, here rather than on the ribbon: a fact about
-           the file, set once, read on the front of every draft. -->
+           the file, set once, read on the front of every draft. There was an
+           "issued to members" tick beside it, which locked the report; gone,
+           with the locking — every report is open. -->
       <div class="logocell"><label>Council logo<span class="hint">on the front of every
           draft — it travels inside the exported file</span></label>
         <div class="logowrap">
@@ -2180,19 +2083,11 @@ td.nask{background:repeating-linear-gradient(45deg,var(--hair),var(--hair) 4px,
         appear as gaps; sections changed since you last looked are marked.</span></div>
     <div class="pbody"><div class="ltools" style="margin-top:0">
       <button type="button" class="primary" id="expdoc">Download for Word</button>
-      <button type="button" id="copydoc">Copy the draft</button>
-      <!-- Opens the section list beside the draft and takes you to the top of
-           it. The list's own burger (#docnavtoggle, doc.js) folds it again;
-           this button exists because that burger, hanging in the gutter, was
-           the thing nobody found. -->
-      <button type="button" id="contentsbtn" title="The sections, as a list beside the draft">Contents</button>
       <span class="sp"></span><span class="hintline" id="dhint"></span>
     </div>
-    <!-- WHAT IS STILL OPEN, IN ONE LINE. Folded by default, because this is
-         the draft and a reader who came here wants to see the draft; opened
-         on click to the full list, each row handing you to the step that
-         closes it. The paper's own toggles live at the end of Wording now,
-         so nothing here is a decision — it is all reading. -->
+    <!-- WHAT CHANGED SINCE YOU LAST LOOKED, IN ONE LINE (gapsStripHTML,
+         ui.js). The check's counts used to sit here too; the rail's pills
+         and the gaps in the draft itself carry that now. -->
     <div id="gaps"></div></div>
   </section>
   <section class="panel doc" id="doc" data-step="8" aria-live="polite"></section>
@@ -2583,16 +2478,11 @@ let S = {gss:"", report:"", fy0:currentFY(), asAt:null, natOverride:null,
             the tool assumes nothing, and it has to be true here first. */
          choices:{}, rates:[], limits:{}, portfolio:[], portfolioText:"", portfolioNote:"", logo:null,
          mat:{d:{}, i:{}}, hold:"d",
-         /* A freshly-seeded report is never locked, whatever its source was —
-            see library.js's libSeed(). Set only by checkAutoLock noticing the
-            report has been issued, or by the year-end check; cleared only by
-            a stated override. */
-         locked:false, lockedAt:null, lockedReason:null,
-         // The audit trail of every time a locked report was edited anyway.
-         // Never cleared — see checkAutoLock/overrideUnlock in wire.js.
-         overrides:[],
-         // Whether this version went to members. Lives on S like locked does
-         // now, not in a browser-side index — see libIsIssued in wire.js.
+         /* Locking, overrides and the issued tick are gone — every report is
+            open (Phil's call: nice to have, complex for users). The fields
+            stay in the payload so files written by earlier builds still
+            open and round-trip; nothing reads them any more. */
+         locked:false, lockedAt:null, lockedReason:null, overrides:[],
          issued:false, issuedAt:null};
 const blank = () => { const o={}; COLS.forEach(c=>o[c.k]=Array(S.years).fill(0)); return o; };
 S.g = {gf:blank(), hra:blank()};
@@ -3305,31 +3195,17 @@ function docMark(){
   });
   return changed;
 }
-/* The strip above the document: what is still open, folded to one line, and
-   what changed since you last looked, with a way to walk through it. */
-let GAPS_OPEN = false;
+/* The line above the document: what changed since you last looked, with a
+   way to walk through it. The check's counts ("N outstanding", "N yours to
+   confirm") used to sit here too, folding out to the full list; Phil's call
+   to drop them — the rail's own pills and the gaps in the draft itself
+   already say what is still to do. */
 function gapsStripHTML(){
-  const rows = (typeof checkOpen === "function") ? checkOpen() : [];
-  const n = {gap:0, yours:0}; rows.forEach(r => n[r.v]++);
-  const st = (typeof stepStatus === "function") ? stepStatus("draft") : {note:""};
-  const fig = (st.note || "").match(/(\d+) figures? still to supply/);
-  const parts = [];
-  if(n.gap)   parts.push(`<span class="ck out"><b>${n.gap}</b>outstanding</span>`);
-  if(n.yours) parts.push(`<span class="ck conf"><b>${n.yours}</b>yours to confirm</span>`);
-  if(fig && +fig[1]) parts.push(`<span class="ck out"><b>${fig[1]}</b>figure${fig[1]==="1"?"":"s"} still to supply</span>`);
   const changed = docChanges();
-  const chg = changed.length
-    ? `<span class="dchgnote"><b>${changed.length}</b> section${changed.length===1?"":"s"} changed since you last looked
-         <button type="button" class="lnk" id="dchgnext">show me</button></span>`
-    : "";
-  if(!parts.length && !chg)
-    return `<div class="gapstrip none"><b>Nothing outstanding.</b> Everything the two Codes ask
-      of this report that the tool can see is in the draft.</div>`;
-  return `<div class="gapstrip">
-      <button type="button" class="gapstog" id="gapstog" aria-expanded="${GAPS_OPEN}">
-        ${parts.join("")}<span class="cav" aria-hidden="true"></span></button>${chg}
-    </div>
-    <div class="gapsbody" id="gapsbody"${GAPS_OPEN ? "" : " hidden"}>${checkGapsHTML()}</div>`;
+  if(!changed.length) return "";
+  return `<div class="gapstrip"><span class="dchgnote"><b>${changed.length}</b>
+      section${changed.length===1?"":"s"} changed since you last looked
+      <button type="button" class="lnk" id="dchgnext">show me</button></span></div>`;
 }
 
 function buildDraftNow(){
@@ -3347,8 +3223,6 @@ function buildDraftNow(){
 }
 
 function render(){
-  if(typeof checkAutoLock === "function") checkAutoLock();
-  if(typeof renderLockGate === "function") renderLockGate();
   const c = LB[S.gss];
   /* Marks the document as a demonstration, so the stylesheet can hide the
      clauses that are purely questions for an author. Set from state rather
@@ -3420,11 +3294,10 @@ function render(){
   // The figures step's live chart. Drawn only while that step is on screen —
   // three buildModel calls and an SVG on every keystroke is cheap, but not
   // when nobody is looking at the result.
-  /* The check's open items, on the draft — see checkGapsHTML. Built only
-     while the draft is on screen, like the document itself. */
+  /* What changed since you last looked, on the draft. Built only while the
+     draft is on screen, like the document itself. */
   const gp = $("gaps");
-  if(gp && STEP === DRAFT_STEP && typeof checkGapsHTML === "function")
-    gp.innerHTML = gapsStripHTML();
+  if(gp && STEP === DRAFT_STEP) gp.innerHTML = gapsStripHTML();
   /* The period's figures, built on arrival like the draft and the check. It is
      in LIVE_STEPS, so showStep calls render() on the way in; without this gate
      the step would open empty and stay empty until something else re-rendered. */
@@ -11476,28 +11349,24 @@ function currentFY(now){
 /* THE SENSIBLE NEXT REPORT FOR THIS AUTHORITY, from what the file holds and
  * what month it is. Phil's design: a new file should start with this year's
  * strategy, because everything else this year is monitored against it; once
- * that strategy is marked as issued (issued = complete), the suggestion moves
- * on to whichever report the calendar says is due next and the file does
- * not yet hold — quarterly monitoring once the first quarter has closed
- * (July), the mid-year review once the half-year has (October), last year's
- * outturn while the accounts are being closed (April to September), and
- * next year's strategy from December, when it is drafted for council. A
- * report that is in the file but not yet issued is offered as the thing to
- * finish; one that is issued is done, and the list moves on.
+ * that is in the file, the suggestion moves on to whichever report the
+ * calendar says is due next and the file does not yet hold — quarterly
+ * monitoring once the first quarter has closed (July), the mid-year review
+ * once the half-year has (October), last year's outturn while the accounts
+ * are being closed (April to September), and next year's strategy from
+ * December, when it is drafted for council. A report in the file counts as
+ * done: there is no issued mark any more, every report is open, and the
+ * file's list is where an unfinished one is reopened.
  *
- * Returns {report, fy0, verb, why, open} — `open` is the library key when
- * the report already exists and the suggestion is to finish it — or null
- * when everything the calendar asks for is already issued. */
+ * Returns {report, fy0, why, label}, or null when everything the calendar
+ * asks for is already in the file. */
 function suggestNext(gss, now){
   const d = now || new Date();
   const y = currentFY(d), m = d.getMonth();
   const rows = libFor(gss);
   const held = (r, fy0) => rows.find(e => e.report === r && e.fy0 === fy0);
   const name = r => (REPORTS.find(x => x.k === r) || {}).t || r;
-  const cands = [];
-  const strat = held("tmss", y);
-  if(!strat || !strat.issued)
-    cands.push(["tmss", y, `Everything else this year is monitored against it.`]);
+  const cands = [["tmss", y, `Everything else this year is monitored against it.`]];
   if(m === 11 || m <= 2)
     cands.push(["tmss", y + 1, `Next year's strategy goes to council before April.`]);
   if(m >= 9 || m <= 2)
@@ -11507,11 +11376,7 @@ function suggestNext(gss, now){
   if(m >= 3 && m <= 8)
     cands.push(["out", y - 1, `Last year is over, so its outturn report is due.`]);
   for(const [r, fy0, why] of cands){
-    const e = held(r, fy0);
-    if(e && e.issued) continue;
-    return e
-      ? {report:r, fy0, verb:"Finish", why:`It is in the file but not yet issued. ${why}`, open:e.k, label:name(r)}
-      : {report:r, fy0, verb:"Start", why, open:null, label:name(r)};
+    if(!held(r, fy0)) return {report:r, fy0, why, label:name(r)};
   }
   return null;
 }
@@ -12075,40 +11940,6 @@ function checkGapsByStep(){
   checkOpen().forEach(r => { if(r.go){ by[r.go] = by[r.go] || {gap:0, yours:0}; by[r.go][r.v]++; } });
   return by;
 }
-function checkGapsHTML(){
-  const rows = checkOpen();
-  if(!S.gss || !S.report) return "";
-  const n = {gap:0, yours:0};
-  rows.forEach(r => n[r.v]++);
-  if(!rows.length)
-    return `<div class="gaps none"><b>Nothing outstanding.</b> Everything the two Codes ask
-      of this report that the tool can see is in the draft.</div>`;
-  const V = {gap:"Outstanding", yours:"Yours to confirm"};
-  const CLS = {gap:"out", yours:"conf"};
-  const groups = [];
-  rows.forEach(r => {
-    let g = groups.find(x => x.t === r.g);
-    if(!g) groups.push(g = {t:r.g, rows:[]});
-    g.rows.push(r);
-  });
-  return `<div class="gaps">
-    <div class="gapshead">
-      <span class="ck out"><b>${n.gap}</b>outstanding</span>
-      <span class="ck conf"><b>${n.yours}</b>yours to confirm</span>
-      <span class="gapsnote">Not a compliance statement: what the tool could not find, and
-        what it cannot judge. Each one opens the step that settles it.</span>
-    </div>
-    ${groups.map(g => `<div class="ckgrp"><h4>${esc(g.t)}</h4>
-      ${g.rows.map(r => `<div class="ckrow ${CLS[r.v]}">
-        <span class="cktag">${V[r.v]}</span>
-        <div class="ckbody">
-          <span class="ckt">${esc(r.t)}</span>
-          <span class="cksrc">${esc(r.src)}</span>
-          <p>${r.note}${r.go ? ` <button type="button" class="cklink" data-go="${r.go}">Go to
-            step ${r.go}</button>` : ""}</p>
-        </div></div>`).join("")}</div>`).join("")}
-  </div>`;
-}
 
 /* ===========================================================================
  * The workflow.
@@ -12154,7 +11985,7 @@ const STEPS = [
      and from "See the draft" at the end of the walk. */
   {n:8, k:"draft",     t:"The draft",    s:"read and export", rail:false}
   /* NO STEP 9. The check's findings live on the draft and in the rail now —
-     see checkGapsHTML in check.js and the ropen pill in renderRail below. The
+     see checkGapsByStep in check.js and the ropen pill in renderRail below. The
      number is retired, not reused, for the reason at the top of this list. */
 ];
 let STEP = 1;
@@ -12931,7 +12762,6 @@ const RECOVER_KEY = "lb:recover";
 function recoverKeep(){
   try{
     if(!S.gss || !S.report) return;
-    if(typeof scenarioActive === "function" && scenarioActive()) return;
     localStorage.setItem(RECOVER_KEY, JSON.stringify({
       at: new Date().toISOString(),
       gss: S.gss, report: S.report, fy0: S.fy0,
@@ -12957,15 +12787,6 @@ function recoverClear(){
 }
 
 function markDirty(quiet){
-  // SCENARIO MODE'S ENTIRE GUARANTEE LIVES HERE. Every input handler in the
-  // tool eventually reaches this function, directly or through autoSave's
-  // timer — so this is the one place a promise made on a banner ("nothing
-  // here is saved") can actually be kept, rather than trusted to every
-  // panel that might write a figure. See scenarioActive() above.
-  if(typeof scenarioActive === "function" && scenarioActive()){
-    if(!quiet) saveHint("Exploring what-if changes — nothing here is being saved.");
-    return;
-  }
   /* NOTHING TO NOTE UNTIL THE REPORT HAS ACTUALLY STARTED. Choosing an
    * authority alone no longer starts one (see the #rtype handler) — picking
    * the report does — so there is now a real, ordinary gap between the two
@@ -13097,9 +12918,6 @@ function applyVersion(d){
     S.locked=!!d.locked; S.lockedAt=d.lockedAt||null; S.lockedReason=d.lockedReason||null;
     S.overrides=Array.isArray(d.overrides)?d.overrides:[];
     S.issued=!!d.issued; S.issuedAt=d.issuedAt||null;
-    // A report just opened starts protected again, whatever was true of it in
-    // the browser tab that overrode or explored it last — see overrideActive()
-    // and scenarioActive() below.
     OVERRIDE_KEY=null; SCENARIO_KEY=null;
     /* A FILE SAVED BEFORE THE HORIZON WAS FIXED CARRIES ITS OWN. It could be
        11, 21, 31 or 41 rows; every grid downstream now assumes YEARS. Pad it
@@ -13133,244 +12951,20 @@ function applyVersion(d){
     document.dispatchEvent(new CustomEvent("lb:applied"));
 }
 
-// Issued lives on S directly now (see workPayload/applyVersion) rather than
-// in a browser-side index entry, so this is just a read of the live state —
-// kept as a function because checkAutoLock and the picker both ask the same
-// question and a rename here should not mean editing three call sites.
-function libIsIssued(){ return !!S.issued; }
-
-/* ===========================================================================
- * LOCKING. A report that went to members, or whose year is long over, is the
- * record of what was actually said or actually happened — editing it after
- * the fact rewrites history nobody else can see was rewritten. So it stops
- * taking input, the same way a filed return does: still there to read, not
- * there to change, unless someone says in as many words why they are
- * changing it anyway.
- *
- * TWO TRIGGERS, "ISSUED OR YEAR-END", NEITHER OF THEM A DECISION THE READER
- * MAKES. Issued is the officer's own act, ticked on step 1. Year-end is the
- * calendar: nobody has to remember to lock a return, because the clock does
- * it. The two are handled differently because a TMS and a backward-looking
- * return are due at opposite ends of their own year — a TMS is meant to be
- * approved before its year starts, so once that year has itself finished
- * there is no honest reason still to be drafting it; an Outturn or Mid-year
- * report is necessarily begun only once its year has already ended, so the
- * same test would lock it at birth. It gets a year's grace instead, to the
- * end of the year that follows — long enough for any real committee cycle,
- * short enough that a return nobody ever issued does not stay open forever.
- * ======================================================================== */
-/* 31 March, end of day, of the given calendar year — where a UK local
-   authority financial year always ends, whichever nation. */
-const fyEndUTC = y => Date.UTC(y, 2, 31, 23, 59, 59);
-function reportYearEndsAt(){
-  const back = (typeof BACK_REPORTS !== "undefined") ? BACK_REPORTS : ["mid","out","quart"];
-  return fyEndUTC(S.fy0 + (back.includes(S.report) ? 2 : 1));
-}
-function fyHasEnded(){ return Date.now() > reportYearEndsAt(); }
-
-/* Locked automatically; unlocked only by a stated override, and only for the
-   report open right now, and only for as long as this tab has it open —
-   reopening the same report later finds it protected again. A permanent
-   unlock is not an override, it is turning the lock off, and that is not
-   what "correct this one entry" was asked for. */
-let OVERRIDE_KEY = null;
-function overrideActive(){ return OVERRIDE_KEY !== null && OVERRIDE_KEY === KEY(); }
-/* SCENARIO MODE: THE OTHER REASON TO EDIT SOMETHING LOCKED, AND A DIFFERENT
- * ONE FROM OVERRIDE. Override says the saved record was wrong and corrects
- * it in place, with a reason kept against it forever. Scenario mode says
- * the record is right and asks "what if it had been different" — moving a
- * rate, a balance, a choice, to see what would have followed — and none of
- * that belongs anywhere near the actual record. So where override writes
- * through to storage straight away, scenario mode's whole point is that
- * markDirty() never runs at all while it is on: see the guard at the top
- * of that function. Leaving the report, reloading the page, or pressing
- * "Exit scenario mode" all do the same thing — the in-memory scratch is
- * thrown away and the real saved version is put back — because there is
- * nothing else to reconcile: nothing was ever written. */
-let SCENARIO_KEY = null;
-function scenarioActive(){ return SCENARIO_KEY !== null && SCENARIO_KEY === KEY(); }
-function exitScenario(){
-  SCENARIO_KEY = null;
-  const body = libLoad(KEY());
-  if(body){ try{ applyVersion(body); }catch(e){} }
-  renderLockGate();
-  saveHint("Scenario changes discarded — this is the saved record again.");
-}
-
-function checkAutoLock(){
-  if(!S.gss || S.locked) return;
-  const issued = typeof libIsIssued === "function" && libIsIssued();
-  if(!issued && !fyHasEnded()) return;
-  S.locked = true;
-  S.lockedAt = new Date().toISOString();
-  S.lockedReason = issued ? "issued" : "year-end";
-  markDirty(true);
-}
-
-const LOCK_GATED_STEPS = [2, 3, 5, 6, 7];   // STEP_CLEARS' own keys, by number (4 is retired)
-
-function lockWhySentence(){
-  if(S.lockedReason === "issued") return "It was marked as issued to members";
-  if(S.lockedReason === "year-end") return "Its financial year is long over";
-  return "It is locked";
-}
 function fmtWhen(iso){
   const d = iso && new Date(iso);
   return d && isFinite(d) ? d.toLocaleDateString("en-GB",
     {day:"numeric", month:"short", year:"numeric"}) : "";
 }
 
-function overrideHistoryHTML(){
-  const rows = S.overrides || [];
-  if(!rows.length) return "";
-  return `<details class="overridehist"><summary>${rows.length} earlier correction${
-    rows.length===1?"":"s"} to this locked report</summary>
-    <ul>${rows.map(o => `<li><b>${esc(fmtWhen(o.at) || "")}</b>
-      ${byLine(o)} — ${esc(o.reason || "")}</li>`).join("")}</ul>
-  </details>`;
-}
-function lockGateHTML(){
-  const when = fmtWhen(S.lockedAt);
-  return `<div class="lockmsg">
-    <h3>This report is locked</h3>
-    <p>${esc(lockWhySentence())}${when ? `, ${esc(when)}` : ""}. It stands as the record of
-      what was approved or reported at the time, so this step will not take input.</p>
-    ${overrideHistoryHTML()}
-    <details class="unlockbox"><summary>Unlock to correct an error</summary>
-      <p class="warn">Only for a mistake in what was entered — not for something that has
-        changed since. This does not update any later report already built from this one's
-        original figures; correct that separately too if it matters there.</p>
-      <label for="unlockreason">Why you are unlocking this</label>
-      <textarea id="unlockreason" rows="2"
-        placeholder="e.g. the 2026/27 CFR was mistyped and corrected after issue"></textarea>
-      <div class="ltools" style="margin-top:8px">
-        <button type="button" class="primary" id="unlockgo" disabled>Unlock to correct this report</button>
-      </div>
-    </details>
-    <details class="scenariobox"><summary>Explore what-if changes, without saving them</summary>
-      <p class="warn">For asking "what would this have shown if a figure had been different" —
-        not for fixing a mistake, which is what the correction above is for. <b>Nothing typed
-        here is kept.</b> Leaving this report, reloading the page, or pressing "Exit scenario
-        mode" all throw it away, and the saved record is never touched.</p>
-      <div class="ltools" style="margin-top:8px">
-        <button type="button" class="primary" id="scenariogo">Start exploring — nothing will be saved</button>
-      </div>
-    </details>
-  </div>`;
-}
-function overrideStripHTML(){
-  const latest = (S.overrides || [])[S.overrides.length - 1];
-  return `<b>Editing a locked report.</b> ${latest ? esc(latest.reason) : ""}
-    This will not update any later report already built from the original figures.`;
-}
-function scenarioStripHTML(){
-  return `<b>Exploring what-if changes — nothing here is being saved.</b>
-    Leave this report or reload the page and it is gone; the saved record is untouched.
-    <button type="button" class="libswap" id="scenarioexit">Exit scenario mode</button>`;
-}
-function wireLockGate(banner){
-  const ta = banner.querySelector("#unlockreason"), go = banner.querySelector("#unlockgo");
-  if(ta && go){
-    ta.addEventListener("input", () => { go.disabled = !ta.value.trim(); });
-    go.addEventListener("click", () => {
-      const reason = ta.value.trim();
-      if(!reason) return;
-      // A real in-page panel, not window.confirm() — see the long comment on
-      // the same change in the #council handler above: the last two native
-      // dialogs left in the tool, and the same reasons apply to both.
-      ask("Unlock this locked report to correct it?",
-        `<p>This is recorded against the report, and will not update any later report
-           already built from it.</p>`,
-        "Unlock it", () => {
-          OVERRIDE_KEY = KEY(); SCENARIO_KEY = null;
-          S.overrides = S.overrides || [];
-          S.overrides.push({at: new Date().toISOString(), by: whoAmI(), reason});
-          markDirty(true);
-          saveHint("Unlocked to correct — check anything already built from this report's "
-            + "earlier figures, it will not update on its own.");
-          renderLockGate();
-        });
-    });
-  }
-  const sg = banner.querySelector("#scenariogo");
-  if(sg) sg.addEventListener("click", () => {
-    ask("Explore what-if changes to this locked report?",
-      `<p>Nothing you change will be saved — leaving the report or reloading the page
-         throws it all away.</p>`,
-      "Explore", () => {
-        OVERRIDE_KEY = null; SCENARIO_KEY = KEY();
-        saveHint("Exploring what-if changes — nothing here is being saved.");
-        renderLockGate();
-      });
-  });
-}
-/* THE ONE PLACE THAT DECIDES WHAT A LOCK STOPS. Six panels, six different
-   ways of taking input — a grid, a set of checkboxes, free text, an upload.
-   Gating each of them individually is six places to keep in step with
-   whatever the next one adds. This gates the box they all render into
-   instead, so a seventh panel is covered by writing it, not by remembering
-   to wire it in here too. */
-function renderLockGate(){
-  const locked = !!S.locked, overridden = overrideActive(), scenario = scenarioActive();
-  const bypassed = overridden || scenario;
-  const gated1 = locked && !bypassed;
-  /* Step 1 mixes navigation (which authority, which report, which year —
-     always live, or there would be no way off a locked report) with report
-     content of its own (the HRA model, the logo, the as-at date). Only the
-     content is gated; picking a different report is never
-     an edit to this one. */
-  ["hra", "asat", "logo", "logoclear"].forEach(id => {
-    const el = $(id);
-    if(el) el.disabled = gated1;
-  });
-  LOCK_GATED_STEPS.forEach(n => {
-    const panel = document.querySelector(`.panel[data-step="${n}"]`);
-    const body = panel && panel.querySelector(".pbody");
-    if(!panel || !body) return;
-    let banner = panel.querySelector(".lockbanner");
-    let ostrip = panel.querySelector(".overridestrip");
-    let sstrip = panel.querySelector(".scenariostrip");
-    if(locked && !bypassed){
-      body.inert = true;
-      if(!banner){
-        banner = document.createElement("div");
-        banner.className = "lockbanner";
-        panel.insertBefore(banner, body);
-      }
-      banner.hidden = false;
-      banner.innerHTML = lockGateHTML();
-      wireLockGate(banner);
-      if(ostrip) ostrip.hidden = true;
-      if(sstrip) sstrip.hidden = true;
-    } else {
-      body.inert = false;
-      if(banner) banner.hidden = true;
-      if(locked && scenario){
-        if(!sstrip){
-          sstrip = document.createElement("div");
-          sstrip.className = "scenariostrip";
-          panel.insertBefore(sstrip, body);
-        }
-        sstrip.hidden = false;
-        sstrip.innerHTML = scenarioStripHTML();
-        sstrip.querySelector("#scenarioexit").addEventListener("click", exitScenario);
-        if(ostrip) ostrip.hidden = true;
-      } else if(locked && overridden){
-        if(!ostrip){
-          ostrip = document.createElement("div");
-          ostrip.className = "overridestrip";
-          panel.insertBefore(ostrip, body);
-        }
-        ostrip.hidden = false;
-        ostrip.innerHTML = overrideStripHTML();
-        if(sstrip) sstrip.hidden = true;
-      } else {
-        if(ostrip) ostrip.hidden = true;
-        if(sstrip) sstrip.hidden = true;
-      }
-    }
-  });
-}
+/* NO LOCKING. A report that had gone to members, or whose year was long
+   over, used to lock: its steps went inert behind a banner, with an
+   override (a stated reason, kept forever) and a scenario mode (what-if
+   edits, never saved) as the two ways past it, and an "issued to members"
+   tick on Set up as the officer's own trigger. Phil's call to take the lot
+   out: nice to have, complex for users, and every report is effectively
+   open. The locked/overrides/issued fields stay in the payload so older
+   files round-trip; nothing acts on them. */
 
 /* CLEAR ONE STEP, NOT THE WHOLE REPORT.
  *
@@ -13831,12 +13425,8 @@ function setupSummary(){
           seedHoldings();
         }
       }
-      // applyVersion above already reset locked/lockedAt/lockedReason/overrides
-      // along with everything else; render() re-evaluates the new authority's
-      // own lock state from its own saved data immediately, rather than
-      // leaving the banner showing what was true a moment ago.
       otherShown(); renationaliseText(); loanRows(); applyLoans(); renderSections(); libFill();
-      $("issued").checked = libIsIssued(); render();
+      render();
     };
     /* A REAL IN-PAGE PANEL, NOT window.confirm(). A native dialog blocks the
      * page for a real answer, which is right in principle, but it is also
@@ -14844,7 +14434,7 @@ function setupSummary(){
         $("dhint").textContent=`Saved ${fn}. Open it in Word — headings, tables and charts carry over.`; }
       catch(err){ const c=(err&&err.code)||"unavailable";
         $("dhint").textContent = c==="declined" ? "Save cancelled."
-          : "Saving is not available here — use Copy the draft instead."; }
+          : "Saving is not available here — try again."; }
       return;
     }
     const a=document.createElement("a");
@@ -14852,13 +14442,6 @@ function setupSummary(){
     a.download=fn; document.body.appendChild(a); a.click(); a.remove();
     setTimeout(()=>URL.revokeObjectURL(a.href),2000);
     $("dhint").textContent=`Downloading ${fn}. Open it in Word.`;
-  });
-  $("copydoc").addEventListener("click", ()=>{
-    const tmp=document.createElement("div"); tmp.innerHTML=documentHTML(true);
-    const txt=(tmp.querySelector("body")||tmp).innerText||tmp.textContent;
-    if(navigator.clipboard) navigator.clipboard.writeText(txt).then(
-      ()=>$("dhint").textContent="Draft copied as text.",
-      ()=>$("dhint").textContent="Could not reach the clipboard.");
   });
   /* The library: what this authority has already written, and what taking it
      would do. Refreshed whenever the authority, the report or the year
@@ -14925,7 +14508,6 @@ function setupSummary(){
     seedHoldings();
     fundTabs(); buildLedger(); loanRows(); applyLoans(); countClauses();
     if(typeof cpRender === "function") cpRender();
-    $("issued").checked = libIsIssued();
     renderSections(); render(); libFill();
     clearTimeout(_auto);
     const nm = (REPORTS.find(r => r.k === S.report) || {}).t || S.report;
@@ -15323,19 +14905,6 @@ function setupSummary(){
     e.preventDefault();
     openViaFilePicker();
   });
-  $("issued").addEventListener("change", e=>{
-    S.issued = e.target.checked;
-    S.issuedAt = e.target.checked ? new Date().toISOString() : null;
-    // Marking it issued locks it; un-marking it does not unlock it — that is
-    // what the override on the locked steps is for, with its own reason.
-    if(e.target.checked) checkAutoLock();
-    markDirty(true);
-    saveHint(e.target.checked
-      ? "Marked as issued. Next year's report will start from this one."
-      : "No longer marked as issued.");
-    libFill();
-    renderLockGate();
-  });
   // The indicator picker lives inside the rendered draft, so it is delegated.
   document.addEventListener("click", e=>{
     const b = e.target.closest("[data-vi],[data-vf]");
@@ -15466,7 +15035,6 @@ function setupSummary(){
   logoRow();
   otherShown(true);
   fundTabs(); buildLedger(); loanRows(); renderSections(); render(); libFill();
-  $("issued").checked = libIsIssued();
   // The counterparty form is delegated from its container, so it is wired once
   // here and survives every re-render of its own contents.
   cpRender(); cpWire();
@@ -15706,17 +15274,18 @@ function setupSummary(){
       /* WHAT TO DO NEXT, WORKED OUT FROM THE FILE AND THE CALENDAR — see
          suggestNext in library.js. Primary, because for a new file it is
          the one right answer (this year's strategy) and for a working file
-         it is the report the year is now asking for. "Choose a different
-         report" is the same door, quieter, underneath. */
+         it is the next report the year asks for that is not in the file
+         yet. "Choose a different report" is the same door, quieter,
+         underneath. */
       const sug = suggestNext(S.gss);
       const next = (sug
         ? `<button type="button" class="startdoor primary" data-door="suggest">
              <span class="sd-ic">${svg(ICON.plus)}</span>
              <span><span class="sd-k">Suggested next</span>
-               <span class="sd-t">${esc(sug.verb)} the ${esc(sug.label)} ${esc(fy(sug.fy0))}</span>
+               <span class="sd-t">Start the ${esc(sug.label)} ${esc(fy(sug.fy0))}</span>
                <span class="sd-s">${esc(sug.why)}</span></span>
            </button>`
-        : `<p class="startnote">Everything the year asks for is in this file and issued.</p>`)
+        : `<p class="startnote">Everything the year asks for is already in this file.</p>`)
         + `<button type="button" class="startdoor quiet" data-door="another">
              <span><span class="sd-t">${sug ? "or choose a different report" : "Start another report"}</span></span>
            </button>`;
@@ -15726,20 +15295,10 @@ function setupSummary(){
             const saved = (e.by ? `saved by ${byLine(e)}, ` : "saved ") + esc(whenLine(e.at));
             return `<div class="startrep">
               <span><span class="sr-n">${esc(nm)} ${esc(fy(e.fy0))}</span>
-                <span class="sr-s">${e.issued ? "Issued &middot; " : ""}${saved}</span></span>
+                <span class="sr-s">${saved}</span></span>
               <span class="sr-a">
                 <button type="button" class="primary" data-open="${esc(e.k)}">Open</button>
-                ${e.locked
-                  /* WHY IT IS LOCKED, NOT JUST THAT IT IS. A report locks for
-                     two different reasons — it was issued to members, or its
-                     financial year is long over — and calling both of them
-                     "Issued" tells a reader their 2025/26 strategy went to
-                     committee when it may never have done. */
-                  ? `<span class="sr-lk" title="${e.issued
-                       ? "Issued to members, so it stands as the record"
-                       : "That financial year is over, so this stands as the record"
-                     } — it cannot be deleted">${e.issued ? "Issued" : "Locked"}</span>`
-                  : `<button type="button" data-del="${esc(e.k)}">Delete</button>`}
+                <button type="button" data-del="${esc(e.k)}">Delete</button>
               </span></span>
             </div>`; }).join("") + `<div class="startor">or</div>`
         : `<p class="startempty">Nothing in this file yet.</p>`)
@@ -15820,13 +15379,10 @@ function setupSummary(){
     if(d === "demo"){ startOpen("demo"); return; }
     if(d === "another"){ presetFrom(null); startOpen("report"); return; }
     if(d === "suggest"){
-      /* The suggestion is either a report to finish — already in the file,
-         so open it exactly as its own Open button would — or one to start,
-         lined up in the "report" view with the year and type filled in and
-         the as-at date and your name still to check. */
+      /* The suggestion is always a report not yet in the file, lined up in
+         the "report" view with the year and type filled in and the as-at
+         date and your name still to check. */
       const sug = suggestNext(S.gss);
-      if(!sug){ presetFrom(null); startOpen("report"); return; }
-      if(sug.open){ openSaved(sug.open); return; }
       presetFrom(sug);
       startOpen("report");
       return;
@@ -15924,13 +15480,6 @@ function setupSummary(){
   /* THE DRAFT, FROM ANYWHERE, AND BACK. One button: to the draft from a
      working step, back to that step from the draft. */
   document.addEventListener("click", e => {
-    const tog = e.target.closest && e.target.closest("#gapstog");
-    if(tog){
-      GAPS_OPEN = !GAPS_OPEN;
-      tog.setAttribute("aria-expanded", String(GAPS_OPEN));
-      const b = $("gapsbody"); if(b) b.hidden = !GAPS_OPEN;
-      return;
-    }
     const nx = e.target.closest && e.target.closest("#dchgnext");
     if(nx){
       /* Walk the changed sections in document order, one per press, and
@@ -15945,18 +15494,6 @@ function setupSummary(){
     }
   });
   let DCHG_AT = null;
-  /* THE SECTION LIST, FROM A BUTTON WITH A NAME. The rail's own burger hangs
-     in the gutter beside the draft and starts folded on a long report, and
-     nobody found it. This opens the rail and goes to the top of the draft,
-     where the list is; the rail's × folds it again. */
-  $("contentsbtn").addEventListener("click", () => {
-    if(STEP !== DRAFT_STEP) showStep(DRAFT_STEP);
-    if(typeof docNavSet === "function") docNavSet(false);
-    const d = $("doc");
-    if(!d) return;
-    const line = (parseInt(getComputedStyle(document.documentElement).getPropertyValue("--railh"), 10) || 96) + 12;
-    window.scrollTo({top: d.getBoundingClientRect().top + window.scrollY - line, behavior:"smooth"});
-  });
   $("draftbtn").addEventListener("click", () => {
     if(STEP === DRAFT_STEP) showStep(LAST_WORK_STEP || 1);
     else showStep(DRAFT_STEP);
