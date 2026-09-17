@@ -1308,6 +1308,30 @@ svg.ctip .hits rect{cursor:crosshair}
    is for. No ticks, no percentage, no green wash: four counts and a list. */
 .secdec{margin:0 0 18px;padding:12px 14px;background:var(--sunken);border-radius:var(--r-sm)}
 .secdec h3{margin:0 0 8px}
+.ribbon-btn#draftbtn.on{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+/* The folded strip above the draft */
+.gapstrip{display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px;margin-top:12px}
+.gapstrip.none{font-family:var(--sans);font-size:13.5px;color:var(--ink2);padding:10px 14px;
+  background:var(--sunken);border-radius:var(--r-sm)}
+.gapstog{display:inline-flex;align-items:center;gap:14px;padding:6px 12px 6px 6px;border:1px solid var(--line2);
+  border-radius:var(--r-sm);background:var(--card);cursor:pointer;font-family:var(--sans)}
+.gapstog:hover{border-color:var(--accent)}
+.gapstog .ck{margin:0}
+.gapstog .cav{width:8px;height:8px;border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);
+  transform:rotate(45deg);transition:transform .15s;margin:0 4px 3px 2px}
+.gapstog[aria-expanded="true"] .cav{transform:rotate(-135deg);margin-bottom:-3px}
+.gapsbody{margin-top:8px}
+.dchgnote{font-family:var(--sans);font-size:13px;color:var(--ink2)}
+.dchgnote b{color:var(--orange)}
+.dchgnote .lnk{margin-left:6px}
+/* A section that changed since you last looked: a bar that stays for the
+   visit, and a wash that fades so the eye is drawn once and then left alone. */
+.dsec.dchg{box-shadow:inset 4px 0 0 var(--orange);padding-left:14px;animation:dwash 2.6s ease-out 1}
+@keyframes dwash{from{background:color-mix(in srgb,var(--orange) 14%,transparent)}to{background:transparent}}
+@media (prefers-reduced-motion:reduce){.dsec.dchg{animation:none}}
+#docnavlist a.dchg b{color:var(--orange)}
+#docnavlist a.dchg::after{content:"";display:inline-block;width:6px;height:6px;border-radius:50%;
+  background:var(--orange);margin-left:6px;vertical-align:middle}
 .gaps{margin-top:14px}
 .gaps.none{font-family:var(--sans);font-size:13.5px;color:var(--ink2);padding:12px 14px;
   background:var(--sunken);border-radius:var(--r-sm)}
@@ -1921,6 +1945,15 @@ td.nask{background:repeating-linear-gradient(45deg,var(--hair),var(--hair) 4px,
             <path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V20h14V9.5"/><path d="M9.5 20v-6h5v6"/>
           </svg>
         </button>
+        <!-- THE DRAFT, FROM ANYWHERE. It is the output of every step, not a
+             step; lit while it is what is on screen. -->
+        <button type="button" class="ribbon-btn" id="draftbtn" title="The draft">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M6 3h8l5 5v13a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"/>
+            <path d="M14 3v5h5"/><path d="M9 13h6"/><path d="M9 17h6"/><path d="M9 9h2"/>
+          </svg>
+        </button>
         <button type="button" class="ribbon-btn" id="libfile" title="Save">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -2242,20 +2275,17 @@ td.nask{background:repeating-linear-gradient(45deg,var(--hair),var(--hair) 4px,
   <section class="panel" data-step="8">
     <div class="phead"><span class="n">8</span><h2>The draft</h2>
       <span class="why">Your commentary and our figures, assembled. Sections not yet written
-        appear as gaps.</span></div>
+        appear as gaps; sections changed since you last looked are marked.</span></div>
     <div class="pbody"><div class="ltools" style="margin-top:0">
       <button type="button" class="primary" id="expdoc">Download for Word</button>
       <button type="button" id="copydoc">Copy the draft</button>
       <span class="sp"></span><span class="hintline" id="dhint"></span>
     </div>
-    <!-- THE PAPER'S SHAPE. Executive summary, options, consultation, the
-         implications headings, the author: what the committee paper carries
-         around the content. Decided here, where the paper is. -->
-    <div class="setup" id="paperopts"></div>
-    <div class="ltools"><span class="hintline" id="clausecount"></span></div>
-    <!-- WHAT IS STILL OPEN, ABOVE THE DOCUMENT. Only gaps and things the tool
-         cannot judge — never the list of what was found, which nobody read and
-         which buried these. Each row hands you to the step that closes it. -->
+    <!-- WHAT IS STILL OPEN, IN ONE LINE. Folded by default, because this is
+         the draft and a reader who came here wants to see the draft; opened
+         on click to the full list, each row handing you to the step that
+         closes it. The paper's own toggles live at the end of Wording now,
+         so nothing here is a decision — it is all reading. -->
     <div id="gaps"></div></div>
   </section>
   <section class="panel doc" id="doc" data-step="8" aria-live="polite"></section>
@@ -3301,6 +3331,90 @@ function wireDocNav(){
  * already resolved on a page that had been open a while, so the race only
  * showed on a cold load. */
 let _docDirty = true;
+
+/* ===========================================================================
+ * WHAT CHANGED SINCE YOU LAST LOOKED.
+ *
+ * The draft is read-only and every input lives on a working step, so the one
+ * question a reader has on arriving here is "did what I just did land, and
+ * where?". docRemember() takes a picture of the document's sections when you
+ * LEAVE the draft (showStep, steps.js); docChanges() compares the freshly
+ * built document against that picture and marks the sections whose content
+ * differs. It is a comparison of what is on the page, not a map of which
+ * input feeds which section — so it catches a figure, a choice, a paragraph,
+ * a portfolio edit or a rate refresh alike, without a table to keep in step.
+ *
+ * WHAT IT DOES NOT MARK. The first visit (nothing to compare), a different
+ * report from the one remembered (everything would differ), and a wholesale
+ * change — more than half the sections — which is a demonstration being
+ * filled or a report being switched, not an edit; marking all of it would
+ * say nothing. The picture is keyed by the report, so switching reports and
+ * back does not present the other one's sections as changes.
+ * ======================================================================== */
+let DOC_SEEN = null;   // {key, secs:{id:html}}
+function docSecMap(){
+  const m = {};
+  document.querySelectorAll("#doc .dsec").forEach(el => { m[el.id] = el.innerHTML; });
+  return m;
+}
+/* WHAT COUNTS AS THE SAME DOCUMENT. The three demonstrations share one gss,
+   and a change of pooling rewrites every indicator — either is a different
+   paper, not an edit to this one, so both are in the key. Found by switching
+   from the no-HRA demonstration to the two-pool one and watching ten
+   sections light up as "changed since you last looked". */
+function docKey(){ return [S.gss, S.demoKind || "", S.hra, S.report, S.fy0].join("|"); }
+function docRemember(){
+  if(_docDirty || !$("doc")) return;
+  DOC_SEEN = {key: docKey(), secs: docSecMap()};
+}
+function docChanges(){
+  const el = $("doc");
+  if(!el) return [];
+  if(!DOC_SEEN || DOC_SEEN.key !== docKey()) return [];
+  const now = docSecMap();
+  const ids = Object.keys(now);
+  const changed = ids.filter(id => (id in DOC_SEEN.secs) && DOC_SEEN.secs[id] !== now[id]);
+  if(!changed.length || changed.length > ids.length / 2) return [];
+  return changed;
+}
+function docMark(){
+  const changed = docChanges();
+  const links = [...document.querySelectorAll("#docnavlist a")];
+  document.querySelectorAll("#doc .dsec.dchg").forEach(e => e.classList.remove("dchg"));
+  links.forEach(a => a.classList.remove("dchg"));
+  changed.forEach(id => {
+    const sec = document.getElementById(id); if(sec) sec.classList.add("dchg");
+    const a = links.find(x => x.dataset.ds === id); if(a) a.classList.add("dchg");
+  });
+  return changed;
+}
+/* The strip above the document: what is still open, folded to one line, and
+   what changed since you last looked, with a way to walk through it. */
+let GAPS_OPEN = false;
+function gapsStripHTML(){
+  const rows = (typeof checkOpen === "function") ? checkOpen() : [];
+  const n = {gap:0, yours:0}; rows.forEach(r => n[r.v]++);
+  const st = (typeof stepStatus === "function") ? stepStatus("draft") : {note:""};
+  const fig = (st.note || "").match(/(\d+) figures? still to supply/);
+  const parts = [];
+  if(n.gap)   parts.push(`<span class="ck out"><b>${n.gap}</b>outstanding</span>`);
+  if(n.yours) parts.push(`<span class="ck conf"><b>${n.yours}</b>yours to confirm</span>`);
+  if(fig && +fig[1]) parts.push(`<span class="ck out"><b>${fig[1]}</b>figure${fig[1]==="1"?"":"s"} still to supply</span>`);
+  const changed = docChanges();
+  const chg = changed.length
+    ? `<span class="dchgnote"><b>${changed.length}</b> section${changed.length===1?"":"s"} changed since you last looked
+         <button type="button" class="lnk" id="dchgnext">show me</button></span>`
+    : "";
+  if(!parts.length && !chg)
+    return `<div class="gapstrip none"><b>Nothing outstanding.</b> Everything the two Codes ask
+      of this report that the tool can see is in the draft.</div>`;
+  return `<div class="gapstrip">
+      <button type="button" class="gapstog" id="gapstog" aria-expanded="${GAPS_OPEN}">
+        ${parts.join("")}<span class="cav" aria-hidden="true"></span></button>${chg}
+    </div>
+    <div class="gapsbody" id="gapsbody"${GAPS_OPEN ? "" : " hidden"}>${checkGapsHTML()}</div>`;
+}
+
 function buildDraftNow(){
   const el = $("doc");
   if(!el || typeof documentHTML !== "function") return false;
@@ -3311,6 +3425,7 @@ function buildDraftNow(){
     + documentHTML(false);
   _docDirty = false;
   if(typeof wireDocNav === "function") wireDocNav();
+  docMark();
   return true;
 }
 
@@ -3331,6 +3446,7 @@ function render(){
       + documentHTML(false);
     _docDirty = false;
     wireDocNav();
+    docMark();
   } else {
     _docDirty = true;
   }
@@ -3391,7 +3507,7 @@ function render(){
      while the draft is on screen, like the document itself. */
   const gp = $("gaps");
   if(gp && STEP === DRAFT_STEP && typeof checkGapsHTML === "function")
-    gp.innerHTML = checkGapsHTML();
+    gp.innerHTML = gapsStripHTML();
   /* The period's figures, built on arrival like the draft and the check. It is
      in LIVE_STEPS, so showStep calls render() on the way in; without this gate
      the step would open empty and stay empty until something else re-rendered. */
@@ -8301,19 +8417,39 @@ function renderSections(){
       `<p class="pvempty">Pick a report above to see its wording sections.</p>`;
     return;
   }
-  if(!VIS.some(x=>x.k===S.sec)) S.sec = VIS[0].k;
+  /* THE PAPER, LAST IN THE LIST. Executive summary, options, consultation,
+     the implications headings, the author: decisions that shape the committee
+     paper around the content rather than any one section of it. They are
+     not a SECTIONS entry, because docSections() reads that list to build the
+     document and this is not a chapter — it is a pseudo-section drawn here,
+     so every decision the report needs is made on this step. */
+  const PAPER = "paper";
+  if(!VIS.some(x=>x.k===S.sec) && S.sec !== PAPER) S.sec = VIS[0].k;
+  const paperN = (typeof choicesForPaper === "function") ? choicesForPaper() : [];
+  const paperDone = paperN.filter(c => (S.choices||{})[c.k]).length;
   $("seclist").innerHTML = VIS.map(s=>{
     const st=secStatus(s.k);
     return `<button type="button" data-s="${s.k}" aria-pressed="${S.sec===s.k}">
       ${s.n}. ${esc(natText(s.t))}<span class="st ${st.cls}">${esc(st.t)}</span></button>`;
-  }).join("");
-  const s = VIS.find(x=>x.k===S.sec) || VIS[0];
-  let body = `<h4>${s.n}. ${esc(natText(s.t))}</h4><p class="lead">${esc(s.lead)}</p>`;
+  }).join("") + (paperN.length ? `<button type="button" data-s="${PAPER}" aria-pressed="${S.sec===PAPER}">
+      The paper around it<span class="st ${paperDone===paperN.length?"done":""}">${
+        paperDone===paperN.length ? "complete" : `${paperDone} of ${paperN.length} decided`}</span></button>` : "");
+  const s = S.sec === PAPER
+    ? {k:PAPER, n:"", t:"The paper around it", kind:PAPER,
+       lead:"What the committee paper carries around the report itself. Each heading you include appears in the draft with wording to fill."}
+    : (VIS.find(x=>x.k===S.sec) || VIS[0]);
+  let body = `<h4>${s.n ? s.n + ". " : ""}${esc(natText(s.t))}</h4><p class="lead">${esc(s.lead)}</p>`;
+  if(s.kind === PAPER){
+    body += (typeof paperChoicesHTML === "function" ? paperChoicesHTML() : "")
+      + `<div class="ltools"><span class="hintline" id="clausecount"></span></div>`;
+  }
   /* DECIDE, THEN SAY IT. The choices that govern this section's clauses sit
      above its prose — see CHOICE_SECTION in clauses.js for where each one
      comes from. Same S.choices key as anywhere else it might be drawn. */
-  if(typeof sectionChoicesHTML === "function") body += sectionChoicesHTML(s.k);
-  if(s.kind==="auto"){
+  if(s.kind !== PAPER && typeof sectionChoicesHTML === "function") body += sectionChoicesHTML(s.k);
+  if(s.kind === PAPER){
+    /* drawn above */
+  } else if(s.kind==="auto"){
     body += autoNote(s.k);
   } else {
     (s.qs||[]).forEach(q=>{
@@ -12042,12 +12178,19 @@ const STEPS = [
      would have returned that one, so the new step's colour, live-render and
      status line would all have been read off the projection grid. */
   {n:7, k:"period",    t:"The period's figures", s:"limits, budget and outturn"},
-  {n:8, k:"draft",     t:"The draft",    s:"read and export"}
+  /* THE DRAFT IS NOT A STEP. It stays in this list because the number is
+     load-bearing — render() gates on DRAFT_STEP, showStep clamps to it, the
+     panel markup carries it — but rail:false keeps it off the rail and out of
+     "n of N complete". Everything else on the rail is input; this is the
+     output of all of it, reached from the ribbon (#draftbtn) from anywhere,
+     and from "See the draft" at the end of the walk. */
+  {n:8, k:"draft",     t:"The draft",    s:"read and export", rail:false}
   /* NO STEP 9. The check's findings live on the draft and in the rail now —
      see checkGapsHTML in check.js and the ropen pill in renderRail below. The
      number is retired, not reused, for the reason at the top of this list. */
 ];
 let STEP = 1;
+let LAST_WORK_STEP = 1;   // where the ribbon's Draft button goes back to
 /* The draft used to be the last step, so "the last step" was used to mean
    "the draft" in four places. Adding the check after it made every one of
    them wrong at once -- the draft would have stopped rendering and the nav
@@ -12202,7 +12345,8 @@ function renderRail(){
      that closes it, so a reader sees where the gaps are from anywhere rather
      than on a step they had to remember to visit. */
   const open = (typeof checkGapsByStep === "function") ? checkGapsByStep() : {};
-  rail.innerHTML = STEPS.map(s => {
+  const RAIL = STEPS.filter(s => s.rail !== false);
+  rail.innerHTML = RAIL.map(s => {
     const st = stepStatus(s.k), tt = stepTitle(s);
     const o = open[s.n]; const on = o ? (o.gap + o.yours) : 0;
     return `<button type="button" class="rstep ${STEP===s.n?"on":""} ${st.state}"
@@ -12212,11 +12356,15 @@ function renderRail(){
       <span class="rt"><b>${esc(tt.t)}${on ? `<span class="ropen" title="${o.gap} outstanding, ${o.yours} yours to confirm">${on}</span>` : ""}</b><i>${esc(st.note || tt.s)}</i></span>
     </button>`;
   }).join("");
-  const done = STEPS.filter(s => stepStatus(s.k).state === "done").length;
+  const done = RAIL.filter(s => stepStatus(s.k).state === "done").length;
   const bar = $("railbar");
-  if(bar) bar.style.width = Math.round(done / STEPS.length * 100) + "%";
+  if(bar) bar.style.width = Math.round(done / RAIL.length * 100) + "%";
   const cnt = $("railcount");
-  if(cnt) cnt.textContent = `${done} of ${STEPS.length} complete`;
+  if(cnt) cnt.textContent = `${done} of ${RAIL.length} complete`;
+  /* The ribbon's Draft button is lit while the draft is what is on screen,
+     so the rail (no chip current) and the ribbon (one button current) agree. */
+  const db = $("draftbtn");
+  if(db) db.classList.toggle("on", STEP === DRAFT_STEP);
 }
 
 function showStep(n){
@@ -12232,6 +12380,12 @@ function showStep(n){
      the day a step was numbered out of sequence with the others, and have
      stayed that way since (see the note above STEPS). */
   const lo = STEPS[0].n, hi = STEPS[STEPS.length - 1].n;
+  /* LEAVING THE DRAFT TAKES A PICTURE OF IT. The change marks on the draft
+     (docChanges, ui.js) compare against the document as it stood when you
+     last looked, so that is the moment to record it — not on every render,
+     which would erase the marks the moment they appeared. */
+  if(STEP === DRAFT_STEP && n !== DRAFT_STEP && typeof docRemember === "function") docRemember();
+  if(STEP !== DRAFT_STEP) LAST_WORK_STEP = STEP;
   STEP = Math.max(lo, Math.min(hi, n));
   /* A RETIRED NUMBER LANDS ON THE NEXT REAL STEP. Two numbers no longer have
      a panel (4 and 9); an old link, a stale check target or a Next from step
@@ -12329,7 +12483,7 @@ function renderNav(){
     const on = document.createElement("button");
     on.type = "button"; on.className = "navbtn primary";
     on.dataset.go = String(next.n);
-    on.innerHTML = `${esc(stepTitle(next).t)} &rarr;`;
+    on.innerHTML = next.k === "draft" ? "See the draft &rarr;" : `${esc(stepTitle(next).t)} &rarr;`;
     head.appendChild(on);
   }
   // The draft step carries the document itself, so the nav goes above it
@@ -14664,11 +14818,12 @@ const askRows = rows => `<div class="asklist">${rows.map(r => `<div class="askro
      clauses.js). Kept under its old name because every caller that needed the
      choices redrawn still does; they just live in two hosts now. */
   function renderChoices(){
-    const host = $("paperopts");
-    if(host){
-      const draw = () => { host.innerHTML = paperChoicesHTML(); };
-      if(typeof keepFocus === "function") keepFocus(host, draw); else draw();
-    }
+    /* The paper block is drawn by renderSections as the last entry of the
+       Wording list; every choice that governs a section is drawn beside that
+       section. Nothing is left for this to draw — only the clause count,
+       which lives in the paper block when that is on screen. Kept under its
+       old name because every caller that needed the choices redrawn still
+       does, and renderSections is in that same call. */
     countClauses();
   }
   /* ONE LISTENER FOR EVERY CHOICE CONTROL, WHEREVER IT IS DRAWN. Delegated,
@@ -15974,6 +16129,34 @@ const askRows = rows => `<div class="asklist">${rows.map(r => `<div class="askro
      is not an edit, it is a different document. */
   const toStart = () => startOpen(S.gss ? "reports" : "doors");
   $("startbtn").addEventListener("click", toStart);
+  /* THE DRAFT, FROM ANYWHERE, AND BACK. One button: to the draft from a
+     working step, back to that step from the draft. */
+  document.addEventListener("click", e => {
+    const tog = e.target.closest && e.target.closest("#gapstog");
+    if(tog){
+      GAPS_OPEN = !GAPS_OPEN;
+      tog.setAttribute("aria-expanded", String(GAPS_OPEN));
+      const b = $("gapsbody"); if(b) b.hidden = !GAPS_OPEN;
+      return;
+    }
+    const nx = e.target.closest && e.target.closest("#dchgnext");
+    if(nx){
+      /* Walk the changed sections in document order, one per press, and
+         round again at the end — so "show me" always does something. */
+      const secs = [...document.querySelectorAll("#doc .dsec.dchg")];
+      if(!secs.length) return;
+      DCHG_AT = (typeof DCHG_AT === "number" ? DCHG_AT + 1 : 0) % secs.length;
+      const target = secs[DCHG_AT];
+      const line = (parseInt(getComputedStyle(document.documentElement).getPropertyValue("--railh"), 10) || 96) + 24;
+      window.scrollTo({top: target.getBoundingClientRect().top + window.scrollY - line, behavior:"smooth"});
+      nx.textContent = secs.length > 1 ? `next (${DCHG_AT + 1} of ${secs.length})` : "show me";
+    }
+  });
+  let DCHG_AT = null;
+  $("draftbtn").addEventListener("click", () => {
+    if(STEP === DRAFT_STEP) showStep(LAST_WORK_STEP || 1);
+    else showStep(DRAFT_STEP);
+  });
   /* Delegated: the summary is rebuilt whenever the report changes, so a
      handler bound to its button would be bound to an element already gone. */
   document.addEventListener("click", e => {
