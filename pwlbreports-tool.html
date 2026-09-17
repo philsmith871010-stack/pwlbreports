@@ -1306,6 +1306,13 @@ svg.ctip .hits rect{cursor:crosshair}
    Deliberately plain. This is the page a section 151 officer looks at last,
    and anything that reads as a badge or a score would undo the one thing it
    is for. No ticks, no percentage, no green wash: four counts and a list. */
+.gaps{margin-top:14px}
+.gaps.none{font-family:var(--sans);font-size:13.5px;color:var(--ink2);padding:12px 14px;
+  background:var(--sunken);border-radius:var(--r-sm)}
+.gapshead{display:flex;flex-wrap:wrap;align-items:center;gap:10px 18px;margin:0 0 6px}
+.gapsnote{font-family:var(--sans);font-size:12.5px;color:var(--muted);flex:1 1 32ch;line-height:1.5}
+.rstep .ropen{display:inline-block;margin-left:6px;font-family:var(--mono);font-size:10px;
+  padding:1px 6px;border-radius:999px;background:var(--orange);color:#fff;vertical-align:middle}
 .ckhead{border-bottom:1px solid var(--line);padding-bottom:16px;margin-bottom:6px}
 .cktot{display:flex;gap:10px;flex-wrap:wrap}
 .ck{display:inline-flex;align-items:baseline;gap:7px;font-family:var(--sans);font-size:12px;
@@ -2244,17 +2251,18 @@ td.nask{background:repeating-linear-gradient(45deg,var(--hair),var(--hair) 4px,
       <button type="button" class="primary" id="expdoc">Download for Word</button>
       <button type="button" id="copydoc">Copy the draft</button>
       <span class="sp"></span><span class="hintline" id="dhint"></span>
-    </div></div>
+    </div>
+    <!-- WHAT IS STILL OPEN, ABOVE THE DOCUMENT. Only gaps and things the tool
+         cannot judge — never the list of what was found, which nobody read and
+         which buried these. Each row hands you to the step that closes it. -->
+    <div id="gaps"></div></div>
   </section>
   <section class="panel doc" id="doc" data-step="8" aria-live="polite"></section>
 
-  <section class="panel" data-step="9">
-    <div class="phead"><span class="n">9</span><h2>The check</h2>
-      <span class="why">A read-only pass over the draft you have built, against what the Codes
-        ask of the report you have chosen. It reports; it changes nothing, and it certifies
-        nothing.</span></div>
-    <div class="pbody"><div id="checkbody"></div></div>
-  </section>
+  <!-- THERE IS NO STEP 9. The check's findings now sit on the draft (see
+       #gaps above) and in the rail, where a reader is already looking, rather
+       than on a step they had to remember to visit. The number is retired,
+       not reused — see the note above STEPS in steps.js. -->
   </main>
 </div>
 <script>
@@ -3378,9 +3386,11 @@ function render(){
   // The figures step's live chart. Drawn only while that step is on screen —
   // three buildModel calls and an SVG on every keystroke is cheap, but not
   // when nobody is looking at the result.
-  const ck = $("checkbody");
-  if(ck && typeof CHECK_STEP !== "undefined" && STEP === CHECK_STEP)
-    ck.innerHTML = checkHTML();
+  /* The check's open items, on the draft — see checkGapsHTML. Built only
+     while the draft is on screen, like the document itself. */
+  const gp = $("gaps");
+  if(gp && STEP === DRAFT_STEP && typeof checkGapsHTML === "function")
+    gp.innerHTML = checkGapsHTML();
   /* The period's figures, built on arrival like the draft and the check. It is
      in LIVE_STEPS, so showStep calls render() on the way in; without this gate
      the step would open empty and stay empty until something else re-rendered. */
@@ -11847,6 +11857,70 @@ function checkHTML(){
 }
 
 /* ===========================================================================
+ * THE CHECK, DISTRIBUTED. There is no Check step any more (Phil's call). The
+ * checks themselves are untouched — they are the value — but their output
+ * now goes to the two places a reader is already looking rather than a step
+ * they had to remember to visit: the rail, which carries a count of what is
+ * outstanding per step, and the draft, which lists only what is still open
+ * with a way to the step that closes it. Everything found is dropped from
+ * view: a list of things that are fine is a list nobody reads, and it buried
+ * the things that were not.
+ *
+ * "Yours to confirm" stays as prominent as "outstanding", for the reason at
+ * the top of this file: a check that folded those into "found" would turn an
+ * honest instrument into a rubber stamp.
+ * ======================================================================== */
+function checkOpen(){
+  if(!S.gss || !S.report) return [];
+  /* ONLY THE TWO THAT ASK SOMETHING OF THE READER. A check can also answer
+     "n/a" at run time — "no investments held", so no ladder to reconcile —
+     which is not met and not open; it is simply not this report's. Filtering
+     on !== "met" let those through as a row tagged "undefined" with nowhere
+     to go, which the old check page would have done too had anyone looked. */
+  return checkRun().filter(r => r.v === "gap" || r.v === "yours");
+}
+/* Outstanding items keyed by the step that closes them — for the rail. */
+function checkGapsByStep(){
+  const by = {};
+  checkOpen().forEach(r => { if(r.go){ by[r.go] = by[r.go] || {gap:0, yours:0}; by[r.go][r.v]++; } });
+  return by;
+}
+function checkGapsHTML(){
+  const rows = checkOpen();
+  if(!S.gss || !S.report) return "";
+  const n = {gap:0, yours:0};
+  rows.forEach(r => n[r.v]++);
+  if(!rows.length)
+    return `<div class="gaps none"><b>Nothing outstanding.</b> Everything the two Codes ask
+      of this report that the tool can see is in the draft.</div>`;
+  const V = {gap:"Outstanding", yours:"Yours to confirm"};
+  const CLS = {gap:"out", yours:"conf"};
+  const groups = [];
+  rows.forEach(r => {
+    let g = groups.find(x => x.t === r.g);
+    if(!g) groups.push(g = {t:r.g, rows:[]});
+    g.rows.push(r);
+  });
+  return `<div class="gaps">
+    <div class="gapshead">
+      <span class="ck out"><b>${n.gap}</b>outstanding</span>
+      <span class="ck conf"><b>${n.yours}</b>yours to confirm</span>
+      <span class="gapsnote">Not a compliance statement: what the tool could not find, and
+        what it cannot judge. Each one opens the step that settles it.</span>
+    </div>
+    ${groups.map(g => `<div class="ckgrp"><h4>${esc(g.t)}</h4>
+      ${g.rows.map(r => `<div class="ckrow ${CLS[r.v]}">
+        <span class="cktag">${V[r.v]}</span>
+        <div class="ckbody">
+          <span class="ckt">${esc(r.t)}</span>
+          <span class="cksrc">${esc(r.src)}</span>
+          <p>${r.note}${r.go ? ` <button type="button" class="cklink" data-go="${r.go}">Go to
+            step ${r.go}</button>` : ""}</p>
+        </div></div>`).join("")}</div>`).join("")}
+  </div>`;
+}
+
+/* ===========================================================================
  * The workflow.
  *
  * This was six panels stacked down one page: everything visible at once, no
@@ -11880,8 +11954,10 @@ const STEPS = [
      would have returned that one, so the new step's colour, live-render and
      status line would all have been read off the projection grid. */
   {n:7, k:"period",    t:"The period's figures", s:"limits, budget and outturn"},
-  {n:8, k:"draft",     t:"The draft",    s:"read and export"},
-  {n:9, k:"check",     t:"The check",    s:"what is outstanding"}
+  {n:8, k:"draft",     t:"The draft",    s:"read and export"}
+  /* NO STEP 9. The check's findings live on the draft and in the rail now —
+     see checkGapsHTML in check.js and the ropen pill in renderRail below. The
+     number is retired, not reused, for the reason at the top of this list. */
 ];
 let STEP = 1;
 /* The draft used to be the last step, so "the last step" was used to mean
@@ -11889,7 +11965,6 @@ let STEP = 1;
    them wrong at once -- the draft would have stopped rendering and the nav
    would have jumped to the wrong panel. Named, so it cannot happen again. */
 const DRAFT_STEP = STEPS.find(s => s.k === "draft").n;
-const CHECK_STEP = STEPS.find(s => s.k === "check").n;
 
 /* Steps whose content render() builds ONLY while they are on screen.
  *
@@ -11908,7 +11983,7 @@ const CHECK_STEP = STEPS.find(s => s.k === "check").n;
  * Add a step here when you gate anything on it in render(); test_coverage
  * checks the two agree. */
 const FIG_STEP = STEPS.find(s => s.k === "period").n;
-const LIVE_STEPS = new Set([2, 3, FIG_STEP, DRAFT_STEP, CHECK_STEP]);
+const LIVE_STEPS = new Set([2, 3, FIG_STEP, DRAFT_STEP]);
 
 /* What each step can honestly say about itself.
  *   state: "done" | "part" | "" — drives the mark on the rail
@@ -11960,20 +12035,6 @@ function stepStatus(k){
     return {state: p.done === p.of ? "done" : "part",
             note: bits.join(" · ") || "Partly set",
             need: p.done === p.of ? null : "Credit criteria, country policy and instruments complete the section."};
-  }
-
-  if(k === "check"){
-    // The check is never "done", because three or four of its lines are
-    // things only the authority can confirm. A tick here would be the tool
-    // marking its own homework.
-    const r = (typeof checkRun === "function") ? checkRun() : [];
-    if(!r.length) return {state:"", note:"Nothing to check yet", need:null};
-    const gap = r.filter(x => x.v === "gap").length;
-    const yours = r.filter(x => x.v === "yours").length;
-    return {state: gap ? "part" : "done",
-            note: gap ? `${gap} outstanding · ${yours} yours to confirm`
-                      : `Nothing outstanding · ${yours} yours to confirm`,
-            need: gap ? "Each one names the step that closes it." : null};
   }
 
   if(k === "figures"){
@@ -12043,21 +12104,41 @@ function stepStatus(k){
       return {state:"", note:"nothing to enter for this report", need:null};
     const n = (typeof figFilled === "function") ? figFilled() : 0;
     return n ? {state: "done", note: `${n} figure${n===1?"":"s"} entered`, need:null}
-             : {state: "", note: "limits, budget and outturn", need:"the period's figures"};
+             : (typeof FIG_BACK !== "undefined" && FIG_BACK.indexOf(S.report) < 0)
+               /* A strategy has no period to report on; the only thing this
+                  step asks of one is whether there are group undertakings. */
+               ? {state: "", note: "if the authority has any", need:"whether the authority has group companies"}
+               : {state: "", note: "limits, budget and outturn", need:"the period's figures"};
   }
   return {state:"", note:"", need:null};
 }
 
+/* WHAT A STEP IS CALLED DEPENDS ON WHAT IT ASKS. "The period's figures —
+   limits, budget and outturn" is true of a monitoring or outturn report. A
+   strategy has no period to report on; the only thing that step asks of one is
+   whether the authority has group undertakings, and a chip promising limits
+   and outturn on a strategy is a chip that lies. The step stays — that
+   question is real and lives there — but it says what it is. */
+function stepTitle(s){
+  if(s.k === "period" && typeof FIG_BACK !== "undefined" && FIG_BACK.indexOf(S.report) < 0)
+    return {t:"Group companies", s:"if the authority has any"};
+  return {t:s.t, s:s.s};
+}
 function renderRail(){
   const rail = $("rail");
   if(!rail) return;
+  /* THE CHECK, ON THE CHIP. What is still outstanding, counted by the step
+     that closes it, so a reader sees where the gaps are from anywhere rather
+     than on a step they had to remember to visit. */
+  const open = (typeof checkGapsByStep === "function") ? checkGapsByStep() : {};
   rail.innerHTML = STEPS.map(s => {
-    const st = stepStatus(s.k);
+    const st = stepStatus(s.k), tt = stepTitle(s);
+    const o = open[s.n]; const on = o ? (o.gap + o.yours) : 0;
     return `<button type="button" class="rstep ${STEP===s.n?"on":""} ${st.state}"
       style="--sc:var(--s${s.n})"
       data-go="${s.n}" aria-current="${STEP===s.n?"step":"false"}">
-      <span class="rn">${st.state==="done" ? "&#10003;" : s.n}</span>
-      <span class="rt"><b>${esc(s.t)}</b><i>${esc(st.note || s.s)}</i></span>
+      <span class="rn">${st.state==="done" && !on ? "&#10003;" : s.n}</span>
+      <span class="rt"><b>${esc(tt.t)}${on ? `<span class="ropen" title="${o.gap} outstanding, ${o.yours} yours to confirm">${on}</span>` : ""}</b><i>${esc(st.note || tt.s)}</i></span>
     </button>`;
   }).join("");
   const done = STEPS.filter(s => stepStatus(s.k).state === "done").length;
@@ -12130,7 +12211,7 @@ function renderNav(){
   const nav = document.createElement("div");
   nav.className = "stepnav";
   nav.innerHTML =
-    `${prev ? `<button type="button" class="navbtn" data-go="${prev.n}">&larr; ${esc(prev.t)}</button>`
+    `${prev ? `<button type="button" class="navbtn" data-go="${prev.n}">&larr; ${esc(stepTitle(prev).t)}</button>`
             : `<span></span>`}
      <span class="navnote">${st.need ? esc(st.need) : ""}</span>
      ${next ? "" : `<span class="navnote done">That is the whole report.</span>`}`;
@@ -12169,7 +12250,7 @@ function renderNav(){
     const on = document.createElement("button");
     on.type = "button"; on.className = "navbtn primary";
     on.dataset.go = String(next.n);
-    on.innerHTML = `${esc(next.t)} &rarr;`;
+    on.innerHTML = `${esc(stepTitle(next).t)} &rarr;`;
     head.appendChild(on);
   }
   // The draft step carries the document itself, so the nav goes above it
@@ -15609,8 +15690,20 @@ const askRows = rows => `<div class="asklist">${rows.map(r => `<div class="askro
       $(SV.t).textContent = "Which report today?";
       $(SV.sub).textContent = "The report type is set here and stays set — every "
         + "section below depends on it. Come back to this screen to start a different one.";
+      /* THE REPORT TYPE IS THE ONE CONTROL NOT LENT, ON PURPOSE. Choosing a
+         report IS starting it — Russell moved the "start a report" moment
+         onto #rtype's change, and autoInherit, the inherit notice and the
+         seeding all hang off it. Lend the real control here and the report
+         starts the instant the dropdown changes, with the year still unset
+         below it and a notice popping over a screen that still says "Start
+         the report". So this view carries a plain mirror; Start copies it
+         across and fires the real change exactly once, after the year and
+         the market date are settled, which is the order autoInherit needs. */
+      const reps = REPORTS.map(r => `<option value="${r.k}"${r.k===S.report?" selected":""}>${esc(r.t)}</option>`).join("");
       $(SV.body).innerHTML =
-          slot("rtype") + slot("fy0") + slot("asat") + slot("whoami");
+          `<div class="startslot"><div><label for="s-rtype">Report</label>
+             <select id="s-rtype"><option value="">Choose a report…</option>${reps}</select></div></div>`
+        + slot("fy0") + slot("asat") + slot("whoami");
       $(SV.foot).innerHTML =
         `<button type="button" id="s-back">Back</button>
          <button type="button" class="primary" id="s-go">Start the report</button>`;
@@ -15755,8 +15848,13 @@ const askRows = rows => `<div class="asklist">${rows.map(r => `<div class="askro
     }
 
     if(t.id === "s-go"){
-      if(!$("rtype").value){ $("rtype").focus(); return; }
+      const r = $("s-rtype").value;
+      if(!r){ $("s-rtype").focus(); return; }
+      /* Close first, then start: the inherit notice that choosing a report
+         can raise belongs over the page, not over a screen that is finished. */
       startClose();
+      $("rtype").value = r;
+      $("rtype").dispatchEvent(new Event("change", {bubbles:true}));
       return;
     }
 
