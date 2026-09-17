@@ -395,9 +395,9 @@ html.demo p:has(.ph-inline){display:none !important}
 .doc > *{max-width:none;margin-left:0;margin-right:0}
 @media(max-width:760px){.doc{padding:26px 20px}}
 .doclogo{max-height:56px;max-width:260px;margin:0 auto 14px 0;display:block}
-/* The logo picker itself (#logorow as a button, #logoshow, #logoclear) moved
-   to the ribbon — see .ribbon-logo/.ribbon-logo-x above .railfoot. This is
-   only the logo as it appears IN THE DRAFT, above. */
+/* The logo picker itself (#logorow, #logoshow, #logoclear) is on Set up —
+   see .logobtn/.logo-x above the library styles. This is only the logo as
+   it appears IN THE DRAFT, above. */
 /* The unit under a column heading, and the worked line under the intro. Both
    are the explanation put where the eye already is rather than in a paragraph
    it has scrolled past. */
@@ -825,93 +825,52 @@ table.dtab td.wrap{white-space:normal;line-height:1.5}
 .railhint{color:var(--faint)}
 
 /* ---- the ribbon ------------------------------------------------------------
- * File-level actions and the file's own status, in one place at the top of
- * every step — sitting inside .railwrap so it scrolls and sticks with the
- * step rail as one header, and so railHeight() (ui.js) measures it for free
- * rather than needing a second sticky offset tracked separately.
- *
- * Icons with a native title tooltip, not a label each — feedback after the
- * previous pass said the Authority page had too many things on it between
- * the per-step footer's file line, the Save/Open buttons, and the always-open
- * "Reports in this file" card. This replaces all three: the footer's file
- * bits are gone (see renderNav in steps.js, which now carries only Undo and
- * Clear this step), and the reports list moves into #reportspanel, opened
- * from its own ribbon icon rather than sitting permanently on the page. */
+ * One line at the top of every step, inside .railwrap so it scrolls and
+ * sticks with the step rail as one header (railHeight() in ui.js measures
+ * it). Left: what is open and where it is saved — authority, report, year,
+ * filename, save state — painted by paintFileStatus() (ui.js). Right: the
+ * three things worth a button on every step — Home (the start screen, which
+ * is the only way to change the report), Draft, Save. Everything else that
+ * used to sit here (a reports list, a clear-form reset, the logo, an Open
+ * icon) either moved to the start screen, to Set up, or went: Phil's call,
+ * after the icon row read as a toolbar nobody could name the buttons of. */
 .ribbon{display:flex;align-items:center;gap:10px;padding:0 0 10px;
   border-bottom:1px solid var(--hair);margin-bottom:12px;flex-wrap:wrap}
-.ribbon-file{display:flex;align-items:center;gap:7px;min-width:0;flex:1 1 140px}
+.ribbon-file{display:flex;align-items:center;gap:8px;min-width:0;flex:1 1 200px;flex-wrap:wrap}
+.ribbon-doc{font-family:var(--sans);font-size:13.5px;font-weight:600;color:var(--ink);
+  letter-spacing:-.005em;white-space:nowrap}
+.ribbon-doc b{color:var(--accent)}
+.ribbon-doc[hidden]{display:none}
+.ribbon-filename{font-family:var(--mono);font-size:11.5px;color:var(--ink2);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;max-width:34ch}
+.ribbon-filename:empty{display:none}
+.ribbon-doc:not([hidden]) ~ .ribbon-filename:not(:empty)::before{content:"\00b7";
+  color:var(--muted);margin-right:8px;font-family:var(--sans)}
 .ribbon-filedot{width:7px;height:7px;border-radius:50%;flex:none;background:var(--good)}
 .ribbon-file:has(.ribbon-status.dirty) .ribbon-filedot{background:var(--orange)}
-.ribbon-filename{font-family:var(--mono);font-size:11.5px;color:var(--ink2);
-  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
-.ribbon-filename:empty{display:none}
+.ribbon-file:has(.ribbon-status:empty) .ribbon-filedot{display:none}
 .ribbon-status{font-family:var(--sans);font-size:11.5px;color:var(--muted);white-space:nowrap}
 .ribbon-status.dirty{color:var(--orange);font-weight:600}
 .ribbon-acts{display:flex;align-items:center;gap:6px;flex:none;flex-wrap:wrap;margin-left:auto}
-.ribbon-btn{display:inline-flex;align-items:center;justify-content:center;
-  width:32px;height:32px;border-radius:var(--r-sm);border:1px solid var(--line2);
+.ribbon-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;
+  height:32px;padding:0 11px 0 9px;border-radius:var(--r-sm);border:1px solid var(--line2);
   background:var(--card);color:var(--ink2);cursor:pointer;flex:none;position:relative;
-  padding:0}
-.ribbon-btn svg{width:16px;height:16px;flex:none}
+  font-family:var(--sans);font-size:12.5px;font-weight:600;line-height:1}
+.ribbon-btn svg{width:15px;height:15px;flex:none}
 .ribbon-btn:hover{border-color:var(--accent);color:var(--accent)}
 .ribbon-btn#libfile{border-color:var(--accent);color:var(--accent)}
-/* A small flag on the Save icon itself, not just the caption beside the
-   filename — the ribbon can wrap onto two lines on a narrow screen, and
-   Save is the one button whose whole job is to answer "do I need to click
-   this". Toggled by paintFileStatus() (ui.js) off FILE_DIRTY. Same size and
-   corner position as .ribbon-count on the Reports icon beside it, so the
-   ribbon's two badges read as one visual language, not two. */
+/* A flag on Save itself, not only the word beside the filename: Save is the
+   one button whose whole job is to answer "do I need to click this".
+   Toggled by paintFileStatus() (ui.js) off FILE_DIRTY. */
 .ribbon-btn#libfile.dirty::after{content:"";position:absolute;top:-5px;right:-5px;
-  width:15px;height:15px;border-radius:99px;background:var(--orange)}
-.ribbon-btn#resetall:hover{border-color:var(--alert);color:var(--alert)}
+  width:12px;height:12px;border-radius:99px;background:var(--orange)}
+.ribbon-btn#draftbtn.on{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
 .ribbon-btn[hidden]{display:none}
-.ribbon-logo-wrap{position:relative}
-.ribbon-logo{overflow:hidden}
-.ribbon-logo img{width:100%;height:100%;object-fit:contain;background:var(--card)}
-.ribbon-logo:has(img:not([hidden])) svg{display:none}
-/* Small enough to sit in the corner of a 32px icon without covering the
-   thumbnail underneath it — only shown once a logo is actually set. */
-.ribbon-logo-x{position:absolute;top:-6px;right:-6px;width:16px;height:16px;
-  border-radius:50%;border:1px solid var(--line2);background:var(--card);
-  color:var(--muted);font-size:12px;line-height:1;cursor:pointer;padding:0;
-  display:flex;align-items:center;justify-content:center}
-.ribbon-logo-x:hover{border-color:var(--alert);color:var(--alert)}
-.ribbon-logo-x[hidden]{display:none}
-/* A count badge, only shown once the file actually holds more than the
-   report open right now — an empty or single-entry file has nothing extra
-   worth flagging on the icon itself. */
-.ribbon-count{position:absolute;top:-5px;right:-5px;min-width:15px;height:15px;
-  border-radius:99px;background:var(--accent);color:var(--on-accent);
-  font-family:var(--mono);font-size:9px;font-weight:600;display:flex;
-  align-items:center;justify-content:center;padding:0 3px;line-height:1}
-.ribbon-count:empty,.ribbon-count[hidden]{display:none}
+@media (max-width:640px){
+  .ribbon-btn span{display:none}
+  .ribbon-btn{padding:0 8px}
+}
 
-/* Which REPORT is open, not which FILE — the filename below it names the
- * authority's whole history and barely changes; this line names the one
- * thing that changes constantly (switch report type, switch year) and is
- * the easiest thing to lose track of after a few steps. Its own row, ahead
- * of the file-level ribbon, because it answers a different question. */
-.ribbon-doc{font-family:var(--sans);font-size:14.5px;font-weight:600;
-  color:var(--ink);padding:0 0 8px;letter-spacing:-.005em}
-.ribbon-doc b{color:var(--accent)}
-.ribbon-doc[hidden]{display:none}
-
-/* ---- the reports panel ----------------------------------------------------
- * What used to be the always-open "Reports in this file" card, now a
- * dropdown-style panel opened from the ribbon's list icon — see
- * renderReturnsList/toggleReportsPanel in wire.js. Anchored under the icon
- * rather than centred like .askbox: this is a browse-and-act panel you might
- * open several times in a session, not a one-off decision to stop and
- * confirm. */
-/* Wide enough that a row's "last saved by" line and its action buttons —
-   Delete, plus a "Use it" where one applies — sit on one line together
-   rather than the buttons wrapping under the date, which is what 440px
-   did the moment a row carried both a "Use it" button and a Delete. */
-.reportspanel{position:fixed;z-index:80;width:min(600px,calc(100vw - 32px));
-  max-height:min(70vh,560px);overflow:auto;background:var(--card);
-  border:1px solid var(--line2);border-radius:var(--r);box-shadow:0 20px 50px rgba(0,0,0,.28)}
-.reportspanel[hidden]{display:none}
-.rpveil{position:fixed;inset:0;z-index:79;background:transparent}
 
 .stepnav{display:flex;align-items:center;gap:16px;margin:0;padding:14px 20px;
   border-top:1px solid var(--line);background:var(--sunken);
@@ -1209,57 +1168,6 @@ table.dtab td.wrap{white-space:normal;line-height:1.5}
 .scenariostrip b{color:var(--ink)}
 .scenariostrip #scenarioexit{margin-left:8px}
 
-/* Every return saved here for this authority, so a stale draft can be taken
-   out without opening it first. Locked ones cannot be — deleting the record
-   of what was actually issued is not a correction, it is losing it.
-   A bare table dropped under everything else read as a debug dump of the
-   library rather than a feature — no header band, no row separation to
-   speak of, the same 12.5px as every other line on the page. It is a card
-   now, matching the file card above it: a quiet heading bar, then rows
-   that wrap sanely at phone width instead of a table forcing a scrollbar.
-   Lives inside #reportspanel now (opened from the ribbon) rather than an
-   always-visible .retlist wrapper on the page — the card styling below is
-   unchanged, just re-homed. */
-.retcard{font-family:var(--sans);border:1px solid var(--line);border-radius:var(--r);
-  background:var(--card);overflow:hidden}
-.rethead{padding:10px 16px;background:var(--sunken);
-  border-bottom:1px solid var(--line);font-size:12px;font-weight:700;
-  color:var(--ink2);text-transform:uppercase;letter-spacing:.04em}
-/* The caption ties the list back to the file it actually came from — see
-   renderReturnsList in wire.js. Not uppercase, not bold: it is explaining
-   the heading above it, not another heading of its own. */
-.rethead p{margin:3px 0 0;font-size:11px;font-weight:400;text-transform:none;
-  letter-spacing:normal;color:var(--muted)}
-.retempty{padding:16px;font-size:12.5px;color:var(--muted);text-align:center}
-.retrow{display:flex;align-items:center;gap:8px 16px;flex-wrap:wrap;
-  padding:10px 16px;border-top:1px solid var(--hair);font-size:12.5px;
-  color:var(--ink2)}
-.retrows .retrow:first-child{border-top:0}
-.retrow.cur{background:color-mix(in srgb, var(--accent) 5%, var(--card))}
-.retmain{flex:1 1 220px;min-width:0;color:var(--ink2)}
-.retrow.cur .retmain{color:var(--ink);font-weight:600}
-.retnow{font-family:var(--mono);font-size:9.5px;text-transform:uppercase;
-  letter-spacing:.04em;color:var(--accent);font-weight:600;margin-left:6px}
-/* One flex item, not two loose ones — .retwho and .retacts wrap onto their
-   own line as a pair when the row does not fit on one line, rather than
-   splitting from EACH OTHER, which is what left Delete stranded under the
-   date on its own line whenever a row also carried a "Use it" button. */
-.retmeta{display:flex;align-items:center;gap:8px 16px;flex-wrap:wrap;
-  flex:1 1 auto;justify-content:space-between}
-.retwho{flex:0 1 auto;color:var(--muted);font-size:11.5px;white-space:nowrap}
-.retst{display:inline-block;padding:1px 7px;border-radius:99px;font-size:10.5px;
-  text-transform:uppercase;letter-spacing:.03em}
-.retst.draft{background:var(--sunken);color:var(--ink2)}
-.retst.saved{background:color-mix(in srgb, var(--good) 12%, var(--card));color:var(--good)}
-.retst.issued{background:var(--accent-soft);color:var(--accent)}
-.retst.locked{background:rgba(179,53,42,.12);color:var(--alert)}
-.retst.corrected{background:var(--sunken);color:var(--orange)}
-.retacts{display:flex;gap:8px;align-items:center;flex:none;flex-wrap:wrap}
-button.retdel{font-family:var(--sans);font-size:11.5px;font-weight:600;
-  padding:5px 12px;border-radius:var(--r-sm);border:1px solid var(--line2);
-  background:var(--paper);color:var(--muted);cursor:pointer;white-space:nowrap}
-button.retdel:hover{border-color:var(--alert);color:var(--alert)}
-button.retdel:disabled{opacity:.4;cursor:not-allowed}
 
 /* ---- spreadsheet behaviour ------------------------------------------------
  * The selection is a background rather than a border, because a border on a
@@ -1308,7 +1216,6 @@ svg.ctip .hits rect{cursor:crosshair}
    is for. No ticks, no percentage, no green wash: four counts and a list. */
 .secdec{margin:0 0 18px;padding:12px 14px;background:var(--sunken);border-radius:var(--r-sm)}
 .secdec h3{margin:0 0 8px}
-.ribbon-btn#draftbtn.on{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
 /* The folded strip above the draft */
 .gapstrip{display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px;margin-top:12px}
 .gapstrip.none{font-family:var(--sans);font-size:13.5px;color:var(--ink2);padding:10px 14px;
@@ -1486,6 +1393,25 @@ svg.ctip .hits rect{cursor:crosshair}
   background:color-mix(in srgb, var(--muted) 20%, var(--card));color:var(--muted)}
 .cpix.on i{background:var(--good);color:#fff}
 .cpindex .sp{flex:1;min-width:8px}
+/* The logo picker, on Set up beside the issued tick: a 34px button that shows
+   the crest once one is chosen, with a small x to take it away again.
+   #logorow/#logoshow/#logoclear keep their ids — logoRow() in wire.js paints
+   them and does not care where they sit. */
+.logowrap{position:relative;display:inline-flex;margin-top:auto}
+.logobtn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:38px;
+  padding:0 12px;border-radius:var(--r-sm);border:1px solid var(--line2);background:var(--card);
+  color:var(--ink2);cursor:pointer;font-family:var(--sans);font-size:12.5px;overflow:hidden}
+.logobtn:hover{border-color:var(--accent);color:var(--accent)}
+.logobtn img{width:28px;height:28px;object-fit:contain;background:var(--card);flex:none}
+.logobtn svg{width:16px;height:16px;flex:none}
+.logobtn:has(img:not([hidden])) svg{display:none}
+.logo-x{position:absolute;top:-7px;right:-7px;width:17px;height:17px;
+  border-radius:50%;border:1px solid var(--line2);background:var(--card);
+  color:var(--muted);font-size:12px;line-height:1;cursor:pointer;padding:0;
+  display:flex;align-items:center;justify-content:center}
+.logo-x:hover{border-color:var(--alert);color:var(--alert)}
+.logo-x[hidden]{display:none}
+
 /* ---- the library --------------------------------------------------------
    Nobody starts a strategy from a blank page; they start from last year's.
    The offer names the operation before it runs, because a seed that silently
@@ -1502,7 +1428,12 @@ svg.ctip .hits rect{cursor:crosshair}
    checkbox and its text ARE the one element, so margin-top:auto is what
    gets it onto that same baseline instead of sitting wherever a plain
    column flow would leave it. */
-.issuedcell .issuedbox{margin-top:auto}
+/* A ROW, NOT A COLUMN. .setup > div > label makes every label on this grid a
+   column (its text above its control); this label IS the control, and a
+   column put the tick box floating above its own words. */
+.issuedcell .issuedbox{margin-top:auto;flex-direction:row;align-items:flex-start;gap:9px;
+  margin-bottom:0;flex:0 0 auto}
+.issuedcell .issuedbox input{margin-top:3px;flex:none}
 .issuedbox{display:inline-flex;align-items:center;gap:6px}
 /* The one place the tool stops and asks. It carries a list, so it is a panel
    rather than a confirm() — a table does not fit in a browser dialog. */
@@ -1517,8 +1448,9 @@ svg.ctip .hits rect{cursor:crosshair}
 .setupsum .ss-none{font-family:var(--sans);font-size:13.5px;color:var(--muted);padding:4px 0}
 /* One control left on this step, so it sits where a first field sits rather
    than centred in the middle of a grid built for eight. */
-.panel[data-step="1"] .setup{display:flex;justify-content:flex-start}
+.panel[data-step="1"] .setup{display:flex;justify-content:flex-start;gap:12px 32px;align-items:flex-end}
 .panel[data-step="1"] .setup .issuedcell{margin:0}
+.issuedcell .hint{display:block;font-weight:400;font-size:11.5px;color:var(--muted);margin-top:3px}
 /* A stashed control on loan to the start screen keeps its own label and hint
    but takes the modal's field spacing, so the two views look like one form. */
 .startslot > div{display:flex;flex-direction:column;gap:5px}
@@ -1558,11 +1490,12 @@ svg.ctip .hits rect{cursor:crosshair}
 .starthead h2{font-family:var(--serif);font-size:21px;font-weight:600;margin:0 0 7px;
   line-height:1.2;color:var(--ink)}
 .starthead p{font-family:var(--sans);font-size:13px;line-height:1.6;color:var(--ink2);margin:0}
+.starthead p:empty{display:none}
 .startbody{padding:18px 26px 22px;display:flex;flex-direction:column;gap:11px}
 .startfoot{padding:14px 26px;background:var(--sunken);border-top:1px solid var(--hair);
   display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
 .startfoot p{font-family:var(--sans);font-size:12px;line-height:1.5;color:var(--ink2);
-  margin:0;max-width:42ch}
+  margin:0;flex:1 1 100%}
 .startdoor{display:flex;gap:13px;align-items:flex-start;text-align:left;width:100%;
   padding:14px 16px;border:1px solid var(--line2);border-radius:8px;background:var(--card);
   cursor:pointer;font-family:var(--sans);color:inherit}
@@ -1587,6 +1520,23 @@ svg.ctip .hits rect{cursor:crosshair}
 .startrep .sr-n{font-family:var(--sans);font-size:13.5px;font-weight:600;color:var(--ink)}
 .startrep .sr-s{font-family:var(--sans);font-size:11.5px;color:var(--muted);display:block}
 .startrep .sr-a{display:flex;gap:6px;align-items:center;flex:none}
+/* Sized to the row they sit in, not to the page's form buttons: Open is the
+   one thing a row is for, Delete is there but quiet. */
+.startrep .sr-a button{font-family:var(--sans);font-size:12.5px;padding:5px 11px;
+  border-radius:6px;border:1px solid var(--line2);background:var(--card);color:var(--ink2);
+  cursor:pointer;line-height:1.3}
+.startrep .sr-a button.primary{background:var(--accent);border-color:var(--accent);
+  color:var(--on-accent);font-weight:600}
+.startrep .sr-a button:hover{border-color:var(--accent)}
+.startrep .sr-a button.primary:hover{filter:brightness(1.06)}
+.startrep .sr-a button.danger{border-color:var(--alert);color:var(--alert);background:var(--card)}
+/* The suggestion sits above the list, and "choose a different report" is a
+   quieter door under it: no border, no icon box, one line. */
+.startdoor.quiet{border-color:transparent;background:transparent;padding:6px 16px}
+.startdoor.quiet:hover{background:var(--sunken)}
+.startdoor.quiet .sd-t{font-size:13px;font-weight:600;color:var(--accent)}
+.startdoor .sd-k{font-family:var(--sans);font-size:11px;font-weight:600;letter-spacing:.06em;
+  text-transform:uppercase;color:var(--accent);display:block;margin-bottom:2px}
 .startrep.confirming{border-color:var(--alert);background:color-mix(in srgb,var(--alert) 5%,transparent)}
 .startrep .sr-lk{font-family:var(--mono);font-size:10.5px;text-transform:uppercase;
   letter-spacing:.06em;color:var(--good);white-space:nowrap}
@@ -1917,93 +1867,49 @@ td.nask{background:repeating-linear-gradient(45deg,var(--hair),var(--hair) 4px,
        loan book stamp moved into step 1, beside the authority it describes,
        which is where it is actually read. -->
   <nav class="railwrap" aria-label="Report progress">
-    <!-- THE RIBBON. Every file-level action, on every step, one place —
-         see the CSS note above .ribbon for what this replaced. Icons only,
-         each with a native title tooltip; #filename/#saved/paintFileStatus
-         (ui.js) keep the left side painted, and every button here keeps the
-         id it had in its old location, so wire.js's existing handlers
-         needed no rewrite, only relocation. -->
-    <!-- Names the REPORT open right now (type + year), painted by the same
-         paintFileStatus() (ui.js) that keeps the ribbon below in sync — see
-         the CSS note above .ribbon-doc for why this is separate from it. -->
-    <div class="ribbon-doc" id="ribbondoc" hidden></div>
+    <!-- THE RIBBON: one line of context and three buttons, on every step.
+         #ribbondoc/#filename/#saved are painted by paintFileStatus() (ui.js).
+         Home is the only way to change the report or the authority — see the
+         note above #setupsum below. #libopen stays here as a hidden input:
+         the start screen's "Open my reports file" door clicks it, and
+         openLibraryFile/openViaFilePicker (wire.js) hang off it. -->
     <div class="ribbon">
       <div class="ribbon-file">
-        <span class="ribbon-filedot" aria-hidden="true"></span>
+        <span class="ribbon-doc" id="ribbondoc" hidden></span>
         <span class="ribbon-filename" id="filename"></span>
+        <span class="ribbon-filedot" aria-hidden="true"></span>
         <span class="ribbon-status" id="saved"></span>
       </div>
       <div class="ribbon-acts">
-        <!-- BACK TO THE START SCREEN, which is the only way to change the
-             report type: every section, the wording, the indicators and the
-             period figures differ by report, so swapping it underneath a
-             half-written one is not an edit, it is a different document. -->
         <button type="button" class="ribbon-btn" id="startbtn"
-          title="Start screen — which report, which authority">
+          title="Home — your reports, or a different file">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V20h14V9.5"/><path d="M9.5 20v-6h5v6"/>
-          </svg>
+          </svg><span>Home</span>
         </button>
-        <!-- THE DRAFT, FROM ANYWHERE. It is the output of every step, not a
-             step; lit while it is what is on screen. -->
-        <button type="button" class="ribbon-btn" id="draftbtn" title="The draft">
+        <button type="button" class="ribbon-btn" id="draftbtn" title="The draft, and back">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path d="M6 3h8l5 5v13a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"/>
             <path d="M14 3v5h5"/><path d="M9 13h6"/><path d="M9 17h6"/><path d="M9 9h2"/>
-          </svg>
+          </svg><span>Draft</span>
         </button>
-        <button type="button" class="ribbon-btn" id="libfile" title="Save">
+        <button type="button" class="ribbon-btn" id="libfile" title="Save this file">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z"/>
             <path d="M17 21v-8H7v8"/><path d="M7 3v5h8"/>
-          </svg>
+          </svg><span>Save</span>
         </button>
-        <label class="ribbon-btn" for="libopen" title="Open a file">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-            stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M4 20h13a2 2 0 0 0 2-2l1.3-6a1 1 0 0 0-1-1.2H6.1a2 2 0 0 0-1.9 1.4L3 16"/>
-            <path d="M3 6a2 2 0 0 1 2-2h4l2 2h7a2 2 0 0 1 2 2v2H6a2 2 0 0 0-1.9 1.4L3 16V6Z"/>
-          </svg>
-        </label>
-        <input type="file" id="libopen" data-libopen accept=".json,application/json" hidden>
-        <button type="button" class="ribbon-btn" id="filechange" title="Change file" hidden>
+        <button type="button" class="ribbon-btn" id="filechange" title="Save to a different file" hidden>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/>
             <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
-          </svg>
+          </svg><span>Save as</span>
         </button>
-        <button type="button" class="ribbon-btn" id="reportsBtn" title="Reports in this file">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-            stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/>
-            <line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/>
-            <line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>
-          </svg>
-          <span class="ribbon-count" id="reportsCount" hidden></span>
-        </button>
-        <button type="button" class="ribbon-btn" id="resetall" title="Clear form">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-            stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <polyline points="1 4 1 10 7 10"/>
-            <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>
-          </svg>
-        </button>
-        <div class="ribbon-logo-wrap">
-          <label class="ribbon-btn ribbon-logo" for="logo" id="logorow" title="Council logo — click to choose">
-            <img id="logoshow" alt="" hidden>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-              stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-              <circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>
-            </svg>
-          </label>
-          <button type="button" id="logoclear" class="ribbon-logo-x" title="Remove logo" hidden>&times;</button>
-        </div>
-        <input type="file" id="logo" accept="image/png,image/jpeg,image/svg+xml" hidden>
+        <input type="file" id="libopen" data-libopen accept=".json,application/json" hidden>
       </div>
     </div>
     <div class="railtrack"><div class="railbar" id="railbar"></div></div>
@@ -2071,10 +1977,6 @@ td.nask{background:repeating-linear-gradient(45deg,var(--hair),var(--hair) 4px,
            year plus fifty forward — and the control is gone. A file saved
            with a shorter horizon still opens: applyVersion pads it out, and
            a year left blank is nil, so nothing is lost or invented. -->
-      <!-- Council logo moved to the ribbon (#logorow/#logoshow/#logoclear —
-           see .railwrap markup): a crest is a file-level fact, not a
-           per-question one, and it competed for space here with the
-           questions that actually vary report to report. -->
       <div><label for="whoami">Saved by</label>
         <input type="text" id="whoami" placeholder="your name" maxlength="60"></div>
       </div><!-- /#setupstash -->
@@ -2083,15 +1985,31 @@ td.nask{background:repeating-linear-gradient(45deg,var(--hair),var(--hair) 4px,
            that is open, on the day it goes to committee, and it locks the
            report when you do it. -->
       <div class="issuedcell"><label class="cpmini issuedbox"><input type="checkbox" id="issued">
-        Issued to members</label></div>
+        <span>Issued to members &mdash; this report is complete
+          <span class="hint">Tick once it has gone to committee. It locks the report, and
+            the next report picks up from it.</span></span></label></div>
+      <!-- The council's crest, here rather than on the ribbon: a fact about
+           the file, set once, read on the front of every draft. -->
+      <div class="logocell"><label>Council logo<span class="hint">on the front of every
+          draft — it travels inside the exported file</span></label>
+        <div class="logowrap">
+          <label class="logobtn" for="logo" id="logorow" title="Council logo — click to choose">
+            <img id="logoshow" alt="" hidden>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+              <circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>
+            </svg><span>Choose</span>
+          </label>
+          <button type="button" id="logoclear" class="logo-x" title="Remove logo" hidden>&times;</button>
+        </div>
+        <input type="file" id="logo" accept="image/png,image/jpeg,image/svg+xml" hidden>
+      </div>
     </div>
-    <!-- "Bring in your figures" and, later, the always-open "Reports in this
-         file" card that replaced it both used to live here. Both are gone
-         from the page itself now: sources are offered automatically (see
-         the source-prompt banner further down) and the full list of what
-         is in the file opens from the ribbon's list icon into
-         #reportspanel, rather than sitting permanently on screen. See
-         wire.js's renderReturnsList/useItFrom/toggleReportsPanel. -->
+    <!-- "Bring in your figures" and, later, a "Reports in this file" card
+         both used to live here. Sources are offered automatically now (see
+         the source-prompt banner further down) and the list of what is in
+         the file is the start screen's own view, reached from Home. -->
     </div>
   </section>
 
@@ -2127,13 +2045,6 @@ td.nask{background:repeating-linear-gradient(45deg,var(--hair),var(--hair) 4px,
       <button type="button" class="primary" id="noticeok">Got it</button>
     </div>
   </div>
-
-  <!-- THE REPORTS PANEL. Opened from the ribbon's list icon (#reportsBtn),
-       positioned under it by JS (toggleReportsPanel in wire.js) rather than
-       centred like .askbox — this is a browse-and-act panel you might open
-       several times a session, not a one-off decision. Content is filled by
-       renderReturnsList, same as the inline card it replaced. -->
-  <div class="reportspanel" id="reportspanel" hidden></div>
 
   <section class="panel" data-step="2">
     <div class="phead"><span class="n">2</span><h2>What you hold now</h2></div>
@@ -2279,6 +2190,11 @@ td.nask{background:repeating-linear-gradient(45deg,var(--hair),var(--hair) 4px,
     <div class="pbody"><div class="ltools" style="margin-top:0">
       <button type="button" class="primary" id="expdoc">Download for Word</button>
       <button type="button" id="copydoc">Copy the draft</button>
+      <!-- Opens the section list beside the draft and takes you to the top of
+           it. The list's own burger (#docnavtoggle, doc.js) folds it again;
+           this button exists because that burger, hanging in the gutter, was
+           the thing nobody found. -->
+      <button type="button" id="contentsbtn" title="The sections, as a list beside the draft">Contents</button>
       <span class="sp"></span><span class="hintline" id="dhint"></span>
     </div>
     <!-- WHAT IS STILL OPEN, IN ONE LINE. Folded by default, because this is
@@ -2665,7 +2581,7 @@ const MTFP = 5;   // years most authorities actually forecast — marked, not en
    padded up to this on restore (see applyVersion). */
 const YEARS = 51;
 
-let S = {gss:"", report:"", fy0:2026, asAt:null, natOverride:null,
+let S = {gss:"", report:"", fy0:currentFY(), asAt:null, natOverride:null,
          view:{ind:"all", fund:"all"}, hra:"no", fund:"gf", years:YEARS,
          loans:[], g:{}, text:{}, sec:"intro",
          /* NOTHING IS ANSWERED ON THEIR BEHALF. This seeded two of the nineteen
@@ -2774,9 +2690,8 @@ function paintFileStatus(){
   // button whose whole job is to answer "do I need to click this".
   const lf = $("libfile");
   if(lf) lf.classList.toggle("dirty", FILE_DIRTY);
-  // Which REPORT, not which FILE — see the CSS note above .ribbon-doc in
-  // body.html for why this is a second, separate line rather than folded
-  // into the filename above.
+  // Which REPORT, on the same line as which FILE: authority · report and
+  // year · filename · save state. One line, because the ribbon is one line.
   const doc = $("ribbondoc");
   if(doc){
     // Both, not just the authority — picking the report is what actually
@@ -2787,9 +2702,13 @@ function paintFileStatus(){
       const who = (LB[S.gss] || {}).n || S.otherName || "this authority";
       const rep = (REPORTS.find(r => r.k === S.report) || {}).t || "";
       doc.hidden = false;
-      doc.innerHTML = `You're working on <b>${esc(who)}</b>'s <b>${esc(rep)} ${esc(fy(S.fy0))}</b>`;
+      doc.innerHTML = `<b>${esc(who)}</b> &middot; ${esc(rep)} ${esc(fy(S.fy0))}`;
     }
   }
+  // Set up's own summary of the same facts, repainted with the ribbon so it
+  // can never be one report behind — which it was when it was painted only
+  // as the start screen closed, before the report it named had started.
+  if(typeof setupSummary === "function") setupSummary();
 }
 const esc = s => String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;")
   .replace(/>/g,"&gt;").replace(/"/g,"&quot;");
@@ -3286,22 +3205,29 @@ function docNavMark(){
   }
 }
 
+/* Paints the rail's folded/open state from docNavShut(); docNavSet() changes
+   it, remembers it, and paints. Two callers: the rail's own burger, and the
+   Contents button in the draft's tools row (wire.js), which is there because
+   the burger hanging in the gutter was the control nobody found. */
+function docNavApply(){
+  const nav = $("docnav"), btn = $("docnavtoggle");
+  if(!nav || !btn) return;
+  nav.classList.toggle("shut", docNavShut());
+  btn.setAttribute("aria-expanded", String(!docNavShut()));
+  btn.title = docNavShut() ? "Show the sections" : "Hide the sections";
+}
+function docNavSet(shut){
+  DOCNAV_SHUT = !!shut;
+  try{ localStorage.setItem("lb:docnav", DOCNAV_SHUT ? "1" : "0"); }catch(e){}
+  docNavApply();
+}
 let _docNavScroll = null;
 function wireDocNav(){
   const nav = $("docnav"), btn = $("docnavtoggle");
   if(!nav || !btn) return;
-  const apply = () => {
-    nav.classList.toggle("shut", docNavShut());
-    btn.setAttribute("aria-expanded", String(!docNavShut()));
-    btn.title = docNavShut() ? "Show the sections" : "Hide the sections";
-  };
-  apply();
+  docNavApply();
   railHeight(); watchRailHeight();
-  btn.addEventListener("click", () => {
-    DOCNAV_SHUT = !docNavShut();
-    try{ localStorage.setItem("lb:docnav", DOCNAV_SHUT ? "1" : "0"); }catch(e){}
-    apply();
-  });
+  btn.addEventListener("click", () => docNavSet(!docNavShut()));
   if(!_docNavScroll){
     // One listener for the life of the page, not one per render: the document
     // is rebuilt on every keystroke and stacking a listener each time is how a
@@ -11548,6 +11474,57 @@ function priorLine(){
  * ======================================================================== */
 const FILE_V = 2;
 
+/* ---- what to do next ------------------------------------------------------
+ * THE FINANCIAL YEAR TODAY IS IN. April to March, so September 2026 is
+ * 2026/27 and February 2027 still is. Takes a date so the tests can ask
+ * about any month. */
+function currentFY(now){
+  const d = now || new Date();
+  return d.getMonth() >= 3 ? d.getFullYear() : d.getFullYear() - 1;
+}
+/* THE SENSIBLE NEXT REPORT FOR THIS AUTHORITY, from what the file holds and
+ * what month it is. Phil's design: a new file should start with this year's
+ * strategy, because everything else this year is monitored against it; once
+ * that strategy is marked as issued (issued = complete), the suggestion moves
+ * on to whichever report the calendar says is due next and the file does
+ * not yet hold — quarterly monitoring once the first quarter has closed
+ * (July), the mid-year review once the half-year has (October), last year's
+ * outturn while the accounts are being closed (April to September), and
+ * next year's strategy from December, when it is drafted for council. A
+ * report that is in the file but not yet issued is offered as the thing to
+ * finish; one that is issued is done, and the list moves on.
+ *
+ * Returns {report, fy0, verb, why, open} — `open` is the library key when
+ * the report already exists and the suggestion is to finish it — or null
+ * when everything the calendar asks for is already issued. */
+function suggestNext(gss, now){
+  const d = now || new Date();
+  const y = currentFY(d), m = d.getMonth();
+  const rows = libFor(gss);
+  const held = (r, fy0) => rows.find(e => e.report === r && e.fy0 === fy0);
+  const name = r => (REPORTS.find(x => x.k === r) || {}).t || r;
+  const cands = [];
+  const strat = held("tmss", y);
+  if(!strat || !strat.issued)
+    cands.push(["tmss", y, `Everything else this year is monitored against it.`]);
+  if(m === 11 || m <= 2)
+    cands.push(["tmss", y + 1, `Next year's strategy goes to council before April.`]);
+  if(m >= 9 || m <= 2)
+    cands.push(["mid", y, `The half-year has closed, so the mid-year review is due.`]);
+  if(m >= 6 || m <= 2)
+    cands.push(["quart", y, `The first quarter has closed, so quarterly monitoring is due.`]);
+  if(m >= 3 && m <= 8)
+    cands.push(["out", y - 1, `Last year is over, so its outturn report is due.`]);
+  for(const [r, fy0, why] of cands){
+    const e = held(r, fy0);
+    if(e && e.issued) continue;
+    return e
+      ? {report:r, fy0, verb:"Finish", why:`It is in the file but not yet issued. ${why}`, open:e.k, label:name(r)}
+      : {report:r, fy0, verb:"Start", why, open:null, label:name(r)};
+  }
+  return null;
+}
+
 /* ONE FILE FOR THE COUNCIL, NOT ONE PER REPORT.
  *
  * A file per version means a growing pile on the network drive and a
@@ -12230,7 +12207,10 @@ function stepStatus(k){
 
   if(k === "setup"){
     if(!S.gss) return {state:"", note:"No authority chosen", need:"Pick your authority to fill the PWLB loan book."};
-    const c = LB[S.gss];
+    // Never undefined: an authority the list does not know (a file's own
+    // "other" body, a demonstration not yet rebuilt) still has a name to
+    // show rather than a rail that throws before it draws.
+    const c = LB[S.gss] || {n: S.otherName || "this authority"};
     // Picking the report is now what starts it (see the #rtype handler in
     // wire.js) — an authority alone is not a report yet, so it cannot honestly
     // say "done" until one is chosen.
@@ -13523,11 +13503,6 @@ function undoPaint(){
  * confirmations, all wired from inside init(); moving the last three
  * confirm() calls onto the same panel is what first called them from
  * outside it. */
-function closeReportsPanel(){
-  const p = $("reportspanel");
-  if(p) p.hidden = true;
-  document.querySelectorAll(".rpveil").forEach(v => v.remove());
-}
 /* One panel, used by both file actions. It stops and shows exactly what is
    about to happen, per report, before it happens.
    onCancel is optional — most callers have nothing to undo if the answer
@@ -13537,12 +13512,9 @@ function closeReportsPanel(){
    displayed value the instant the browser fired "change", before this
    function is ever called, so declining has to visibly put it back.
 
-   CLOSES THE REPORTS PANEL AND ANY NOTICE FIRST. #reportspanel sits at
-   z-index 80 with its own full-viewport click-catcher at 79 — both above
-   .askbox's 70 — so a delete confirmed from inside that panel left its
-   invisible veil sitting on top of the real dialog. The first click
-   landed on the veil (closing the panel) and only the second one ever
-   reached the button, which read as having to click Delete twice.
+   CLOSES ANY NOTICE FIRST. (It used to close a reports panel too, whose
+   click-catcher sat above this box and ate the first click on Delete; that
+   panel is the start screen's reports view now, and has no veil to eat.)
    A leftover notice() is the same failure shape one level up: it shares
    .askbox's own z-index, so a notice left open when a confirm fires next
    — pick a report (notice appears), then immediately change the year
@@ -13554,7 +13526,6 @@ function closeReportsPanel(){
    at all, which is exactly how this was found. Nothing here ever needs
    more than one of these open at once, so ask() just closes both. */
 function ask(title, bodyHTML, goLabel, onGo, onCancel){
-  closeReportsPanel();
   closeNoticeBox();
   $("asktitle").textContent = title;
   $("askbody").innerHTML = bodyHTML;
@@ -13577,13 +13548,12 @@ function closeAskBox(){
  * there is no "cancel" to offer, only "I've seen this", so one button
  * rather than ask()'s two, and a separate id so a notice and a real
  * confirmation are never fighting over which one "Escape" or a stray click
- * closes. Closes the reports panel and any pending confirm first, for the
+ * closes. Closes any pending confirm first, for the
  * same reason ask() closes a pending notice — see its own comment above;
  * this is the same protection running the other way. A confirm left
  * un-answered here is superseded rather than silently actioned — closing
  * it this way never runs onGo or onCancel, it just stops asking. */
 function notice(title, bodyHTML){
-  closeReportsPanel();
   closeAskBox();
   $("noticetitle").textContent = title;
   $("noticebody").innerHTML = bodyHTML;
@@ -13603,6 +13573,39 @@ const askRows = rows => `<div class="asklist">${rows.map(r => `<div class="askro
     <span class="asktag ${r.tag}">${esc(r.tagText)}</span></div>`).join("")}</div>`;
 
 /* ---- init ---------------------------------------------------------------- */
+/* WHAT IS OPEN, SAID ON THE STEP THAT USED TO ASK IT. Read-only on purpose:
+   Top level, not inside init(), because render() (ui.js) repaints it with
+   the ribbon on every pass — painting it only as the start screen closed
+   left it one report behind, naming the report that was open before the
+   one just started.
+   the way to change any of it is the start screen, because the report type
+   decides which sections exist, which wording is drafted and which
+   indicators are carried, and swapping it under a half-written report is a
+   different document rather than an edit. */
+function setupSummary(){
+  const host = $("setupsum");
+  if(!host) return;
+  if(!S.gss || !S.report){
+    host.innerHTML = `<p class="ss-none">No report open.</p>
+      <span class="ss-go"><button type="button" class="primary" data-startgo="1">Choose a report</button></span>`;
+    return;
+  }
+  const who = S.gss === DEMO_GSS
+    ? ((LB[DEMO_GSS] || {}).n || "Demonstration")
+    : ((LB[S.gss] || {}).n || S.otherName || "this authority");
+  const rep = (REPORTS.find(r => r.k === S.report) || {}).t || S.report;
+  const pool = S.hra === "no" ? "No HRA" : S.hra === "one" ? "HRA, one pool" : "HRA, two pools";
+  const item = (k, v) => `<span class="ss-i"><span class="ss-k">${esc(k)}</span>
+    <span class="ss-v">${esc(v)}</span></span>`;
+  host.innerHTML =
+      item("Authority", who)
+    + item("Report", rep)
+    + item("Year", fy(S.fy0))
+    + item("Market data", fmtWhen(S.asAt || MKT.as_at) || "—")
+    + item("Pooling", pool)
+    + `<span class="ss-go"><button type="button" data-startgo="1">Change</button></span>`;
+}
+
 (function init(){
   /* WHERE A REPORT STARTS, AND WHERE IT WAS BEFORE A DEMONSTRATION.
    *
@@ -13676,7 +13679,10 @@ const askRows = rows => `<div class="asklist">${rows.map(r => `<div class="askro
     + `</optgroup>`;
   $("rtype").innerHTML=`<option value="">Choose a report…</option>`
     + REPORTS.map(r=>`<option value="${r.k}">${esc(r.t)}</option>`).join("");
-  let ys=""; for(let y=2024;y<=2028;y++) ys+=`<option value="${y}"${y===2026?" selected":""}>${fy(y)}</option>`;
+  // Two years either side of the financial year today is in, this one
+  // selected — not a list fixed at build time that would have 2026/27
+  // selected for ever (see currentFY in library.js).
+  let ys=""; for(let y=currentFY()-2;y<=currentFY()+2;y++) ys+=`<option value="${y}"${y===currentFY()?" selected":""}>${fy(y)}</option>`;
   $("fy0").innerHTML=ys;
 
   function fundTabs(){
@@ -13857,9 +13863,9 @@ const askRows = rows => `<div class="asklist">${rows.map(r => `<div class="askro
       const bodyHTML = leavingDemo
         ? `<p>Your changes to the demonstration would be discarded. Cancel to carry them
              across instead.</p>`
-        : `<p>What's on screen moves into &ldquo;Reports in this file&rdquo; rather than
-             being thrown away — it stays there, in this browser only, and comes back
-             automatically wherever it's relevant. Save to a file first for a copy that
+        : `<p>What's on screen is kept in this file's list (Home) rather than
+             being thrown away — in this browser only, and it comes back as it was
+             when you open it again. Save to a file first for a copy that
              survives closing the tab, or Cancel to stay here.</p>`;
       ask(leavingDemo ? `Start a clean report for ${esc(who)}?` : `Switch to ${esc(who)}?`,
         bodyHTML, "Switch", proceed, () => { e.target.value = councilValue(); });
@@ -13888,57 +13894,10 @@ const askRows = rows => `<div class="asklist">${rows.map(r => `<div class="askro
   $("council").addEventListener("blur", e => {
     if(e.target.value === "") e.target.value = councilValue();
   });
-  /* START AGAIN.
-
-     resetReport(PRISTINE) IS THE SAME WHOLE-PAYLOAD RESET the authority,
-     report and year pickers already use, rather than a second, hand-kept
-     list of forty fields to blank — the first field somebody adds without
-     remembering this handler is a field that would survive a reset built
-     that way, which is worse than no reset at all.
-
-     No reload needed: there is nothing in the browser for a reload to clear
-     out from under this any more, so the reset can just happen in place. A
-     pending debounced write is cleared first regardless, since it would
-     otherwise land a moment later and put the library entry straight back. */
-  const rst = $("resetall");
-  if(rst) rst.addEventListener("click", () => {
-    const who = (LB[S.gss] || {}).n || S.otherName || "this authority";
-    const repName = (REPORTS.find(r => r.k === S.report) || {}).t || S.report;
-    // A real in-page panel, not window.confirm() — see the long comment on
-    // the same change in the #council handler above.
-    ask(`Clear everything for ${esc(who)} — ${esc(repName)}, ${esc(fy(S.fy0))}?`,
-      `<p>Every figure, answer and paragraph goes, and this cannot be undone here. Files
-         you have saved to your own machine are not touched.</p>`,
-      "Clear it", () => {
-    clearTimeout(_auto);
-    libForget(S.gss, S.report, S.fy0);
-    resetReport(PRISTINE);
-    // "RETURNS YOU TO A BLANK FORM" — the button's own words, above, meant
-    // the authority too, not only its content. Left selected, seedHoldings()
-    // below pulls that authority's REAL published PWLB total straight back
-    // into "What you hold" — c.o from its own record, not anything typed —
-    // so the step read as still holding the old report's figures even though
-    // every other step had genuinely gone blank. Deselecting first is what
-    // makes that reseed a true blank template instead: seedHoldings() reads
-    // LB[S.gss], and with no authority there is nothing for it to pull.
-    S.gss = ""; $("council").value = "";
-    // Same authority-switch reset the council picker's own handler runs —
-    // otherShown() is what syncs #otherreg's visible value (and the
-    // otherbox/otherregbox pair's hidden state) from S.natOverride/S.otherName.
-    // Missing here meant S.natOverride cleared correctly but the "Which
-    // regime" dropdown itself kept showing whatever was chosen before, for
-    // as long as it stayed hidden — visible again the moment "Other" was
-    // picked, pre-filled with an answer nobody had just given it.
-    otherShown();
-    seedHoldings();
-    fundTabs(); buildLedger(); loanRows(); applyLoans(); countClauses();
-    if(typeof cpRender === "function") cpRender();
-    renderSections(); render(); libFill();
-    $("issued").checked = libIsIssued();
-    saveHint("Cleared. Files you have saved to your own machine are not touched.");
-      });
-  });
-
+  /* "CLEAR FORM" IS GONE. It lived on the ribbon as a reset icon; the way
+     to remove a report now is Delete on its row in the start screen's list
+     (Home), which names what goes and asks first — and the way to start
+     over is to start another report from there. */
   $("othername").addEventListener("input", e=>{
     LB.other.n = e.target.value.trim(); S.otherName = LB.other.n; render(); });
   $("otherreg").addEventListener("change", e=>{
@@ -13989,6 +13948,9 @@ const askRows = rows => `<div class="asklist">${rows.map(r => `<div class="askro
         // this authority's own file already holds for this report — a prior
         // version, this year's Strategy, or both — and says so; only a report
         // with nothing behind it yet falls back to the plain published book.
+        // The saved copy of THIS report first — see restoreSaved — and only
+        // where there is none, whatever earlier reports can supply.
+        if(restoreSaved()) return;
         if(!autoInherit()){
           const c = LB[S.gss];
           S.loans=S.loans.filter(l=>!l.pwlb);
@@ -14002,9 +13964,9 @@ const askRows = rows => `<div class="asklist">${rows.map(r => `<div class="askro
       if(hasTypedWork()){
         const repName = (REPORTS.find(r=>r.k===chosen)||{}).t || "this report";
         ask(`Switch to ${esc(repName)}?`,
-          `<p>What's on screen moves into &ldquo;Reports in this file&rdquo; rather than
-             being thrown away — it stays there, in this browser only, and comes back
-             automatically wherever it's relevant. Save to a file first for a copy that
+          `<p>What's on screen is kept in this file's list (Home) rather than
+             being thrown away — in this browser only, and it comes back as it was
+             when you open it again. Save to a file first for a copy that
              survives closing the tab, or Cancel to stay here.</p>`,
           "Switch", proceed, () => { e.target.value = S.report; });
       } else {
@@ -14024,6 +13986,7 @@ const askRows = rows => `<div class="asklist">${rows.map(r => `<div class="askro
        * nothing just leaves the figures exactly as they already were.
        */
       S.report=e.target.value;
+      if(restoreSaved()) return;
       autoInherit();
       saveHint(""); renderSections(); render(); libFill();
     }
@@ -14087,6 +14050,7 @@ const askRows = rows => `<div class="asklist">${rows.map(r => `<div class="askro
       // does when the report type itself is what just changed. Only where it
       // finds nothing does the loan book get re-seeded on its own, same as
       // before.
+      if(restoreSaved()){ e.target.value = chosen; return; }
       if(!autoInherit()) seedHoldings();
       e.target.value = chosen;
       buildLedger(); loanRows(); applyLoans(); libFill(); render();
@@ -14097,9 +14061,9 @@ const askRows = rows => `<div class="asklist">${rows.map(r => `<div class="askro
       if(hasTypedWork()){
         const yr = fy(+chosen);
         ask(`Switch to ${esc(yr)}?`,
-          `<p>What's on screen moves into &ldquo;Reports in this file&rdquo; rather than
-             being thrown away — it stays there, in this browser only, and comes back
-             automatically wherever it's relevant. Save to a file first for a copy that
+          `<p>What's on screen is kept in this file's list (Home) rather than
+             being thrown away — in this browser only, and it comes back as it was
+             when you open it again. Save to a file first for a copy that
              survives closing the tab, or Cancel to stay here.</p>`,
           "Switch", proceed, () => { e.target.value = String(S.fy0); });
       } else {
@@ -14111,6 +14075,7 @@ const askRows = rows => `<div class="asklist">${rows.map(r => `<div class="askro
       // demonstration switched to the following year is exactly the roll-
       // forward case, same as a real authority's.
       S.fy0=+chosen;
+      if(restoreSaved()){ e.target.value = chosen; return; }
       autoInherit();
       e.target.value = chosen;
       buildLedger(); loanRows(); applyLoans(); libFill(); render();
@@ -14139,17 +14104,17 @@ const askRows = rows => `<div class="asklist">${rows.map(r => `<div class="askro
    * page showing which logo was set, so the head of the document was the first
    * place anyone found out.
    *
-   * NOW A RIBBON ICON, ALWAYS THERE RATHER THAN A ROW THAT APPEARS. #logorow
-   * is the icon button itself (see .railwrap markup) — it never hides, it
-   * just shows the placeholder glyph with nothing set and the actual
-   * thumbnail once something is, which is what the CSS rule
-   * ".ribbon-logo:has(img:not([hidden])) svg" is for. What used to be a
+   * NOW A BUTTON ON SET UP, ALWAYS THERE RATHER THAN A ROW THAT APPEARS.
+   * #logorow is the button itself (see the .logocell markup on step 1) — it
+   * never hides, it just shows the placeholder glyph with nothing set and
+   * the actual thumbnail once something is, which is what the CSS rule
+   * ".logobtn:has(img:not([hidden])) svg" is for. What used to be a
    * sentence next to the image ("Generated for the demonstration..." /
-   * "Travels inside the exported file") is the icon's title tooltip now —
-   * there is no room for a sentence on a 32px button — and Remove
-   * (#logoclear) is the small × that only appears once there is something
-   * to remove, same distinction as before between a crest chosen and one
-   * the tool generated. */
+   * "Travels inside the exported file") is the button's title tooltip, and
+   * Remove (#logoclear) is the small × that only appears once there is
+   * something to remove, same distinction as before between a crest chosen
+   * and one the tool generated. It sat on the ribbon for a while; Phil's
+   * call to bring the ribbon down to Home, Draft and Save put it here. */
   function logoRow(){
     const img = $("logoshow"), clr = $("logoclear"), btn = $("logorow");
     if(img) img.hidden = !S.logo;
@@ -14915,142 +14880,13 @@ const askRows = rows => `<div class="asklist">${rows.map(r => `<div class="askro
      there is exactly one right answer or there is none. */
   const libMonEntry = () => S.report === "tmss" ? null
     : libFor(S.gss).find(e => e.report === "tmss" && e.fy0 === S.fy0);
-  function libFill(){ renderReturnsList(); }
-  /* EVERY RETURN HELD FOR THIS AUTHORITY — ONE TABLE FOR EVERYTHING IT CAN
-   * DO: reference every one of them, delete one, and, only on the rows that
-   * are actually a valid source for what is open right now, "Use it".
-   *
-   * ONE TABLE, NOT TWO. This used to be a separate "Bring in your figures"
-   * card above this one — a dropdown of roll-forward candidates, a "Use it"
-   * button below it, and an "upload a colleague's file instead" escape
-   * hatch duplicated for both the roll source and the monitor source. Four
-   * things on screen for what is really one question: which of the reports
-   * already here is worth pulling from. Folding the picker into the list
-   * means the candidates are exactly whichever rows already show, and the
-   * upload escape hatch — never well understood, and redundant with Open a
-   * file, which already puts a colleague's reports into this same table —
-   * is gone rather than hidden.
-   *
-   * SUITABILITY IS THE SAME RULE THE OLD DROPDOWN FILTERED BY, just read per
-   * row instead of built into one list: a roll-forward candidate is the
-   * SAME report type, strictly an EARLIER year — the one whose wording is
-   * actually relevant, and only ever looking backward, because "roll
-   * forward" describes the direction the years move, not just that the
-   * years differ. Without the fy0 < S.fy0 half of this, opening 2027/28
-   * then coming back to 2026/27 would offer 2027/28 as something to roll
-   * 2026/27 forward FROM — a later, possibly-still-blank year standing in
-   * as an earlier one's wording source. A monitor candidate is THIS year's
-   * Annual Strategy and nothing else (libMonEntry), and there is at most
-   * one. Neither is offered on the report already open — it is not a
-   * source for itself. */
-  function renderReturnsList(){
-    const host = $("reportspanel");
-    const badge = $("reportsCount");
-    const all = S.gss ? libFor(S.gss).slice()
-      .sort((a,b) => (b.fy0 - a.fy0) || String(a.report).localeCompare(b.report)) : [];
-    if(badge){ badge.hidden = all.length === 0; badge.textContent = all.length || ""; }
-    if(!host) return;
-    // Content is kept current whether or not the panel is actually open —
-    // toggleReportsPanel controls visibility, this only ever controls what
-    // is inside it, so opening it a moment later never shows something stale.
-    if(!all.length){ host.innerHTML =
-      `<div class="retcard"><div class="rethead">Reports in this file</div>
-        <div class="retempty">Nothing saved for this authority yet.</div></div>`;
-      return; }
-    const curKey = KEY();
-    host.innerHTML = `<div class="retcard">
-      <div class="rethead">Reports in this file
-        <p>What's currently loaded &mdash; from the file you opened, plus anything written since.
-          Starting a report that matches one already here uses it automatically.</p>
-      </div>
-      <div class="retrows">${all.map(e => {
-        const repName = (REPORTS.find(r=>r.k===e.report)||{}).t || e.report;
-        const cur = e.k === curKey;
-        /* "draft" stays the CSS class name for the unsaved case (unchanged
-         * styling hook) — the WORD shown is "unsaved", the same root word
-         * the file-status strip's "Unsaved changes" uses for the same state
-         * (see paintFileStatus/markDirty), so one state has one name
-         * wherever it shows. Kept to one word here, matching every other
-         * tag in this list (saved / issued / locked) — the strip has the
-         * room to spell it out, a table cell does not.
-         *
-         * PER ENTRY, NOT THE WHOLE-FILE FLAG — see libNote/libTouchSaved in
-         * library.js. Only the report actually open can ever be dirty in a
-         * given session, so e.dirty is what says whether THIS row's content
-         * has been written to the file since it last changed; FILE_DIRTY is
-         * a different, correct-for-its-own-purpose question ("does the file
-         * need saving at all") used by the header strip, not this table —
-         * using it here read an untouched, already-saved report as unsaved
-         * whenever some OTHER report in the file had a pending edit. */
-        const status = e.locked ? "locked" : (e.issued ? "issued" : (e.dirty ? "draft" : "saved"));
-        const statusWord = status === "draft" ? "unsaved" : status;
-        const whoWhen = `${status === "draft" ? "Last edited" : "Last saved"} by ${esc(byLine(e))}, ${esc(whenLine(e.at))}`;
-        return `<div class="retrow ${cur?"cur":""}">
-          <span class="retmain">${esc(repName)} &middot; ${esc(fy(e.fy0))}${
-            cur?' <span class="retnow">open now</span>':""}
-            <span class="retst ${status}">${statusWord}</span>${e.overrideCount
-              ? ` <span class="retst corrected" title="Edited after locking, ${e.overrideCount} time${
-                  e.overrideCount===1?"":"s"} — open it to see why">corrected</span>` : ""}</span>
-          <span class="retmeta">
-            <span class="retwho">${whoWhen}</span>
-            <span class="retacts">
-              <button type="button" class="retdel" data-k="${esc(e.k)}"
-                ${e.locked ? "disabled" : ""}
-                title="${e.locked ? "A locked report cannot be deleted" : ""}">Delete</button>
-            </span>
-          </span>
-        </div>`;
-      }).join("")}</div>
-    </div>`;
-    host.querySelectorAll(".retdel").forEach(b => {
-      if(b.disabled) return;
-      b.addEventListener("click", () => {
-        const k = b.dataset.k;
-        const e = libFor(S.gss).find(x => x.k === k);
-        if(!e || e.locked) return;
-        const repName = (REPORTS.find(r=>r.k===e.report)||{}).t || e.report;
-        const wasCurrent = k === curKey;
-        ask(`Delete the ${repName} · ${fy(e.fy0)}`,
-          `<p>This takes it out of what is open right now — there is no undo, and no copy
-             kept anywhere unless you already saved one to a file.</p>
-           ${askRows([{label: `${esc(repName)} · ${fy(e.fy0)}`,
-             line: `last saved by ${byLine(e)}, ${whenLine(e.at)}`, tag: "", tagText: ""}])}
-           ${wasCurrent ? `<p><b>This is the report open right now.</b> Deleting it clears
-             this step back to blank.</p>` : ""}`,
-          "Delete it", () => {
-            // A pending debounced write from before the delete would otherwise
-            // land a moment later and put this exact entry straight back.
-            clearTimeout(_auto);
-            libForget(e.gss, e.report, e.fy0);
-            if(wasCurrent){
-              // Same reason as the #council/#rtype handlers: PRISTINE's fy0,
-              // hra, and an "Another body" authority's typed name and regime
-              // are all boot-time blanks, not what the Set up fields still
-              // show — and applyVersion forces the #fy0/#hra selects
-              // themselves back to those boot-time values too, so leaving
-              // any of these unrestored would blank the report under one
-              // year/HRA/name while the fields kept showing another. This
-              // branch never touches S.gss, so "Another body" is still the
-              // same body afterward and deserves to still show as one.
-              const yr = S.fy0, hra = S.hra, on = S.otherName, nat = S.natOverride;
-              resetReport(PRISTINE);
-              S.fy0 = yr; S.hra = hra; S.otherName = on; S.natOverride = nat;
-              $("fy0").value = yr; $("hra").value = hra;
-              if(S.gss === "other"){
-                LB.other.n = on || ""; $("othername").value = on || ""; $("otherreg").value = nat || "";
-              }
-              renderReturnsList();
-              closeReportsPanel();
-              saveHint(`Deleted ${repName} · ${fy(e.fy0)}. This step is now blank.`);
-            } else {
-              renderReturnsList();
-              FILE_DIRTY = true;
-              saveHint(`Deleted ${repName} · ${fy(e.fy0)}.`);
-            }
-          });
-      });
-    });
-  }
+  /* WHAT IS IN THE FILE IS THE START SCREEN'S REPORTS VIEW NOW, drawn each
+     time that screen opens (see startRender below), so there is nothing on
+     the page itself to keep painted. The name stays because every path that
+     changes the library calls it, and the summary on Set up is repainted by
+     render() — this only makes sure a library change with no render behind
+     it (a delete, a save) still shows on that step. */
+  function libFill(){ if(typeof setupSummary === "function") setupSummary(); }
   /* THE ONE ACTION BEHIND EVERY REPORT THAT STARTS, whichever field —
    * authority or report type — just completed the pair. libSeed takes both
    * halves — rolled wording and the monitor budget — in one call, because
@@ -15077,6 +14913,38 @@ const askRows = rows => `<div class="asklist">${rows.map(r => `<div class="askro
    * Returns whether it actually did anything, so a caller with its own
    * fallback seeding (the plain PWLB book, for an authority with nothing
    * saved yet) knows whether that fallback is still needed. */
+  /* A REPORT THE FILE ALREADY HOLDS COMES BACK AS ITSELF.
+   *
+   * Choosing the pair (authority, report, year) of a report that is already
+   * in the library — Open on the start screen's list, or the same choice
+   * made in the selects — used to reset to blank and then inherit from an
+   * EARLIER report, exactly as if the saved one did not exist; and the blank
+   * then debounced straight over the saved copy in memory. So a report
+   * opened from a file lost its pooling, its issued mark and every word
+   * typed into it, on the way in. Found while walking the file flow for the
+   * start screen; it predates it.
+   *
+   * Checked first, ahead of any inherit or seed: the saved body is applied
+   * whole, the loan book is seeded only if the file carried none (an older
+   * file), and nothing else is laid over it. The pending autosave is
+   * cancelled so merely opening it does not read as an unsaved change. */
+  function restoreSaved(){
+    if(!S.gss || !S.report) return false;
+    const e = libFor(S.gss).find(x => x.k === KEY());
+    const body = e && libLoad(e.k);
+    if(!body) return false;
+    applyVersion(body);
+    seedHoldings();
+    fundTabs(); buildLedger(); loanRows(); applyLoans(); countClauses();
+    if(typeof cpRender === "function") cpRender();
+    $("issued").checked = libIsIssued();
+    renderSections(); render(); libFill();
+    clearTimeout(_auto);
+    const nm = (REPORTS.find(r => r.k === S.report) || {}).t || S.report;
+    saveHint(`Opened ${nm} ${fy(S.fy0)}`
+      + (e.by ? `, saved by ${e.by}` : "") + (e.at ? ` ${whenLine(e.at)}` : "") + ".");
+    return true;
+  }
   function autoInherit(){
     if(!S.gss || !S.report) return false;
     const monEntry = libMonEntry();
@@ -15154,50 +15022,6 @@ const askRows = rows => `<div class="asklist">${rows.map(r => `<div class="askro
     return true;
   }
   window.libFill = libFill;
-
-  /* OPENED FROM THE RIBBON, ANCHORED UNDER IT — not a centred, one-off
-   * confirmation like .askbox, because this is a browse-and-act panel
-   * someone might open several times a session just to check what is
-   * there. A transparent veil behind it is what makes clicking anywhere
-   * else close it, the same pattern .askveil already uses for the confirm
-   * panel — click-through on the veil itself, not on the panel it sits
-   * behind. closeReportsPanel itself now lives at module scope, alongside
-   * ask()/notice() — see the comment there for why. */
-  function openReportsPanel(){
-    const btn = $("reportsBtn"), p = $("reportspanel");
-    if(!btn || !p) return;
-    renderReturnsList();
-    const r = btn.getBoundingClientRect();
-    /* VIEWPORT COORDINATES, NOT PAGE COORDINATES — .reportspanel is
-     * position:fixed, so its top/left already mean "from the viewport
-     * edge", exactly what getBoundingClientRect() returns on its own.
-     * Adding window.scrollY/scrollX treated it as position:absolute
-     * instead, pushing the panel further down the PAGE the more the
-     * window had been scrolled — scroll far enough down a long step (What
-     * you hold, at the bottom, say) and it opened below the visible
-     * viewport entirely, which is exactly invisible rather than merely
-     * mispositioned. */
-    p.style.top = (r.bottom + 8) + "px";
-    p.hidden = false;
-    // Measured, not a second copy of the CSS width kept in sync by hand —
-    // the .reportspanel rule is the one place its width is declared, same
-    // reasoning as railHeight() (ui.js) measuring the ribbon instead of
-    // guessing its height.
-    const w = p.offsetWidth;
-    // Right-aligned to the icon, clamped so a narrow window never pushes it
-    // off the left edge of the page.
-    const left = Math.max(12, r.right - w);
-    p.style.left = left + "px";
-    const veil = document.createElement("div");
-    veil.className = "rpveil";
-    veil.addEventListener("click", closeReportsPanel);
-    document.body.appendChild(veil);
-  }
-  if($("reportsBtn")) $("reportsBtn").addEventListener("click", () => {
-    const p = $("reportspanel");
-    if(p && !p.hidden){ closeReportsPanel(); return; }
-    openReportsPanel();
-  });
 
   /* A version as a file: the council's own network drive, its own retention
      policy, its own backups — and a colleague can open it.
@@ -15315,7 +15139,7 @@ const askRows = rows => `<div class="asklist">${rows.map(r => `<div class="askro
       FILE_HANDLE = handle;
       FILE_DIRTY = false; recoverClear();
       libTouchSaved(S.gss, whoAmI(), new Date().toISOString());
-      renderReturnsList();
+      libFill();
       // Named explicitly when the file itself changed, not just re-picked
       // the same one: the old file is not being kept in step from here on,
       // and that is the one fact "Change file" exists to surface.
@@ -15357,7 +15181,7 @@ const askRows = rows => `<div class="asklist">${rows.map(r => `<div class="askro
         await withTimeout(writeToHandle(FILE_HANDLE, data), 8000);
         FILE_DIRTY = false; recoverClear();
         libTouchSaved(S.gss, mine, new Date().toISOString());
-        renderReturnsList();
+        libFill();
         saveHint(`Updated ${FILE_HANDLE.name}.`);
       }catch(err){
         if(err && err.name === "AbortError"){ saveHint("Save cancelled."); return; }
@@ -15376,7 +15200,7 @@ const askRows = rows => `<div class="asklist">${rows.map(r => `<div class="askro
       try{ await DOWNLOADS.save({filename:name, data});
            FILE_DIRTY = false; recoverClear();
            libTouchSaved(S.gss, mine, new Date().toISOString());
-           renderReturnsList();
+           libFill();
            saveHint(`Saved ${nv} report${nv===1?"":"s"} as ${name}.`); }
       catch(err){ saveHint((err && err.code) === "declined"
         ? "Save cancelled." : "Saving is not available here."); }
@@ -15391,7 +15215,7 @@ const askRows = rows => `<div class="asklist">${rows.map(r => `<div class="askro
     // wait for, so triggering it is taken as meaning it happened.
     FILE_DIRTY = false; recoverClear();
     libTouchSaved(S.gss, mine, new Date().toISOString());
-    renderReturnsList();
+    libFill();
     saveHint(`Saved ${nv} report${nv===1?"":"s"} as ${name}.`);
     };
     /* WHOSE WORK IS IN THIS FILE. The honest limit is stated rather than
@@ -15441,44 +15265,49 @@ const askRows = rows => `<div class="asklist">${rows.map(r => `<div class="askro
    * first path; everything else is identical, because it should be — a file
    * opened either way carries the same reports and deserves the same
    * itemized confirmation before anything on screen gets replaced. */
-  /* A FILE, ONCE READ, IS A QUESTION FOR THE START SCREEN — not a dialog
-     over it. Phil's call, and the right one: every other step of choosing
-     what to work on happens in that one screen with Back and Next, and a
-     second box popping over it (which is what ask() is) broke the one thing
-     the screen exists to be — the single place this decision is made. So the
-     file is inspected here and parked in PENDING_FILE, and the screen's own
-     "confirm" view draws it, with Back to change your mind and Open to go
-     ahead. The same path serves the ribbon's Open button, so there is one
-     flow to learn and one to keep right. */
-  let PENDING_FILE = null;
+  /* A FILE, ONCE READ, IS OPENED — all of it, into memory — and the start
+     screen shows what is in it. There was a confirmation view between the
+     two for a while, listing what each report in the file would add or
+     replace; Phil's call to drop it, and the right one: the file IS the
+     authority's reports, every one of them is always loaded, and the only
+     decision worth a screen is which one to open next, which the reports
+     view asks. The same path serves a file picked any way in (FileReader
+     or a real handle), so there is one flow to learn and one to keep right. */
   function applyOpenedFileText(text, handle){
-    const look = libInspect(text);
-    if(!look.ok){ saveHint(look.note); return; }
-    PENDING_FILE = {text, handle, look};
-    startOpen("confirm");
-  }
-  /* What "Open" on that view does: the import, then the file's contents. */
-  function openPendingFile(){
-    const pf = PENDING_FILE; PENDING_FILE = null;
-    if(!pf) return;
-    const r = libImport(pf.text);
+    const r = libImport(text);
     if(!r.ok){ saveHint(r.note); startOpen("doors"); return; }
     /* THE FILE IS OPEN; NO REPORT IS. Opening a file used to drop you
        straight into its newest report, which answers a question nobody
        asked: a file holds several years and several kinds of report, and
        the one saved most recently is not reliably the one you came back
        for. So the file's contents are shown and the reader picks. S.gss is
-       set because libFor() is scoped by it; S.report deliberately is not. */
+       set because libFor() is scoped by it; S.report is cleared when the
+       file is another authority's, so nothing on screen can be saved under
+       the wrong name. */
     const entry = r.entry;
-    S.gss = entry.body.gss || entry.gss;
+    const gss = entry.body.gss || entry.gss;
+    if(S.gss !== gss){ S.report = ""; $("rtype").value = ""; }
+    S.gss = gss;
+    /* A SAVED DEMONSTRATION, OPENED ON A FRESH PAGE. LB.demo only exists
+       once fillDemo or applyVersion has built it, and neither has run yet
+       for a file that is merely open — so the rail, the ribbon and the
+       summary would all read LB[S.gss].n off nothing. Built here from what
+       the file carries (see applyVersion for the same rebuild on open), so
+       the name on the reports view is the file's own. */
+    if(S.gss === DEMO_GSS && !LB[DEMO_GSS]){
+      const b = entry.body || {};
+      LB[DEMO_GSS] = Object.assign({}, (b.demoSrc && LB[b.demoSrc]) || {},
+        {n: b.demoName || entry.n || "Demonstration"});
+    }
     $("council").value = councilValue();
     clearTimeout(_auto);
     FILE_DIRTY = false; recoverClear();
     // The whole point of opening it this way: Save from here on writes
     // straight back to this file, not a fresh download. null for the
     // FileReader path, where there was never a real handle to keep.
-    FILE_HANDLE = pf.handle || null;
+    FILE_HANDLE = handle || null;
     saveHint(r.note);
+    render();
     startOpen("reports");
   }
   /* ONE HANDLER, TWO WAYS IN. The file picker is offered on step 1 beside the
@@ -15794,35 +15623,6 @@ const askRows = rows => `<div class="asklist">${rows.map(r => `<div class="askro
   const slot = (id, label) =>
     `<div class="startslot" data-slot="${id}"${label ? ` aria-label="${esc(label)}"` : ""}></div>`;
 
-  /* WHAT IS OPEN, SAID ON THE STEP THAT USED TO ASK IT. Read-only on purpose:
-     the way to change any of it is the start screen, because the report type
-     decides which sections exist, which wording is drafted and which
-     indicators are carried, and swapping it under a half-written report is a
-     different document rather than an edit. */
-  function setupSummary(){
-    const host = $("setupsum");
-    if(!host) return;
-    if(!S.gss || !S.report){
-      host.innerHTML = `<p class="ss-none">No report open.</p>
-        <span class="ss-go"><button type="button" class="primary" data-startgo="1">Choose a report</button></span>`;
-      return;
-    }
-    const who = S.gss === DEMO_GSS
-      ? ((LB[DEMO_GSS] || {}).n || "Demonstration")
-      : ((LB[S.gss] || {}).n || S.otherName || "this authority");
-    const rep = (REPORTS.find(r => r.k === S.report) || {}).t || S.report;
-    const pool = S.hra === "no" ? "No HRA" : S.hra === "one" ? "HRA, one pool" : "HRA, two pools";
-    const item = (k, v) => `<span class="ss-i"><span class="ss-k">${esc(k)}</span>
-      <span class="ss-v">${esc(v)}</span></span>`;
-    host.innerHTML =
-        item("Authority", who)
-      + item("Report", rep)
-      + item("Year", fy(S.fy0))
-      + item("Market data", fmtWhen(S.asAt || MKT.as_at) || "—")
-      + item("Pooling", pool)
-      + `<span class="ss-go"><button type="button" data-startgo="1">Change</button></span>`;
-  }
-
   let startView = "doors";
   function startOpen(view){
     startView = view || "doors";
@@ -15885,10 +15685,7 @@ const askRows = rows => `<div class="asklist">${rows.map(r => `<div class="askro
       $(SV.sub).textContent = "Two things about the authority, then you are in. "
         + "These stay with the file — you will not be asked again.";
       $(SV.body).innerHTML =
-          slot("council") + slot("othername") + slot("otherreg") + slot("hra")
-        + `<p class="startnote"><b>Not sure about pooling?</b> One pool is the common
-             case: the HRA and General Fund share one loans pool with an interest
-             recharge. Two pools means the HRA holds its own debt.</p>`;
+          slot("council") + slot("othername") + slot("otherreg") + slot("hra");
       $(SV.foot).innerHTML =
         `<button type="button" id="s-back">Back</button>
          <button type="button" class="primary" id="s-next">Continue</button>`;
@@ -15907,7 +15704,10 @@ const askRows = rows => `<div class="asklist">${rows.map(r => `<div class="askro
          the report". So this view carries a plain mirror; Start copies it
          across and fires the real change exactly once, after the year and
          the market date are settled, which is the order autoInherit needs. */
-      const reps = REPORTS.map(r => `<option value="${r.k}"${r.k===S.report?" selected":""}>${esc(r.t)}</option>`).join("");
+      /* Pre-set to the suggestion when one brought us here (see START_PRESET
+         and the "suggest" door below); otherwise to whatever is open. */
+      const want = (START_PRESET && START_PRESET.report) || S.report;
+      const reps = REPORTS.map(r => `<option value="${r.k}"${r.k===want?" selected":""}>${esc(r.t)}</option>`).join("");
       $(SV.body).innerHTML =
           `<div class="startslot"><div><label for="s-rtype">Report</label>
              <select id="s-rtype"><option value="">Choose a report…</option>${reps}</select></div></div>`
@@ -15915,30 +15715,6 @@ const askRows = rows => `<div class="asklist">${rows.map(r => `<div class="askro
       $(SV.foot).innerHTML =
         `<button type="button" id="s-back">Back</button>
          <button type="button" class="primary" id="s-go">Start the report</button>`;
-    }
-
-    else if(V === "confirm"){
-      const pf = PENDING_FILE;
-      if(!pf){ startView = "doors"; return startRender(); }
-      const look = pf.look;
-      $(SV.t).textContent = `Open ${look.who}`;
-      $(SV.sub).textContent = `${look.n} report${look.n===1?"":"s"} in this file. `
-        + `Any of them already open here is replaced by the file's copy, and anything on `
-        + `screen you have not saved to a file is gone. You choose which to open next.`;
-      const TAG = {new:"adds", older:"replaces with older", newer:"replaces", same:"replaces"};
-      $(SV.body).innerHTML = look.rows.map(r => `<div class="startrep">
-          <span><span class="sr-n">${esc(r.label)}</span>
-            <span class="sr-s">${r.state === "new"
-              ? `not held here · in the file, saved by ${esc(byLine({by:r.fileBy}))} ${esc(whenLine(r.fileAt))}`
-              : `here: ${esc(byLine({by:r.mineBy}))} ${esc(whenLine(r.mineAt))} · file: ${esc(byLine({by:r.fileBy}))} ${esc(whenLine(r.fileAt))}`
-            }</span></span>
-          <span class="sr-a"><span class="sr-tag ${esc(r.state)}">${TAG[r.state] || r.state}</span></span>
-        </div>`).join("")
-        + (look.older ? `<p class="startnote" style="color:var(--alert)"><b>${look.older} of them is older
-             than the copy here.</b> Opening the file puts the earlier version back.</p>` : "");
-      $(SV.foot).innerHTML =
-        `<button type="button" id="s-back">Back</button>
-         <button type="button" class="primary" id="s-openfile">Open ${look.n === 1 ? "it" : "all " + look.n}</button>`;
     }
 
     else if(V === "demo"){
@@ -15954,18 +15730,42 @@ const askRows = rows => `<div class="asklist">${rows.map(r => `<div class="askro
     }
 
     else if(V === "reports"){
-      const rows = libFor(S.gss);
-      const who = (LB[S.gss] || {}).n || S.otherName || "this authority";
+      /* Newest year first; within a year, the order the year produces them:
+         strategy, quarterly, mid-year, outturn. */
+      const SEQ = {tmss:0, quart:1, mid:2, out:3};
+      const rows = libFor(S.gss).slice()
+        .sort((a,b) => (b.fy0 - a.fy0) || ((SEQ[a.report] ?? 9) - (SEQ[b.report] ?? 9)));
+      /* The authority's name: from the list for a real one, from the file's
+         own entries otherwise — a demonstration or an "other" body is not in
+         LB, and "this authority" as a title is a screen that has forgotten
+         whose it is. */
+      const who = (LB[S.gss] || {}).n || (rows[0] || {}).n || S.otherName || "this authority";
       $(SV.t).textContent = who;
-      $(SV.sub).textContent = rows.length
-        ? `${rows.length} report${rows.length===1?"":"s"} in this file.`
-        : "Nothing saved in this file yet.";
+      $(SV.sub).textContent = "";
+      /* WHAT TO DO NEXT, WORKED OUT FROM THE FILE AND THE CALENDAR — see
+         suggestNext in library.js. Primary, because for a new file it is
+         the one right answer (this year's strategy) and for a working file
+         it is the report the year is now asking for. "Choose a different
+         report" is the same door, quieter, underneath. */
+      const sug = suggestNext(S.gss);
+      const next = (sug
+        ? `<button type="button" class="startdoor primary" data-door="suggest">
+             <span class="sd-ic">${svg(ICON.plus)}</span>
+             <span><span class="sd-k">Suggested next</span>
+               <span class="sd-t">${esc(sug.verb)} the ${esc(sug.label)} ${esc(fy(sug.fy0))}</span>
+               <span class="sd-s">${esc(sug.why)}</span></span>
+           </button>`
+        : `<p class="startnote">Everything the year asks for is in this file and issued.</p>`)
+        + `<button type="button" class="startdoor quiet" data-door="another">
+             <span><span class="sd-t">${sug ? "or choose a different report" : "Start another report"}</span></span>
+           </button>`;
       $(SV.body).innerHTML = (rows.length
         ? rows.map(e => {
             const nm = (REPORTS.find(x=>x.k===e.report)||{}).t || e.report;
+            const saved = (e.by ? `saved by ${byLine(e)}, ` : "saved ") + esc(whenLine(e.at));
             return `<div class="startrep">
               <span><span class="sr-n">${esc(nm)} ${esc(fy(e.fy0))}</span>
-                <span class="sr-s">${e.issued ? "Issued &middot; " : ""}${esc(whenLine(e.at))}</span></span>
+                <span class="sr-s">${e.issued ? "Issued &middot; " : ""}${saved}</span></span>
               <span class="sr-a">
                 <button type="button" class="primary" data-open="${esc(e.k)}">Open</button>
                 ${e.locked
@@ -15980,23 +15780,39 @@ const askRows = rows => `<div class="asklist">${rows.map(r => `<div class="askro
                      } — it cannot be deleted">${e.issued ? "Issued" : "Locked"}</span>`
                   : `<button type="button" data-del="${esc(e.k)}">Delete</button>`}
               </span></span>
-            </div>`; }).join("")
-        : `<p class="startempty">Start the first one below.</p>`)
-        + `<div class="startor">or</div>`
-        + door("another", ICON.plus, "Start another report",
-               "A new year, or a different report for this authority. It picks up what is already in the file.");
-      /* A WAY OUT OF THIS FILE, ALWAYS. The ribbon button lands here whenever
-         an authority is set, so if this view only offered "back to my report"
-         there was no route from a file you have open to a different file or a
-         different authority — a dead end reached by the ordinary path, which
-         is the worst kind. Both doors, every time. */
+            </div>`; }).join("") + `<div class="startor">or</div>`
+        : `<p class="startempty">Nothing in this file yet.</p>`)
+        + next;
+      /* A WAY OUT, ALWAYS. Back goes to the doors — a different file, a new
+         one, the worked example — so a file you have open is never a dead
+         end; and "Back to my report" only when there is one to go back to. */
       $(SV.foot).innerHTML =
-        `<button type="button" id="s-back">Open a different file</button>`
+        `<button type="button" id="s-back">Back</button>`
         + (reportOpen()
             ? `<button type="button" class="primary" id="s-close">Back to my report</button>`
             : "");
     }
     startLend();
+    /* The suggested year, shown in the lent #fy0 once it is in the view. Its
+       real change (S.fy0, the reset, autoInherit) was already fired by the
+       door that set the preset — see presetFrom below — so this is display
+       agreeing with state, not a second path to changing it. */
+    if(V === "report" && START_PRESET && START_PRESET.fy0 && $("fy0"))
+      $("fy0").value = String(START_PRESET.fy0);
+  }
+  /* A report the start screen was asked to line up — by the suggestion
+     door, or by Continue on a new file — for the "report" view to pre-select.
+     Cleared once that view is left either way. The year is applied
+     immediately, through #fy0's own handler, so any "switch year?" question
+     it raises is asked here over the start screen rather than after Start,
+     where it would race the report's own start. */
+  let START_PRESET = null;
+  function presetFrom(sug){
+    START_PRESET = sug ? {report: sug.report, fy0: sug.fy0} : null;
+    if(sug && sug.fy0 !== S.fy0 && $("fy0")){
+      $("fy0").value = String(sug.fy0);
+      $("fy0").dispatchEvent(new Event("change", {bubbles:true}));
+    }
   }
 
   /* ONE DELEGATED LISTENER, because every view above is rebuilt from scratch
@@ -16004,7 +15820,7 @@ const askRows = rows => `<div class="asklist">${rows.map(r => `<div class="askro
      the box for every visit. */
   $(SV.box).addEventListener("click", e => {
     const t = e.target.closest("[data-door],[data-open],[data-del],[data-delyes],"
-      + "[data-delno],#s-back,#s-next,#s-go,#s-close,#s-openfile");
+      + "[data-delno],#s-back,#s-next,#s-go,#s-close");
     if(!t) return;
     const d = t.getAttribute("data-door");
     if(d && /^demo:/.test(d)){
@@ -16041,16 +15857,29 @@ const askRows = rows => `<div class="asklist">${rows.map(r => `<div class="askro
     if(d === "open"){ $("libopen").click(); return; }
     if(d === "new"){ startOpen("new"); return; }
     if(d === "demo"){ startOpen("demo"); return; }
-    if(d === "another"){ startOpen("report"); return; }
+    if(d === "another"){ presetFrom(null); startOpen("report"); return; }
+    if(d === "suggest"){
+      /* The suggestion is either a report to finish — already in the file,
+         so open it exactly as its own Open button would — or one to start,
+         lined up in the "report" view with the year and type filled in and
+         the as-at date and your name still to check. */
+      const sug = suggestNext(S.gss);
+      if(!sug){ presetFrom(null); startOpen("report"); return; }
+      if(sug.open){ openSaved(sug.open); return; }
+      presetFrom(sug);
+      startOpen("report");
+      return;
+    }
     if(t.id === "s-close"){ startClose(); return; }
-    if(t.id === "s-back"){ PENDING_FILE = null; startOpen("doors"); return; }
-    if(t.id === "s-openfile"){ openPendingFile(); return; }
+    if(t.id === "s-back"){ presetFrom(null); startOpen("doors"); return; }
 
     if(t.id === "s-next"){
       /* The control it validates IS #council — the reader edited the real one,
          so its own change handler has already run and S.gss is set. Nothing to
-         copy across; only somewhere to go next. */
+         copy across; only somewhere to go next — with the sensible first
+         report for a new file (this year's strategy) already lined up. */
       if(!$("council").value){ $("council").focus(); return; }
+      presetFrom(suggestNext(S.gss));
       startOpen("report");
       return;
     }
@@ -16058,6 +15887,7 @@ const askRows = rows => `<div class="asklist">${rows.map(r => `<div class="askro
     if(t.id === "s-go"){
       const r = $("s-rtype").value;
       if(!r){ $("s-rtype").focus(); return; }
+      START_PRESET = null;
       /* Close first, then start: the inherit notice that choosing a report
          can raise belongs over the page, not over a screen that is finished. */
       startClose();
@@ -16104,24 +15934,25 @@ const askRows = rows => `<div class="asklist">${rows.map(r => `<div class="askro
       return;
     }
 
-    /* OPENING A SAVED REPORT IS SETTING THE PAIR THAT NAMES IT. There is no
-       "load this key" to call — KEY() is built from gss, report and year, and
-       the autosave restore below finds the body for whatever pair the controls
-       say. So this drives the same two selects a reader would have, in the
-       same order the #rtype handler needs (year first, then type), and every
-       guard and inherit around them runs exactly as it always does. */
+    /* OPENING A SAVED REPORT IS SETTING THE PAIR THAT NAMES IT. KEY() is
+       built from gss, report and year, and restoreSaved() (run by both
+       selects' handlers) puts back the body held under whatever pair the
+       controls say. So this drives the same two selects a reader would
+       have, in the same order the #rtype handler needs (year first, then
+       type), and every guard around them runs exactly as it always does. */
     const k = t.getAttribute("data-open");
-    if(k){
-      const e2 = libFor(S.gss).find(x => x.k === k);
-      if(e2){
-        $("fy0").value = e2.fy0;
-        $("fy0").dispatchEvent(new Event("change", {bubbles:true}));
-        $("rtype").value = e2.report;
-        $("rtype").dispatchEvent(new Event("change", {bubbles:true}));
-      }
-      startClose();
-    }
+    if(k) openSaved(k);
   });
+  function openSaved(k){
+    const e2 = libFor(S.gss).find(x => x.k === k);
+    if(e2){
+      $("fy0").value = e2.fy0;
+      $("fy0").dispatchEvent(new Event("change", {bubbles:true}));
+      $("rtype").value = e2.report;
+      $("rtype").dispatchEvent(new Event("change", {bubbles:true}));
+    }
+    startClose();
+  }
 
   /* REOPENING IT IS THE ONLY WAY TO CHANGE THE REPORT TYPE. Phil's call, and
      the right one: the sections, the wording, the indicators and the period
@@ -16153,6 +15984,18 @@ const askRows = rows => `<div class="asklist">${rows.map(r => `<div class="askro
     }
   });
   let DCHG_AT = null;
+  /* THE SECTION LIST, FROM A BUTTON WITH A NAME. The rail's own burger hangs
+     in the gutter beside the draft and starts folded on a long report, and
+     nobody found it. This opens the rail and goes to the top of the draft,
+     where the list is; the rail's × folds it again. */
+  $("contentsbtn").addEventListener("click", () => {
+    if(STEP !== DRAFT_STEP) showStep(DRAFT_STEP);
+    if(typeof docNavSet === "function") docNavSet(false);
+    const d = $("doc");
+    if(!d) return;
+    const line = (parseInt(getComputedStyle(document.documentElement).getPropertyValue("--railh"), 10) || 96) + 12;
+    window.scrollTo({top: d.getBoundingClientRect().top + window.scrollY - line, behavior:"smooth"});
+  });
   $("draftbtn").addEventListener("click", () => {
     if(STEP === DRAFT_STEP) showStep(LAST_WORK_STEP || 1);
     else showStep(DRAFT_STEP);
