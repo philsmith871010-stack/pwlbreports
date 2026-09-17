@@ -1561,15 +1561,6 @@ svg.ctip .hits rect{cursor:crosshair}
   padding:20px 24px;box-shadow:0 24px 60px rgba(0,0,0,.3)}
 .askbox h3{font-family:var(--sans);font-size:16px;font-weight:600;margin:0 0 10px}
 .askbox p{font-family:var(--sans);font-size:13px;line-height:1.6;color:var(--ink2);margin:0 0 10px}
-.asklist{max-height:230px;overflow:auto;border-top:1px solid var(--hair)}
-.askrow{display:grid;grid-template-columns:1fr auto;gap:12px;padding:6px 0;
-  border-bottom:1px solid var(--hair);font-family:var(--sans);font-size:12.5px}
-.askrow b{font-weight:600;color:var(--ink);display:block}
-.askrow span{color:var(--muted);font-size:11.5px}
-.asktag{font-family:var(--mono);font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;
-  color:var(--muted);white-space:nowrap;padding-top:2px}
-.asktag.older{color:var(--alert);font-weight:600}
-.asktag.new{color:var(--good)}
 .ltop{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px}
 .ltop .sp{flex:1;min-width:8px}
 /* Once the row wraps, the spacer stops separating two groups and starts
@@ -1662,7 +1653,7 @@ svg.ctip .hits rect{cursor:crosshair}
 
   /* Nothing that has to be read as one piece may be cut in half. */
   .chartwrap, .legend, .otable, .readout, .barwrap, .cptable,
-  .perfwrap, .asklist{break-inside:avoid; page-break-inside:avoid}
+  .perfwrap{break-inside:avoid; page-break-inside:avoid}
   .dsec{break-inside:auto}
   h2, h3, h4, .dsec > h3{break-after:avoid; page-break-after:avoid}
   tr, .barrow, .cprow{break-inside:avoid; page-break-inside:avoid}
@@ -13568,9 +13559,6 @@ function closeNoticeBox(){
   $("noticebox").hidden = true;
   document.querySelectorAll(".noticeveil").forEach(v=>v.remove());
 }
-const askRows = rows => `<div class="asklist">${rows.map(r => `<div class="askrow">
-    <span><b>${esc(r.label)}</b><span>${r.line}</span></span>
-    <span class="asktag ${r.tag}">${esc(r.tagText)}</span></div>`).join("")}</div>`;
 
 /* ---- init ---------------------------------------------------------------- */
 /* WHAT IS OPEN, SAID ON THE STEP THAT USED TO ASK IT. Read-only on purpose:
@@ -15167,11 +15155,14 @@ function setupSummary(){
       saveHint("Save a version first, then the file has something to carry.");
       return; }
     const name = libFileName();
-    const held = libFor(S.gss);
     const mine = whoAmI();
-    const others = held.filter(e => e.by && e.by !== mine);
-    const linked = FS_ACCESS && FILE_HANDLE;
-    const doSave = async () => {
+    /* SAVE SAVES. There was a confirmation here — the list of reports about
+       to be written, who last saved each, a warning where one was somebody
+       else's — and Phil's call was that Save should just save: straight to
+       the file picker the first time, straight into the linked file after
+       that. The list is the start screen's now (Home), where it is read
+       rather than clicked through. What the three paths below say
+       afterwards is the same as before. */
     if(FS_ACCESS){
       try{
         if(!FILE_HANDLE){
@@ -15216,40 +15207,10 @@ function setupSummary(){
     FILE_DIRTY = false; recoverClear();
     libTouchSaved(S.gss, mine, new Date().toISOString());
     libFill();
-    saveHint(`Saved ${nv} report${nv===1?"":"s"} as ${name}.`);
-    };
-    /* WHOSE WORK IS IN THIS FILE. The honest limit is stated rather than
-       hidden, in every one of the three cases below: without a shared server
-       nothing here can see a colleague's edits made since this file was
-       opened, so the file about to be written does not contain them. Naming
-       who last touched each report is what lets a person notice — the
-       askRows list two paragraphs down, unchanged by which of the three is
-       about to run, because that warning is true regardless. */
-    const bodyHTML = linked
-      ? `<p>Updates <b>${esc(FILE_HANDLE.name)}</b> in place — the file you opened, or already
-          saved to, this session. If a colleague has saved it since you opened it, this
-          overwrites their changes; there is no server involved, so neither of you can see the
-          other's edits coming.</p>`
-      : FS_ACCESS
-      ? `<p>Choose where to keep <b>${esc(name)}</b>. Every Save after this updates that same
-          file directly — no new copies, and nothing you enter ever leaves your browser.</p>`
-      : `<p>This writes everything held here for ${esc((LB[S.gss]||{}).n || S.otherName
-         || "this authority")} to <b>${esc(name)}</b> in your downloads. Because a browser
-        won't overwrite a file with the same name, saving again later adds a new copy —
-        "-2", "-3", and so on — rather than replacing this one. Always work from whichever
-        one is newest; treat the rest as backups. If a colleague has saved the shared file
-        since you opened it, their changes are <b>not</b> in this one — there is no server
-        to see them, which is also why nothing you enter ever leaves your browser.</p>`;
-    ask(`Save ${nv} report${nv===1?"":"s"}${linked ? "" : " to a file"}`,
-      `${bodyHTML}
-       ${askRows(held.map(e => ({
-          label: `${esc((REPORTS.find(r=>r.k===e.report)||{}).t || e.report)} · ${fy(e.fy0)}`,
-          line: `last saved by ${byLine(e)} ${whenLine(e.at)}`,
-          tag: (e.by && e.by !== mine) ? "older" : "",
-          tagText: e.issued ? "issued" : ""})))}
-       ${others.length ? `<p><b>${others.length} of these was last saved by someone
-         else.</b> Writing this file hands your copy of their work on.</p>` : ""}`,
-      linked ? "Save" : "Save to a file", doSave);
+    // A browser will not overwrite a download of the same name, so the
+    // next one lands as "-2": said here, once, where the download path is
+    // the only one this browser has.
+    saveHint(`Saved ${nv} report${nv===1?"":"s"} as ${name} in your downloads — the newest copy is the one to open next time.`);
   });
 
   $("whoami").value = whoAmI();
