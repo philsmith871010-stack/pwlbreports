@@ -1553,12 +1553,27 @@ svg.ctip .hits rect{cursor:crosshair}
   padding:10px 13px;border:1px solid var(--hair);border-radius:8px}
 .startrep .sr-n{font-family:var(--sans);font-size:13.5px;font-weight:600;color:var(--ink)}
 .startrep .sr-s{font-family:var(--sans);font-size:11.5px;color:var(--muted);display:block}
-.startrep .sr-a{display:flex;gap:6px;align-items:center}
+.startrep .sr-a{display:flex;gap:6px;align-items:center;flex:none}
+.startrep.confirming{border-color:var(--alert);background:color-mix(in srgb,var(--alert) 5%,transparent)}
+.startrep .sr-lk{font-family:var(--mono);font-size:10.5px;text-transform:uppercase;
+  letter-spacing:.06em;color:var(--good);white-space:nowrap}
+.startrep button.danger{border-color:var(--alert);color:var(--alert)}
+.startrep .sr-tag{font-family:var(--mono);font-size:10.5px;text-transform:uppercase;
+  letter-spacing:.06em;color:var(--muted);white-space:nowrap}
+.startrep .sr-tag.new{color:var(--good)}
+.startrep .sr-tag.older{color:var(--alert);font-weight:600}
 .startempty{font-family:var(--sans);font-size:13px;color:var(--muted);margin:0}
 @media (max-width:520px){
   .starthead,.startbody,.startfoot{padding-left:18px;padding-right:18px}
 }
-.askbox{position:fixed;inset:auto 0 0 0;margin:0 auto 24px;max-width:640px;z-index:70;
+/* A CONFIRM SITS ABOVE EVERYTHING, THE START SCREEN INCLUDED. It was 70 and
+   the start screen 81, so "Open my reports file" chosen from that screen put
+   its own "open and replace" question UNDERNEATH the screen that asked it —
+   a dialog you could see the edge of and could not reach, with the page
+   apparently frozen. A question is always about the thing on top, so it has
+   to be the thing on top. The reports panel and the start screen stay where
+   they are; only the ask/notice pair and their veil move. */
+.askbox{position:fixed;inset:auto 0 0 0;margin:0 auto 24px;max-width:640px;z-index:92;
   background:var(--card);border:1px solid var(--line2);border-radius:var(--r);
   padding:20px 24px;box-shadow:0 24px 60px rgba(0,0,0,.3)}
 .askbox h3{font-family:var(--sans);font-size:16px;font-weight:600;margin:0 0 10px}
@@ -1630,6 +1645,7 @@ svg.ctip .hits rect{cursor:crosshair}
   overflow:auto;box-shadow:0 24px 60px rgba(0,0,0,.28)}
 .pv.full .pvsub{flex:none}
 .pvveil{position:fixed;inset:0;z-index:59;background:rgba(15,23,32,.42)}
+.pvveil.askveil,.pvveil.noticeveil{z-index:91}
 .picker{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:0 0 16px;
   padding:9px 11px;background:var(--sunken);border-radius:var(--r-sm);
   border:1px solid var(--line)}
@@ -8260,8 +8276,18 @@ function renderSections(){
         clearTimeout(S._a); S._a=setTimeout(()=>{ renderSections(); render(); }, 600);
       }));
     wirePanelInputs($("secbody"));
+    /* AND TELL THE SAVE MACHINERY. This handler wrote S.text and scheduled a
+       re-render, but never reached autoSave, so markDirty did not run on a
+       keystroke here the way it does everywhere else. Nothing was lost in
+       ordinary use — moving to the next step, or touching any other field,
+       committed the whole payload including this text — but the words typed
+       in the seconds before an accident were not in the library, and so were
+       not in the crash-recovery copy either, which is precisely the moment
+       recovery exists for. One debounced call, the same one every other input
+       makes. */
     $("secbody").querySelectorAll("textarea").forEach(t=>
       t.addEventListener("input", e=>{ S.text[e.target.dataset.t]=e.target.value;
+        if(typeof autoSave === "function") autoSave();
         clearTimeout(S._t); S._t=setTimeout(renderSections, 400); }));
   };
   if(typeof keepFocus === "function") keepFocus($("secbody"), draw); else draw();
@@ -12594,6 +12620,57 @@ function snapshotPayload(){
  * write that made it look safer than it was. FILE_DIRTY is what actually
  * answers "is this saved": true from here, false only from a completed Save.
  */
+/* ===========================================================================
+ * CRASH RECOVERY, AND NOT A SECOND RECORD.
+ *
+ * The file is the record. That is the whole model, it is what the start screen
+ * promises, and the report library lives in memory precisely so that nothing
+ * quietly contradicts it. But a model is not a reason to lose somebody's
+ * afternoon: close the tab by accident, or let the browser discard it under
+ * memory pressure, and every figure typed since the last Save is gone with no
+ * warning at all.
+ *
+ * So this keeps ONE copy of the report being edited, in this browser, for one
+ * purpose: to offer it back after a crash. It is Excel's AutoRecover, and the
+ * distinction matters — it is never loaded silently, never merged, never
+ * treated as the truth. It is offered, once, as a door on the start screen,
+ * and the reader says yes or no. Saving to a file clears it, because at that
+ * moment the record exists and this copy has nothing left to protect.
+ *
+ * EVERY ACCESS IS GUARDED. A private window, blocked site data, a full quota
+ * and a thumbnail capture all throw or return nothing here, and none of them
+ * is a reason for the tool to stop working — the worst case is no recovery
+ * offered, which is exactly where we were before.
+ * ======================================================================== */
+const RECOVER_KEY = "lb:recover";
+function recoverKeep(){
+  try{
+    if(!S.gss || !S.report) return;
+    if(typeof scenarioActive === "function" && scenarioActive()) return;
+    localStorage.setItem(RECOVER_KEY, JSON.stringify({
+      at: new Date().toISOString(),
+      gss: S.gss, report: S.report, fy0: S.fy0,
+      n: (LB[S.gss] || {}).n || S.otherName || "",
+      body: workPayload()
+    }));
+  }catch(e){ /* no room, or no storage at all: recovery is a bonus, not a duty */ }
+}
+function recoverRead(){
+  try{
+    const raw = localStorage.getItem(RECOVER_KEY);
+    if(!raw) return null;
+    const o = JSON.parse(raw);
+    /* A HALF-WRITTEN OR FOREIGN BLOB IS NOT AN OFFER. Anything that does not
+       carry the three things needed to describe what it is gets dropped
+       rather than shown as a mystery door. */
+    if(!o || !o.body || !o.gss || !o.report) return null;
+    return o;
+  }catch(e){ return null; }
+}
+function recoverClear(){
+  try{ localStorage.removeItem(RECOVER_KEY); }catch(e){}
+}
+
 function markDirty(quiet){
   // SCENARIO MODE'S ENTIRE GUARANTEE LIVES HERE. Every input handler in the
   // tool eventually reaches this function, directly or through autoSave's
@@ -12615,6 +12692,7 @@ function markDirty(quiet){
   libNote(S.gss, S.report, S.fy0, workPayload(), {hra:S.hra, issued: S.issued,
     locked:S.locked, lockedAt:S.lockedAt, overrideCount: (S.overrides||[]).length});
   FILE_DIRTY = true;
+  recoverKeep();
   if(typeof libFill === "function") libFill();
   // The explanation of WHAT Save does now lives in the file caption (see
   // paintFileStatus in ui.js), painted once and staying true regardless of
@@ -14946,7 +15024,7 @@ const askRows = rows => `<div class="asklist">${rows.map(r => `<div class="askro
     try{
       await withTimeout(writeToHandle(handle, data), 8000);
       FILE_HANDLE = handle;
-      FILE_DIRTY = false;
+      FILE_DIRTY = false; recoverClear();
       libTouchSaved(S.gss, whoAmI(), new Date().toISOString());
       renderReturnsList();
       // Named explicitly when the file itself changed, not just re-picked
@@ -14988,7 +15066,7 @@ const askRows = rows => `<div class="asklist">${rows.map(r => `<div class="askro
             types: [{description: "PWLBreports file", accept: {"application/json": [".json"]}}]});
         }
         await withTimeout(writeToHandle(FILE_HANDLE, data), 8000);
-        FILE_DIRTY = false;
+        FILE_DIRTY = false; recoverClear();
         libTouchSaved(S.gss, mine, new Date().toISOString());
         renderReturnsList();
         saveHint(`Updated ${FILE_HANDLE.name}.`);
@@ -15007,7 +15085,7 @@ const askRows = rows => `<div class="asklist">${rows.map(r => `<div class="askro
     }
     if(DOWNLOADS){
       try{ await DOWNLOADS.save({filename:name, data});
-           FILE_DIRTY = false;
+           FILE_DIRTY = false; recoverClear();
            libTouchSaved(S.gss, mine, new Date().toISOString());
            renderReturnsList();
            saveHint(`Saved ${nv} report${nv===1?"":"s"} as ${name}.`); }
@@ -15022,7 +15100,7 @@ const askRows = rows => `<div class="asklist">${rows.map(r => `<div class="askro
     setTimeout(()=>URL.revokeObjectURL(a.href), 2000);
     // The best signal a plain download gives: no completion event exists to
     // wait for, so triggering it is taken as meaning it happened.
-    FILE_DIRTY = false;
+    FILE_DIRTY = false; recoverClear();
     libTouchSaved(S.gss, mine, new Date().toISOString());
     renderReturnsList();
     saveHint(`Saved ${nv} report${nv===1?"":"s"} as ${name}.`);
@@ -15074,58 +15152,45 @@ const askRows = rows => `<div class="asklist">${rows.map(r => `<div class="askro
    * first path; everything else is identical, because it should be — a file
    * opened either way carries the same reports and deserves the same
    * itemized confirmation before anything on screen gets replaced. */
+  /* A FILE, ONCE READ, IS A QUESTION FOR THE START SCREEN — not a dialog
+     over it. Phil's call, and the right one: every other step of choosing
+     what to work on happens in that one screen with Back and Next, and a
+     second box popping over it (which is what ask() is) broke the one thing
+     the screen exists to be — the single place this decision is made. So the
+     file is inspected here and parked in PENDING_FILE, and the screen's own
+     "confirm" view draws it, with Back to change your mind and Open to go
+     ahead. The same path serves the ribbon's Open button, so there is one
+     flow to learn and one to keep right. */
+  let PENDING_FILE = null;
   function applyOpenedFileText(text, handle){
     const look = libInspect(text);
     if(!look.ok){ saveHint(look.note); return; }
-    /* WHAT WILL BE LOST, NAMED. A generic "this will overwrite your data"
-       is a warning nobody can act on; this says which report, whose it is,
-       and whether the copy in the file is older than the one here. */
-    const rows = look.rows.map(r => ({
-      label: r.label,
-      line: r.state === "new"
-        ? `not held here · in the file, saved by ${byLine({by:r.fileBy})} ${whenLine(r.fileAt)}`
-        : `here: ${byLine({by:r.mineBy})} ${whenLine(r.mineAt)} · `
-          + `file: ${byLine({by:r.fileBy})} ${whenLine(r.fileAt)}`,
-      tag: r.state, tagText: r.state === "new" ? "adds"
-           : r.state === "older" ? "replaces with older" : "replaces"}));
-    ask(`Open ${esc(look.who)} — ${look.n} report${look.n===1?"":"s"}`,
-      `<p>This replaces what is open for each report below with the file's own copy.
-        Anything on screen now that you have not saved to a file will be gone.</p>
-       ${askRows(rows)}
-       ${look.older ? `<p style="color:var(--alert)"><b>${look.older} of them is older
-         than the copy here.</b> Opening the file will put the earlier version back.</p>` : ""}`,
-      `Open and replace ${look.replacing || look.n}`,
-      () => {
-        const r = libImport(text);
-        if(!r.ok){ saveHint(r.note); return; }
-        /* NO RELOAD. There is no browser copy for a reload to pick back up
-           any more — the file's own entries are already in LIBRARY, in
-           memory, the moment libImport returns, so the newest one goes
-           straight onto the page the same way any other seed does. */
-        const entry = r.entry;
-        S.gss = entry.body.gss || entry.gss;
-        S.report = entry.body.report || entry.report;
-        applyVersion(JSON.parse(JSON.stringify(entry.body)));
-        $("council").value = councilValue();
-        $("rtype").value = S.report;
-        seedHoldings();
-        fundTabs(); buildLedger(); loanRows(); applyLoans(); countClauses();
-        if(typeof cpRender === "function") cpRender();
-        renderSections(); render(); libFill();
-        $("issued").checked = libIsIssued();
-        /* WHAT JUST LOADED IS WHAT IS IN THE FILE, BY DEFINITION — render()
-           above schedules the normal debounced autosave regardless, the
-           same as any other change would, and that would otherwise fire a
-           moment later and claim a freshly opened, untouched file needs
-           saving again. Cancelled here, after every render has settled. */
-        clearTimeout(_auto);
-        FILE_DIRTY = false;
-        // The whole point of opening it this way: Save from here on writes
-        // straight back to this file, not a fresh download. null for the
-        // FileReader path, where there was never a real handle to keep.
-        FILE_HANDLE = handle || null;
-        saveHint(r.note);
-      });
+    PENDING_FILE = {text, handle, look};
+    startOpen("confirm");
+  }
+  /* What "Open" on that view does: the import, then the file's contents. */
+  function openPendingFile(){
+    const pf = PENDING_FILE; PENDING_FILE = null;
+    if(!pf) return;
+    const r = libImport(pf.text);
+    if(!r.ok){ saveHint(r.note); startOpen("doors"); return; }
+    /* THE FILE IS OPEN; NO REPORT IS. Opening a file used to drop you
+       straight into its newest report, which answers a question nobody
+       asked: a file holds several years and several kinds of report, and
+       the one saved most recently is not reliably the one you came back
+       for. So the file's contents are shown and the reader picks. S.gss is
+       set because libFor() is scoped by it; S.report deliberately is not. */
+    const entry = r.entry;
+    S.gss = entry.body.gss || entry.gss;
+    $("council").value = councilValue();
+    clearTimeout(_auto);
+    FILE_DIRTY = false; recoverClear();
+    // The whole point of opening it this way: Save from here on writes
+    // straight back to this file, not a fresh download. null for the
+    // FileReader path, where there was never a real handle to keep.
+    FILE_HANDLE = pf.handle || null;
+    saveHint(r.note);
+    startOpen("reports");
   }
   /* ONE HANDLER, TWO WAYS IN. The file picker is offered on step 1 beside the
      save controls and again on step 0, where somebody who already has a
@@ -15393,7 +15458,8 @@ const askRows = rows => `<div class="asklist">${rows.map(r => `<div class="askro
   const ICON = {
     open:'<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
     plus:'<path d="M12 5v14M5 12h14"/>',
-    eye :'<path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12z"/><circle cx="12" cy="12" r="2.6"/>'
+    eye :'<path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12z"/><circle cx="12" cy="12" r="2.6"/>',
+    undo:'<path d="M3 7v6h6"/><path d="M3.5 13a9 9 0 1 0 2.1-6.4L3 9"/>'
   };
   const svg = d => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
     stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
@@ -15497,9 +15563,26 @@ const askRows = rows => `<div class="asklist">${rows.map(r => `<div class="askro
       $(SV.t).textContent = "Welcome to PWLBreports";
       $(SV.sub).innerHTML = "Your reports live in a single file on your own computer "
         + "&mdash; like a spreadsheet. Open the one you already have, or start a new one.";
+      /* THE RECOVERY DOOR, FIRST AND ONLY WHEN THERE IS SOMETHING TO RECOVER.
+         Above the others because it is the only one that is time-critical:
+         every other door will still be there tomorrow, and this one is an
+         offer to undo an accident. Named with what it actually is — the
+         authority and the report — so nobody has to accept a mystery. */
+      const rec = recoverRead();
+      const recName = rec
+        ? `${(REPORTS.find(x=>x.k===rec.report)||{}).t || "report"} ${fy(rec.fy0)}`
+          + (rec.n ? ` — ${rec.n}` : "")
+        : "";
       $(SV.body).innerHTML =
-        door("open", ICON.open, "Open my reports file",
-             "If you have used PWLBreports before, everything you saved is in that file — every report, every year.", true)
+        (rec ? `<button type="button" class="startdoor primary" data-door="recover">
+             <span class="sd-ic">${svg(ICON.undo)}</span>
+             <span><span class="sd-t">Pick up where you left off</span>
+               <span class="sd-s">${esc(recName)}, last edited ${esc(fmtWhen(rec.at))}.
+                 This was not saved to a file.</span></span>
+           </button>
+           <div class="startor">or</div>` : "")
+      + door("open", ICON.open, "Open my reports file",
+             "If you have used PWLBreports before, everything you saved is in that file — every report, every year.", !rec)
       + door("new", ICON.plus, "Start a new file",
              "First time here, or starting a fresh set of reports for an authority.")
       + `<div class="startor">or</div>`
@@ -15533,6 +15616,30 @@ const askRows = rows => `<div class="asklist">${rows.map(r => `<div class="askro
          <button type="button" class="primary" id="s-go">Start the report</button>`;
     }
 
+    else if(V === "confirm"){
+      const pf = PENDING_FILE;
+      if(!pf){ startView = "doors"; return startRender(); }
+      const look = pf.look;
+      $(SV.t).textContent = `Open ${look.who}`;
+      $(SV.sub).textContent = `${look.n} report${look.n===1?"":"s"} in this file. `
+        + `Any of them already open here is replaced by the file's copy, and anything on `
+        + `screen you have not saved to a file is gone. You choose which to open next.`;
+      const TAG = {new:"adds", older:"replaces with older", newer:"replaces", same:"replaces"};
+      $(SV.body).innerHTML = look.rows.map(r => `<div class="startrep">
+          <span><span class="sr-n">${esc(r.label)}</span>
+            <span class="sr-s">${r.state === "new"
+              ? `not held here · in the file, saved by ${esc(byLine({by:r.fileBy}))} ${esc(whenLine(r.fileAt))}`
+              : `here: ${esc(byLine({by:r.mineBy}))} ${esc(whenLine(r.mineAt))} · file: ${esc(byLine({by:r.fileBy}))} ${esc(whenLine(r.fileAt))}`
+            }</span></span>
+          <span class="sr-a"><span class="sr-tag ${esc(r.state)}">${TAG[r.state] || r.state}</span></span>
+        </div>`).join("")
+        + (look.older ? `<p class="startnote" style="color:var(--alert)"><b>${look.older} of them is older
+             than the copy here.</b> Opening the file puts the earlier version back.</p>` : "");
+      $(SV.foot).innerHTML =
+        `<button type="button" id="s-back">Back</button>
+         <button type="button" class="primary" id="s-openfile">Open ${look.n === 1 ? "it" : "all " + look.n}</button>`;
+    }
+
     else if(V === "demo"){
       $(SV.t).textContent = "A worked example";
       $(SV.sub).textContent = "A complete authority with figures, commentary and a "
@@ -15558,7 +15665,20 @@ const askRows = rows => `<div class="asklist">${rows.map(r => `<div class="askro
             return `<div class="startrep">
               <span><span class="sr-n">${esc(nm)} ${esc(fy(e.fy0))}</span>
                 <span class="sr-s">${e.issued ? "Issued &middot; " : ""}${esc(whenLine(e.at))}</span></span>
-              <span class="sr-a"><button type="button" data-open="${esc(e.k)}">Open</button></span></span>
+              <span class="sr-a">
+                <button type="button" class="primary" data-open="${esc(e.k)}">Open</button>
+                ${e.locked
+                  /* WHY IT IS LOCKED, NOT JUST THAT IT IS. A report locks for
+                     two different reasons — it was issued to members, or its
+                     financial year is long over — and calling both of them
+                     "Issued" tells a reader their 2025/26 strategy went to
+                     committee when it may never have done. */
+                  ? `<span class="sr-lk" title="${e.issued
+                       ? "Issued to members, so it stands as the record"
+                       : "That financial year is over, so this stands as the record"
+                     } — it cannot be deleted">${e.issued ? "Issued" : "Locked"}</span>`
+                  : `<button type="button" data-del="${esc(e.k)}">Delete</button>`}
+              </span></span>
             </div>`; }).join("")
         : `<p class="startempty">Start the first one below.</p>`)
         + `<div class="startor">or</div>`
@@ -15582,7 +15702,8 @@ const askRows = rows => `<div class="asklist">${rows.map(r => `<div class="askro
      each time it is shown — binding per render would stack a new handler on
      the box for every visit. */
   $(SV.box).addEventListener("click", e => {
-    const t = e.target.closest("[data-door],[data-open],#s-back,#s-next,#s-go,#s-close");
+    const t = e.target.closest("[data-door],[data-open],[data-del],[data-delyes],"
+      + "[data-delno],#s-back,#s-next,#s-go,#s-close,#s-openfile");
     if(!t) return;
     const d = t.getAttribute("data-door");
     if(d && /^demo:/.test(d)){
@@ -15591,12 +15712,38 @@ const askRows = rows => `<div class="asklist">${rows.map(r => `<div class="askro
       startClose();
       return;
     }
+    if(d === "recover"){
+      const rec = recoverRead();
+      if(!rec){ startOpen("doors"); return; }
+      /* Put the pair back first, then the body: applyVersion reads S.gss and
+         S.report for the key it restores under, and the two selects have to
+         agree with it or step 1 would describe a different report from the
+         one on screen — the same rule the #rtype handler works to. */
+      S.gss = rec.gss; S.report = rec.report; S.fy0 = rec.fy0;
+      $("council").value = councilValue();
+      $("rtype").value = S.report;
+      $("fy0").value = S.fy0;
+      applyVersion(JSON.parse(JSON.stringify(rec.body)));
+      seedHoldings();
+      fundTabs(); buildLedger(); loanRows(); applyLoans(); countClauses();
+      if(typeof cpRender === "function") cpRender();
+      renderSections(); render(); libFill();
+      /* IT IS STILL UNSAVED. Recovering does not make a file exist, so the
+         dot stays orange and the copy stays put until a real Save clears it —
+         restoring and then losing it again to a second crash would be a
+         cruel way to learn that. */
+      FILE_DIRTY = true;
+      startClose();
+      saveHint("Picked up where you left off — still not saved to a file.");
+      return;
+    }
     if(d === "open"){ $("libopen").click(); return; }
     if(d === "new"){ startOpen("new"); return; }
     if(d === "demo"){ startOpen("demo"); return; }
     if(d === "another"){ startOpen("report"); return; }
     if(t.id === "s-close"){ startClose(); return; }
-    if(t.id === "s-back"){ startOpen("doors"); return; }
+    if(t.id === "s-back"){ PENDING_FILE = null; startOpen("doors"); return; }
+    if(t.id === "s-openfile"){ openPendingFile(); return; }
 
     if(t.id === "s-next"){
       /* The control it validates IS #council — the reader edited the real one,
@@ -15610,6 +15757,44 @@ const askRows = rows => `<div class="asklist">${rows.map(r => `<div class="askro
     if(t.id === "s-go"){
       if(!$("rtype").value){ $("rtype").focus(); return; }
       startClose();
+      return;
+    }
+
+    /* DELETING, CONFIRMED IN THE ROW ITSELF.
+       Not ask(): that dialog sits at z-index 70 and this screen at 81, so it
+       would open UNDERNEATH the thing it was asked from — invisible, with the
+       page apparently frozen behind a veil. A row that turns into its own
+       question is also the smaller interruption, and it names what goes. */
+    const del = t.getAttribute("data-del");
+    if(del){
+      const row = t.closest(".startrep");
+      const e3 = libFor(S.gss).find(x => x.k === del);
+      if(!row || !e3) return;
+      const nm = ((REPORTS.find(x=>x.k===e3.report)||{}).t || e3.report) + " " + fy(e3.fy0);
+      row.classList.add("confirming");
+      row.innerHTML = `<span><span class="sr-n">Delete ${esc(nm)}?</span>
+          <span class="sr-s">There is no undo, and no copy anywhere unless you have
+            already saved this file.</span></span>
+        <span class="sr-a">
+          <button type="button" class="danger" data-delyes="${esc(del)}">Delete</button>
+          <button type="button" data-delno="1">Keep it</button></span>`;
+      return;
+    }
+    if(t.getAttribute("data-delno")){ startRender(); return; }
+    const yes = t.getAttribute("data-delyes");
+    if(yes){
+      const e4 = libFor(S.gss).find(x => x.k === yes);
+      if(e4){
+        /* A pending debounced write from before this would otherwise land a
+           moment later and put the entry straight back — the same trap the
+           reports panel's own delete guards against. */
+        clearTimeout(_auto);
+        const wasOpen = S.report === e4.report && S.fy0 === e4.fy0;
+        libForget(e4.gss, e4.report, e4.fy0);
+        if(wasOpen){ S.report = ""; $("rtype").value = ""; recoverClear(); }
+        libFill(); setupSummary();
+      }
+      startRender();
       return;
     }
 
