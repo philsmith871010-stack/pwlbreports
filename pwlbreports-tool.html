@@ -1139,6 +1139,16 @@ table.dtab td.wrap{white-space:normal;line-height:1.5}
 .warn{font-family:var(--sans);margin:10px 0 0;padding:9px 12px;border-radius:var(--r-sm);
   background:rgba(179,53,42,.09);border-left:3px solid var(--alert);font-size:12px;color:var(--ink2)}
 
+/* The start note: what starting this report did (startNote, wire.js). */
+.snote{font-family:var(--sans);margin:0 0 14px;padding:10px 40px 10px 13px;border-radius:var(--r-sm);
+  background:var(--sunken);border-left:3px solid var(--accent);font-size:12.5px;line-height:1.55;
+  color:var(--ink2);position:relative}
+.snote b{color:var(--ink)}
+.snote .sn-x{position:absolute;top:5px;right:6px;width:26px;height:26px;border:0;background:none;
+  color:var(--muted);font-size:19px;line-height:1;cursor:pointer;padding:0}
+.snote .sn-x:hover{color:var(--ink)}
+.snote[hidden]{display:none}
+
 /* ---- spreadsheet behaviour ------------------------------------------------
  * The selection is a background rather than a border, because a border on a
  * cell in a dense grid shifts everything a pixel and the whole table twitches
@@ -1820,6 +1830,9 @@ td.nask{background:repeating-linear-gradient(45deg,var(--hair),var(--hair) 4px,
   </nav>
 
   <main id="stepwrap">
+  <!-- What happened when the report started — see startNote() in wire.js.
+       A strip here, above whichever step is open, not a dialog over it. -->
+  <div class="snote" id="startnote" hidden></div>
   <section class="panel" data-step="1">
     <div class="phead"><span class="n">1</span><h2>What you are working on</h2></div>
     <div class="pbody">
@@ -13153,6 +13166,44 @@ function closeNoticeBox(){
   $("noticebox").hidden = true;
   document.querySelectorAll(".noticeveil").forEach(v=>v.remove());
 }
+/* WHAT HAPPENED WHEN THE REPORT STARTED, SAID ON THE STEP — NOT IN A BOX
+   OVER IT. autoInherit's two messages ("started from what's already here",
+   "no strategy in this file to measure against") were notice() dialogs,
+   and they popped over whatever the page was showing the moment after the
+   start screen closed: a modal on top of a modal's aftermath, and the thing
+   Phil kept meeting as "random modals out of place". They are a strip at
+   the top of the steps now, there until dismissed or the next report
+   starts, and read in place rather than in the way. */
+function startNote(title, bodyHTML){
+  const el = $("startnote");
+  if(!el) return;
+  el.innerHTML = `<b>${title}</b> ${bodyHTML}
+    <button type="button" class="sn-x" id="startnotex" title="Dismiss" aria-label="Dismiss">&times;</button>`;
+  el.hidden = false;
+}
+function clearStartNote(){
+  const el = $("startnote");
+  if(el){ el.hidden = true; el.innerHTML = ""; }
+}
+document.addEventListener("click", e => {
+  if(e.target && e.target.closest && e.target.closest("#startnotex")) clearStartNote();
+});
+/* THE START SCREEN IS THE CONFIRMATION. Every report now starts, opens or
+   switches from that screen — Start the report, Open on a row, a demo
+   door, an authority chosen under "Start a new file" — and each of those
+   is the decision, made in a screen that says what it does. The "Switch
+   to X?" confirmations on the selects underneath were written for a time
+   when the selects were the interface; raised now they are a second
+   question after the answer, over a page the reader has just left. So
+   while the start screen is open, or a start from it is in progress
+   (STARTING), the handlers proceed without asking. Nothing is lost by it:
+   what was on screen is flushed to the file's list first (markDirty in
+   each handler), and the list is one Home away. */
+let STARTING = false;
+function startDecided(){
+  const sb = $("startbox");
+  return STARTING || !!(sb && !sb.hidden);
+}
 
 /* ---- init ---------------------------------------------------------------- */
 /* WHAT IS OPEN, SAID ON THE STEP THAT USED TO ASK IT. Read-only on purpose:
@@ -13436,7 +13487,7 @@ function setupSummary(){
      * without registering that "Cancel" just silently kept the old report on
      * screen. Every other confirmation here already uses ask(); this is the
      * last one that did not. */
-    if(hasTypedWork()){
+    if(hasTypedWork() && !startDecided()){
       const who = (LB[chosen] || {}).n || "this authority";
       const bodyHTML = leavingDemo
         ? `<p>Your changes to the demonstration would be discarded. Cancel to carry them
@@ -13535,11 +13586,18 @@ function setupSummary(){
           if(c && c.l) S.loans.unshift({pwlb:true,name:"PWLB",type:"PWLB",amt:c.o,rate:null});
           seedHoldings();
         }
+        /* DRAWN, NOT JUST SEEDED. resetReport painted the loan book from
+           PRISTINE — empty — a moment ago, and the seed above only writes
+           S.loans; without this "What you hold" opened with the PWLB row
+           in state and no row on screen, which read as a step with no
+           inputs at all. (autoInherit's own success path already repaints;
+           this covers the plain-seed one.) */
+        buildLedger(); loanRows(); applyLoans();
         saveHint(""); renderSections(); render(); libFill();
       };
       // A real in-page panel, not window.confirm() — see the long comment on
       // the same change in the #council handler above.
-      if(hasTypedWork()){
+      if(hasTypedWork() && !startDecided()){
         const repName = (REPORTS.find(r=>r.k===chosen)||{}).t || "this report";
         ask(`Switch to ${esc(repName)}?`,
           `<p>What's on screen is kept in this file's list (Home) rather than
@@ -13636,7 +13694,7 @@ function setupSummary(){
     if(S.gss !== DEMO_GSS){
       // A real in-page panel, not window.confirm() — see the long comment on
       // the same change in the #council handler above.
-      if(hasTypedWork()){
+      if(hasTypedWork() && !startDecided()){
         const yr = fy(+chosen);
         ask(`Switch to ${esc(yr)}?`,
           `<p>What's on screen is kept in this file's list (Home) rather than
@@ -14336,7 +14394,7 @@ function setupSummary(){
      * window.confirm(), for the same reason as every other confirmation
      * here: see the long comment on the same change in the #council handler
      * above. */
-    if(held){
+    if(held && !startDecided()){
       ask("Fill the demonstration?",
         `<p>This replaces everything with a demonstration authority, including work you
            have not saved to a file. Save to a file first if you want to keep it.</p>`,
@@ -14501,6 +14559,7 @@ function setupSummary(){
    * cancelled so merely opening it does not read as an unsaved change. */
   function restoreSaved(){
     if(!S.gss || !S.report) return false;
+    clearStartNote();
     const e = libFor(S.gss).find(x => x.k === KEY());
     const body = e && libLoad(e.k);
     if(!body) return false;
@@ -14517,6 +14576,7 @@ function setupSummary(){
   }
   function autoInherit(){
     if(!S.gss || !S.report) return false;
+    clearStartNote();
     const monEntry = libMonEntry();
     const rollCandidates = libFor(S.gss)
       .filter(e => e.report === S.report && e.fy0 < S.fy0)
@@ -14532,16 +14592,16 @@ function setupSummary(){
        * started. A monitoring report with nothing in the file at all is the
        * workflow gap worth naming — the approved limit, budget and
        * indicators have nothing to come from until a Strategy exists here. */
-      if(S.report !== "tmss"){
+      /* Not for a demonstration: its figures are generated, and "nothing
+         saved in this file" is not a fact about it worth a line. */
+      if(S.report !== "tmss" && S.gss !== DEMO_GSS){
         const repName = (REPORTS.find(x=>x.k===S.report)||{}).t || "this report";
         const who = (LB[S.gss]||{}).n || S.otherName || "this authority";
-        notice(`No ${esc(fy(S.fy0))} Annual treasury strategy found`,
-          `<p>There is nothing saved in this file for ${esc(who)} to measure
-             ${esc(repName)} against — the approved limit, budget and indicators on
-             "The period's figures" will need to be entered directly. Alternatively you
-             are recommended to build ${esc(fy(S.fy0))}'s Annual treasury strategy in
-             this file first and these will be used in your future monitoring
-             reports.</p>`);
+        startNote(`No ${esc(fy(S.fy0))} Annual treasury strategy in this file.`,
+          `There is nothing here for ${esc(who)} to measure ${esc(repName)} against, so the
+           approved limit, budget and indicators on &ldquo;The period's figures&rdquo; are
+           yours to type. Build ${esc(fy(S.fy0))}'s Annual treasury strategy in this file
+           first and future monitoring reports pick them up from it.`);
       }
       return false;
     }
@@ -14587,8 +14647,8 @@ function setupSummary(){
           ${esc(fy(rollEntry.fy0))}&rsquo;s approved figures — they have not been
           re-approved for ${esc(fy(S.fy0))}, so check them before this goes to committee.`
       : "";
-    notice(`${esc(repName)} started from what's already here`,
-      `<p>${esc(r.note)}${followUp}${rollFollowUp}</p>`);
+    startNote(`${esc(repName)} started from what's already here.`,
+      `${esc(r.note)}${followUp}${rollFollowUp}`);
     return true;
   }
   window.libFill = libFill;
@@ -15136,7 +15196,7 @@ function setupSummary(){
    * seedHoldings, otherShown and every guard around them working untouched —
    * and keeps #otherreg's real option values (england/wales/scotland/combined)
    * rather than a second list to drift from them. */
-  const LENT = ["council", "othername", "otherreg", "rtype", "fy0", "asat", "hra", "whoami"];
+  const LENT = ["council", "othername", "otherreg", "asat", "hra", "whoami"];
   const cellOf = id => { const el = $(id); return el && el.closest("div"); };
   function startLend(){
     document.querySelectorAll("#startbox .startslot").forEach(slot => {
@@ -15206,7 +15266,12 @@ function setupSummary(){
       + `<div class="startor">or</div>`
       + door("demo", ICON.eye, "Look around a worked example",
              "A complete demonstration authority with figures already in it. Nothing here touches a real report.");
-      $(SV.foot).innerHTML = PROMISE;
+      /* A WAY BACK TO THE REPORT, FROM HERE TOO. Home lands on the file's
+         list, and Back from there comes here; without this, someone who had
+         only wanted to look was a click away from a screen with no way out
+         but opening or starting something. */
+      $(SV.foot).innerHTML = PROMISE + (reportOpen()
+        ? `<button type="button" class="primary" id="s-close">Back to my report</button>` : "");
     }
 
     else if(V === "new"){
@@ -15237,10 +15302,18 @@ function setupSummary(){
          and the "suggest" door below); otherwise to whatever is open. */
       const want = (START_PRESET && START_PRESET.report) || S.report;
       const reps = REPORTS.map(r => `<option value="${r.k}"${r.k===want?" selected":""}>${esc(r.t)}</option>`).join("");
+      /* THE YEAR IS A MIRROR FOR THE SAME REASON. Lent, the real #fy0 fired
+         its own handler the moment it was changed — a reset, an inherit and
+         a "Switch to 2027/28?" over a screen that still said "Start the
+         report". Start applies year then type, once, in that order. */
+      const wantY = String((START_PRESET && START_PRESET.fy0) || S.fy0);
+      const yrs = [...$("fy0").options].map(o => `<option value="${o.value}"${o.value===wantY?" selected":""}>${esc(o.textContent)}</option>`).join("");
       $(SV.body).innerHTML =
           `<div class="startslot"><div><label for="s-rtype">Report</label>
              <select id="s-rtype"><option value="">Choose a report…</option>${reps}</select></div></div>`
-        + slot("fy0") + slot("asat") + slot("whoami");
+        + `<div class="startslot"><div><label for="s-fy0">First year</label>
+             <select id="s-fy0">${yrs}</select></div></div>`
+        + slot("asat") + slot("whoami");
       $(SV.foot).innerHTML =
         `<button type="button" id="s-back">Back</button>
          <button type="button" class="primary" id="s-go">Start the report</button>`;
@@ -15313,26 +15386,13 @@ function setupSummary(){
             : "");
     }
     startLend();
-    /* The suggested year, shown in the lent #fy0 once it is in the view. Its
-       real change (S.fy0, the reset, autoInherit) was already fired by the
-       door that set the preset — see presetFrom below — so this is display
-       agreeing with state, not a second path to changing it. */
-    if(V === "report" && START_PRESET && START_PRESET.fy0 && $("fy0"))
-      $("fy0").value = String(START_PRESET.fy0);
   }
   /* A report the start screen was asked to line up — by the suggestion
-     door, or by Continue on a new file — for the "report" view to pre-select.
-     Cleared once that view is left either way. The year is applied
-     immediately, through #fy0's own handler, so any "switch year?" question
-     it raises is asked here over the start screen rather than after Start,
-     where it would race the report's own start. */
+     door, or by Continue on a new file — for the "report" view to pre-select
+     in its two mirrors. Nothing happens to the report until Start. */
   let START_PRESET = null;
   function presetFrom(sug){
     START_PRESET = sug ? {report: sug.report, fy0: sug.fy0} : null;
-    if(sug && sug.fy0 !== S.fy0 && $("fy0")){
-      $("fy0").value = String(sug.fy0);
-      $("fy0").dispatchEvent(new Event("change", {bubbles:true}));
-    }
   }
 
   /* ONE DELEGATED LISTENER, because every view above is rebuilt from scratch
@@ -15388,7 +15448,13 @@ function setupSummary(){
       return;
     }
     if(t.id === "s-close"){ startClose(); return; }
-    if(t.id === "s-back"){ presetFrom(null); startOpen("doors"); return; }
+    if(t.id === "s-back"){
+      presetFrom(null);
+      /* Back from "which report" is back to the file's list, where it was
+         reached from — not to the welcome doors two levels up. */
+      startOpen(startView === "report" && S.gss ? "reports" : "doors");
+      return;
+    }
 
     if(t.id === "s-next"){
       /* The control it validates IS #council — the reader edited the real one,
@@ -15404,12 +15470,10 @@ function setupSummary(){
     if(t.id === "s-go"){
       const r = $("s-rtype").value;
       if(!r){ $("s-rtype").focus(); return; }
+      const y = $("s-fy0") ? $("s-fy0").value : String(S.fy0);
       START_PRESET = null;
-      /* Close first, then start: the inherit notice that choosing a report
-         can raise belongs over the page, not over a screen that is finished. */
       startClose();
-      $("rtype").value = r;
-      $("rtype").dispatchEvent(new Event("change", {bubbles:true}));
+      startPair(r, y);
       return;
     }
 
@@ -15462,13 +15526,37 @@ function setupSummary(){
   });
   function openSaved(k){
     const e2 = libFor(S.gss).find(x => x.k === k);
-    if(e2){
-      $("fy0").value = e2.fy0;
-      $("fy0").dispatchEvent(new Event("change", {bubbles:true}));
-      $("rtype").value = e2.report;
-      $("rtype").dispatchEvent(new Event("change", {bubbles:true}));
-    }
     startClose();
+    if(e2) startPair(e2.report, e2.fy0);
+  }
+  /* ONE START, NOT TWO CHANGES. Starting or opening (report, year) used to
+     drive the two selects in turn: the year's handler ran first — a reset
+     and an inherit for the OLD report type in the NEW year — and the type's
+     handler then flushed that half-way state into the library before its
+     own reset, so a file gained a phantom "strategy 2025/26" every time an
+     outturn for 2025/26 was started from a 2026/27 strategy. Here the
+     outgoing report is flushed once, under its own key; the year is set
+     directly with nothing open to flush; and the type's handler does the
+     one reset, restore-or-inherit and repaint for the pair. STARTING keeps
+     it from asking "Switch…?" — the start screen was the answer — and Set
+     up is where a just-started report opens, whatever step the last one
+     was on. */
+  function startPair(report, fy0){
+    clearTimeout(_auto);
+    if(S.gss && S.report) markDirty(true);
+    S.report = "";
+    S.fy0 = +fy0; $("fy0").value = String(fy0);
+    $("rtype").value = report;
+    STARTING = true;
+    try{ $("rtype").dispatchEvent(new Event("change", {bubbles:true})); }
+    finally{ STARTING = false; }
+    // The demonstration's own branch of that handler keeps its figures and
+    // does not rebuild the ledger for a changed year. Only for it: a real
+    // authority's branch has already repainted, and a render here would
+    // re-arm the autosave that restoreSaved just cancelled, marking a report
+    // "unsaved" for having been opened.
+    if(S.gss === DEMO_GSS){ buildLedger(); loanRows(); applyLoans(); render(); }
+    showStep(1);
   }
 
   /* REOPENING IT IS THE ONLY WAY TO CHANGE THE REPORT TYPE. Phil's call, and
