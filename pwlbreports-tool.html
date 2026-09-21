@@ -10835,15 +10835,21 @@ async function svgToPng(svg, attached){
 }
 /* A data-URI image (the logo) as bytes; an SVG one is rasterised. */
 async function dataUriToImage(uri){
-  const m = /^data:image\/(png|jpeg|jpg|svg\+xml)(;base64)?,(.*)$/s.exec(uri || "");
+  /* Any shape of data URI: the demonstration's crest is
+     "data:image/svg+xml;utf8,…", a chosen logo is "data:image/png;base64,…".
+     The first cut only knew the base64 shape, so the demonstration's logo
+     never reached the file. */
+  const m = /^data:image\/(png|jpeg|jpg|svg\+xml)((?:;[^,]*)*),(.*)$/s.exec(uri || "");
   if(!m) return null;
+  const b64 = /;base64/i.test(m[2]);
   if(m[1] === "svg+xml"){
-    const txt = m[2] ? atob(m[3]) : decodeURIComponent(m[3]);
+    const txt = b64 ? atob(m[3]) : decodeURIComponent(m[3]);
     const el = new DOMParser().parseFromString(txt, "image/svg+xml").documentElement;
+    if(!el || el.tagName === "parsererror") return null;
     const out = await svgToPng(el, false);
     return out;
   }
-  const bin = m[2] ? atob(m[3]) : decodeURIComponent(m[3]);
+  const bin = b64 ? atob(m[3]) : decodeURIComponent(m[3]);
   const bytes = new Uint8Array(bin.length);
   for(let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
   const dims = await new Promise(ok => {
@@ -10923,7 +10929,8 @@ function runsOf(el, base){
     if(node.nodeType !== 1) return;
     const tag = node.tagName.toLowerCase();
     if(tag === "br"){ out += "<w:r><w:br/></w:r>"; return; }
-    if(node.classList.contains("secn") || node.classList.contains("no-print")) return;
+    if(node.classList.contains("secn") || node.classList.contains("no-print")
+       || node.classList.contains("reqtag")) return;   // the on-screen "why" markers
     if(tag === "svg"){
       // a line-style legend swatch: a rule in the line's own colour
       if(node.classList.contains("lsw")){
@@ -10979,6 +10986,11 @@ async function docxTable(tbl, D){
         for(let i = 0; i < span; i++) grid.push(Math.round(w / span)); });
     }
   });
+  // The grid sums to the table's width exactly — a column or two of rounding
+  // over the margin is a table Word lets run past the page.
+  const drift = totalW - grid.reduce((a, b) => a + b, 0);
+  if(grid.length) grid[grid.length - 1] += drift;
+  const full = totalW >= DOCX_TEXT_W - 30;
   const mono = /mono/i.test(getComputedStyle(tbl).fontFamily);
   const trs = rows.map(tr => {
     const inHead = !!tr.closest("thead") || [...tr.children].every(c => c.tagName === "TH");
@@ -11000,7 +11012,7 @@ async function docxTable(tbl, D){
     }).join("");
     return `<w:tr>${inHead ? "<w:trPr><w:tblHeader/><w:cantSplit/></w:trPr>" : "<w:trPr><w:cantSplit/></w:trPr>"}${tcs}</w:tr>`;
   }).join("");
-  return `<w:tbl><w:tblPr><w:tblW w:w="${totalW}" w:type="dxa"/>
+  return `<w:tbl><w:tblPr>${full ? `<w:tblW w:w="5000" w:type="pct"/>` : `<w:tblW w:w="${totalW}" w:type="dxa"/>`}<w:tblInd w:w="0" w:type="dxa"/>
     <w:tblBorders><w:top w:val="single" w:sz="4" w:space="0" w:color="D3DAE0"/>
       <w:left w:val="nil"/><w:bottom w:val="single" w:sz="4" w:space="0" w:color="D3DAE0"/>
       <w:right w:val="nil"/><w:insideH w:val="single" w:sz="4" w:space="0" w:color="E6EAEE"/>
@@ -11011,11 +11023,13 @@ async function docxTable(tbl, D){
     + para("", {spacing: [0, 120]});
 }
 
-async function docxBlocks(el, D, ctx){
+async function docxBlocks(el, D, ctx, sink){
   ctx = ctx || {prose: true};
+  const out = sink || D.body;
+  const push = x => out.push(x);
   for(const node of [...el.childNodes]){
     if(node.nodeType === 3){
-      if(node.nodeValue.trim()) D.body.push(para(run(node.nodeValue.trim(), baseOf(el)), {ind: {right: DOCX_PROSE_RIGHT}}));
+      if(node.nodeValue.trim()) push(para(run(node.nodeValue.trim(), baseOf(el)), ctx.prose ? {ind: {right: DOCX_PROSE_RIGHT}} : {spacing: [0, 0]}));
       continue;
     }
     if(node.nodeType !== 1) continue;
@@ -11028,49 +11042,49 @@ async function docxBlocks(el, D, ctx){
        || node.getAttribute("role") === "group" || node.getAttribute("aria-hidden") === "true") continue;
     if(tag === "img"){
       const img = await dataUriToImage(node.getAttribute("src"));
-      if(img){ const w = Math.min(3400, Math.round(img.w * 15)); D.body.push(para(D.addImage(img, w), {spacing: [0, 160]})); }
+      if(img){ const w = Math.min(3400, Math.round(img.w * 15)); push(para(D.addImage(img, w), {spacing: [0, 160]})); }
       continue;
     }
-    if(tag === "h2"){ D.body.push(para(runsOf(node, baseOf(node)), {style: "Title"})); continue; }
-    if(tag === "p" && cl.contains("lede")){ D.body.push(para(runsOf(node, baseOf(node)), {style: "Subtitle"})); continue; }
+    if(tag === "h2"){ push(para(runsOf(node, baseOf(node)), {style: "Title"})); continue; }
+    if(tag === "p" && cl.contains("lede")){ push(para(runsOf(node, baseOf(node)), {style: "Subtitle"})); continue; }
     if(tag === "h3"){
       const n = (node.querySelector(".secn") || {}).textContent || "";
       const base = Object.assign(baseOf(node), {b: true});
-      D.body.push(para(run(n ? n + "  " : "", Object.assign({}, base, {font: DOCX_FONTS.mono, color: "68757F"})) + runsOf(node, base), {style: "Heading1", keepNext: true}));
+      push(para(run(n ? n + "  " : "", Object.assign({}, base, {font: DOCX_FONTS.mono, color: "68757F"})) + runsOf(node, base), {style: "Heading1", keepNext: true}));
       continue;
     }
-    if(tag === "h4"){ D.body.push(para(runsOf(node, Object.assign(baseOf(node), {b: true})), {style: "Heading2", keepNext: true})); continue; }
+    if(tag === "h4"){ push(para(runsOf(node, Object.assign(baseOf(node), {b: true})), {style: "Heading2", keepNext: true})); continue; }
     if(tag === "p"){
       const base = baseOf(node);
       const p = {ind: ctx.prose ? {right: DOCX_PROSE_RIGHT} : null};
       if(cl.contains("gap")) Object.assign(base, {i: true, color: "B3352A", font: DOCX_FONTS.sans});
       if(cl.contains("dnote") || cl.contains("note")) Object.assign(base, {color: "68757F"});
-      D.body.push(para(runsOf(node, base), p));
+      push(para(runsOf(node, base), p));
       continue;
     }
     if(tag === "ul" || tag === "ol"){
       const num = D.addNum(tag === "ul" ? 0 : 1);
       [...node.children].forEach(li => {
         if(li.tagName !== "LI") return;
-        D.body.push(para(runsOf(li, baseOf(li)), {num, ind: {left: 720, hanging: 360, right: ctx.prose ? DOCX_PROSE_RIGHT : null}, spacing: [0, 80]}));
+        push(para(runsOf(li, baseOf(li)), {num, ind: {left: 720, hanging: 360, right: ctx.prose ? DOCX_PROSE_RIGHT : null}, spacing: [0, 80]}));
       });
       continue;
     }
-    if(tag === "table"){ D.body.push(await docxTable(node, D)); continue; }
+    if(tag === "table"){ push(await docxTable(node, D)); continue; }
     if(tag === "svg"){
-      try{ const img = await svgToPng(node, true); D.body.push(para(D.addImage(img, DOCX_TEXT_W), {spacing: [120, 120]})); }
-      catch(e){ D.body.push(para(run("[chart could not be drawn]", {font: DOCX_FONTS.sans, i: true, color: "68757F", sz: 18}))); }
+      try{ const img = await svgToPng(node, true); push(para(D.addImage(img, DOCX_TEXT_W), {spacing: [120, 120]})); }
+      catch(e){ push(para(run("[chart could not be drawn]", {font: DOCX_FONTS.sans, i: true, color: "68757F", sz: 18}))); }
       continue;
     }
     if(cl.contains("barwrap")){
-      try{ const img = await svgToPng(barwrapToSvg(node), false); D.body.push(para(D.addImage(img, DOCX_TEXT_W), {spacing: [80, 120]})); }
+      try{ const img = await svgToPng(barwrapToSvg(node), false); push(para(D.addImage(img, DOCX_TEXT_W), {spacing: [80, 120]})); }
       catch(e){}
       continue;
     }
     if(cl.contains("legend")){
       const base = Object.assign(baseOf(node), {font: DOCX_FONTS.sans, sz: 19});
       const items = [...node.children].map(sp => runsOf(sp, base));
-      D.body.push(para(items.join(run("\u00a0\u00a0\u00a0\u00a0", base)), {spacing: [0, 200]}));
+      push(para(items.join(run("\u00a0\u00a0\u00a0\u00a0", base)), {spacing: [0, 200]}));
       continue;
     }
     if(cl.contains("headline")){
@@ -11087,22 +11101,73 @@ async function docxBlocks(el, D, ctx){
           + para(run(val.trim(), {font: DOCX_FONTS.mono, sz: 36, color: "0F1A24"}), {spacing: [0, 40]})
           + para(run(sm.trim(), {font: DOCX_FONTS.sans, sz: 16, color: "68757F"}), {spacing: [0, 0]}) + "</w:tc>";
       }).join("");
-      D.body.push(`<w:tbl><w:tblPr><w:tblW w:w="${DOCX_TEXT_W}" w:type="dxa"/>
+      push(`<w:tbl><w:tblPr><w:tblW w:w="${DOCX_TEXT_W}" w:type="dxa"/>
         <w:tblBorders><w:top w:val="nil"/><w:left w:val="nil"/><w:bottom w:val="nil"/><w:right w:val="nil"/><w:insideH w:val="nil"/><w:insideV w:val="single" w:sz="24" w:space="0" w:color="FFFFFF"/></w:tblBorders>
         <w:tblLayout w:type="fixed"/>
         <w:tblCellMar><w:left w:w="120" w:type="dxa"/><w:right w:w="120" w:type="dxa"/></w:tblCellMar></w:tblPr>
         <w:tblGrid>${tiles.map(() => `<w:gridCol w:w="${w}"/>`).join("")}</w:tblGrid><w:tr>${tcs}</w:tr></w:tbl>` + para("", {spacing: [0, 120]}));
       continue;
     }
-    if(cl.contains("caveat")){
-      const base = Object.assign(baseOf(node), {font: DOCX_FONTS.sans});
-      D.body.push(para(runsOf(node, base), {border: "D3DAE0", shade: "F4F6F8", spacing: [200, 200], ind: {right: DOCX_PROSE_RIGHT}}));
+    /* A ROW ACROSS THE PAGE STAYS A ROW. The Bank Rate path is a strip of
+       boxes on a flex row (.brwrap); walked as blocks they stacked down the
+       page. Any element laid out as a flex or grid row of two or more boxes
+       becomes a one-row table, each box a cell with the page's own shading
+       and border, its contents walked as blocks. The legend, the pickers,
+       the bar charts and chart wrappers have their own handling above. */
+    if(isBoxRow(node)){
+      push(await docxBoxRow(node, D));
       continue;
     }
-    if(tag === "hr"){ D.body.push(para("", {spacing: [120, 120]})); continue; }
+    if(cl.contains("caveat")){
+      const base = Object.assign(baseOf(node), {font: DOCX_FONTS.sans});
+      push(para(runsOf(node, base), {border: "D3DAE0", shade: "F4F6F8", spacing: [200, 200], ind: {right: DOCX_PROSE_RIGHT}}));
+      continue;
+    }
+    if(tag === "hr"){ push(para("", {spacing: [120, 120]})); continue; }
+    /* An inline element met at block level — a box's "4.00<i>%</i>", a
+       label span — is one line, its inner formatting kept, not a paragraph
+       per descendant. */
+    if(/^(b|i|em|strong|span|small|a|sup|code)$/.test(tag) && !node.querySelector("div,p,table,ul,ol,h1,h2,h3,h4,section")){
+      if(node.textContent.trim() || node.querySelector("svg,i"))
+        push(para(runsOf(node, baseOf(node)), {spacing: [0, 0]}));
+      continue;
+    }
     // everything else is a container: sections, indicator blocks, chart wraps
-    await docxBlocks(node, D, {prose: ctx.prose && !cl.contains("chartwrap")});
+    await docxBlocks(node, D, {prose: ctx.prose && !cl.contains("chartwrap")}, sink);
   }
+}
+
+function isBoxRow(el){
+  const cs = getComputedStyle(el);
+  if(!/flex|grid/.test(cs.display)) return false;
+  if(el.classList.contains("barrow") || el.classList.contains("legend") || el.classList.contains("pick")
+     || el.classList.contains("chartwrap") || el.classList.contains("headline")) return false;
+  const kids = [...el.children].filter(k => k.nodeType === 1 && !/^(button|input|select)$/i.test(k.tagName));
+  return kids.length >= 2 && kids.every(k => k.tagName === "DIV" || k.tagName === "SPAN" || k.tagName === "SECTION");
+}
+async function docxBoxRow(el, D){
+  const kids = [...el.children].filter(k => k.nodeType === 1 && !/^(button|input|select)$/i.test(k.tagName));
+  const natural = kids.reduce((a, k) => a + twipsOf(k.getBoundingClientRect().width), 0) + 120 * kids.length;
+  const scale = natural > DOCX_TEXT_W ? DOCX_TEXT_W / natural : 1;
+  const widths = kids.map(k => Math.max(600, Math.round((twipsOf(k.getBoundingClientRect().width) + 120) * scale)));
+  const cells = [];
+  for(const k of kids){
+    const cs = getComputedStyle(k);
+    const bg = hexOf(cs.backgroundColor), bd = hexOf(cs.borderTopColor);
+    const sink = [];
+    await docxBlocks(k, D, {prose: false}, sink);
+    if(!sink.length) sink.push(para(run(" ", baseOf(k))));
+    cells.push(`<w:tc><w:tcPr><w:tcW w:w="${widths[cells.length]}" w:type="dxa"/>`
+      + (bd && parseFloat(cs.borderTopWidth) > 0 ? `<w:tcBorders><w:top w:val="single" w:sz="4" w:space="0" w:color="${bd}"/><w:left w:val="single" w:sz="4" w:space="0" w:color="${bd}"/><w:bottom w:val="single" w:sz="4" w:space="0" w:color="${bd}"/><w:right w:val="single" w:sz="4" w:space="0" w:color="${bd}"/></w:tcBorders>` : "")
+      + (bg ? `<w:shd w:val="clear" w:color="auto" w:fill="${bg}"/>` : "")
+      + `<w:tcMar><w:top w:w="100" w:type="dxa"/><w:left w:w="120" w:type="dxa"/><w:bottom w:w="100" w:type="dxa"/><w:right w:w="120" w:type="dxa"/></w:tcMar></w:tcPr>`
+      + sink.join("") + "</w:tc>");
+  }
+  const totalW = widths.reduce((a, b) => a + b, 0);
+  return `<w:tbl><w:tblPr><w:tblW w:w="${totalW}" w:type="dxa"/><w:tblInd w:w="0" w:type="dxa"/>
+    <w:tblBorders><w:top w:val="nil"/><w:left w:val="nil"/><w:bottom w:val="nil"/><w:right w:val="nil"/><w:insideH w:val="nil"/><w:insideV w:val="single" w:sz="12" w:space="0" w:color="FFFFFF"/></w:tblBorders>
+    <w:tblLayout w:type="fixed"/><w:tblCellMar><w:left w:w="120" w:type="dxa"/><w:right w:w="120" w:type="dxa"/></w:tblCellMar></w:tblPr>
+    <w:tblGrid>${widths.map(w => `<w:gridCol w:w="${w}"/>`).join("")}</w:tblGrid><w:tr>${cells.join("")}</w:tr></w:tbl>` + para("", {spacing: [0, 120]});
 }
 
 function docxStyles(){
