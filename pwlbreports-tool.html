@@ -1139,6 +1139,38 @@ table.dtab td.wrap{white-space:normal;line-height:1.5}
 .warn{font-family:var(--sans);margin:10px 0 0;padding:9px 12px;border-radius:var(--r-sm);
   background:rgba(179,53,42,.09);border-left:3px solid var(--alert);font-size:12px;color:var(--ink2)}
 
+/* ---- what still needs completing -----------------------------------------
+   A red boundary on the box, a red count on the step's chip, and a short
+   list under the step's heading — all from the same check (markNeeds,
+   check.js), so the three never disagree. Inset, so it reads on a
+   borderless ledger cell and a bordered field alike. */
+.needs{box-shadow:inset 0 0 0 2px var(--alert) !important}
+#seclist button.needs{box-shadow:inset 0 0 0 1px var(--alert)}
+#seclist button.needs::after{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;
+  background:var(--alert);margin-left:6px;vertical-align:middle}
+.needbox{font-family:var(--sans);margin:12px 20px 0;padding:9px 13px;border-radius:var(--r-sm);
+  background:rgba(179,53,42,.06);border-left:3px solid var(--alert);font-size:12.5px;line-height:1.5;
+  color:var(--ink2)}
+.needbox > b{color:var(--alert)}
+.needbox ul{margin:4px 0 0;padding-left:18px}
+.needbox li{margin:2px 0}
+.needbox li b{color:var(--ink);font-weight:600}
+.needbox[hidden]{display:none}
+.rstep .ropen.need{background:var(--alert)}
+/* Unsaved is unmistakable: the Save button itself turns orange and says
+   what it is for; the status word beside the filename says the same. */
+.ribbon-btn#libfile.dirty{background:var(--orange);border-color:var(--orange);color:#fff}
+.ribbon-btn#libfile.dirty:hover{color:#fff;filter:brightness(1.06)}
+.ribbon-btn#libfile.dirty::after{display:none}
+.ribbon-status.dirty{font-size:12.5px}
+.startwarn{font-family:var(--sans);font-size:13px;line-height:1.5;color:var(--ink2);
+  background:color-mix(in srgb,var(--orange) 10%,var(--card));border:1px solid var(--orange);
+  border-radius:8px;padding:10px 13px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.startwarn b{color:var(--ink)}
+.startwarn button{margin-left:auto;white-space:nowrap;background:var(--orange);border:1px solid var(--orange);
+  color:#fff;font-weight:600;font-family:var(--sans);font-size:13px;padding:7px 13px;border-radius:7px;cursor:pointer}
+.startwarn button:hover{filter:brightness(1.06)}
+
 /* The start note: what starting this report did (startNote, wire.js). */
 .snote{font-family:var(--sans);margin:0 0 14px;padding:10px 40px 10px 13px;border-radius:var(--r-sm);
   background:var(--sunken);border-left:3px solid var(--accent);font-size:12.5px;line-height:1.55;
@@ -2583,7 +2615,12 @@ function paintFileStatus(){
   // ribbon can wrap onto two lines on a narrow screen, and Save is the one
   // button whose whole job is to answer "do I need to click this".
   const lf = $("libfile");
-  if(lf) lf.classList.toggle("dirty", FILE_DIRTY);
+  if(lf){
+    lf.classList.toggle("dirty", FILE_DIRTY);
+    const lab = lf.querySelector("span");
+    if(lab) lab.textContent = FILE_DIRTY ? "Save changes" : "Save";
+    lf.title = FILE_DIRTY ? "Unsaved changes — save this file" : "Save this file";
+  }
   // Which REPORT, on the same line as which FILE: authority · report and
   // year · filename · save state. One line, because the ribbon is one line.
   const doc = $("ribbondoc");
@@ -3320,6 +3357,9 @@ function render(){
   if(pv && pvw && !pvw.classList.contains("shut")
      && (pvw.classList.contains("full") || (typeof STEP === "undefined") || STEP === 3))
     pv.innerHTML = previewHTML();
+  // Last, over everything just painted: the red outlines and each step's
+  // "to complete" list (markNeeds, check.js).
+  if(typeof markNeeds === "function") markNeeds();
 }
 
 /* ===========================================================================
@@ -8326,6 +8366,7 @@ function renderSections(){
         clearTimeout(S._t); S._t=setTimeout(renderSections, 400); }));
   };
   if(typeof keepFocus === "function") keepFocus($("secbody"), draw); else draw();
+  if(typeof markNeeds === "function") markNeeds();
 }
 
 /* What we can produce for a section, stated plainly so nobody mistakes it for
@@ -9028,6 +9069,7 @@ function cpRender(){
 
     ${/* THE QUOTED PASSAGES ARE GONE. See the note in cpSurveyHTML. */""}
   `;
+  if(typeof markNeeds === "function") markNeeds();
 }
 
 /* One place that reads the form back into state, so a field added to the
@@ -11034,17 +11076,33 @@ let LIBRARY = [];
    not aliased — an entry that shared its body object with S would pick up
    S's next keystroke as its own, the same trap workPayload's own comment
    warns snapshotPayload against. */
+/* UNSAVED MEANS CHANGED. "Unsaved changes" used to light the moment
+   anything rendered — moving to step 2 was enough — because every render
+   noted the report and every note counted as a change. So the words meant
+   nothing, and Phil asked for them to be unmistakable. They are true now:
+   a body's signature (every field but `at`, which is stamped fresh on every
+   payload) is compared with the signature of what the file holds
+   (savedSig, set when a report is saved or opened as itself), and only a
+   difference is a change. Reading a report is not touching it, so `at`
+   and `by` move only when the body does. */
+const libSig = body => JSON.stringify(Object.assign({}, body, {at: null}));
+function libFileDirty(gss){ return LIBRARY.some(e => e.gss === gss && e.dirty); }
 function libNote(gss, report, fy0, body, extra){
   const k = libKey(gss, report, fy0);
   const i = LIBRARY.findIndex(e => e.k === k);
+  const prev = i >= 0 ? LIBRARY[i] : null;
+  const savedSig = (prev && prev.savedSig) || null;
+  const dirty = savedSig ? libSig(body) !== savedSig : true;
+  const touched = dirty || !prev;
   const entry = Object.assign({
     k, gss, report, fy0,
     n: (LB[gss] && LB[gss].n) || S.otherName || "your authority",
-    at: new Date().toISOString(), by: whoAmI(),
+    at: touched ? new Date().toISOString() : prev.at,
+    by: touched ? whoAmI() : prev.by,
     // See libTouchSaved below — dirty is per ENTRY, not a single flag for
     // the whole file, because libNote only ever runs for the one report
     // actually open (S), which is the only one that can have changed.
-    dirty: true
+    savedSig, dirty
   }, extra || {}, {body: JSON.parse(JSON.stringify(body))});
   if(i >= 0) LIBRARY[i] = entry; else LIBRARY.unshift(entry);
 }
@@ -11072,7 +11130,8 @@ function libNote(gss, report, fy0, body, extra){
  * DOWNLOADS one, and the plain-download fallback), never on a failed or
  * cancelled one. */
 function libTouchSaved(gss, who, when){
-  LIBRARY.filter(e => e.gss === gss).forEach(e => { e.at = when; e.by = who; e.dirty = false; });
+  LIBRARY.filter(e => e.gss === gss).forEach(e => {
+    e.at = when; e.by = who; e.dirty = false; e.savedSig = libSig(e.body); });
 }
 /* And the way back out. Clearing a report has to clear its LINE IN THE
    LIBRARY too, or the picker goes on offering to reopen something that is no
@@ -11455,9 +11514,13 @@ function libImport(text){
     const k = libKey(gss, x.report, x.fy0);
     const i = LIBRARY.findIndex(y => y.k === k);
     // Keep whoever saved it; opening someone's file does not make it yours.
+    // As saved, by definition: it came from the file. Its signature is
+    // taken when it is opened as itself (restoreSaved, wire.js), from the
+    // live payload, so a migration on the way in never reads as an edit.
     const entry = {k, gss, report:x.report, fy0:x.fy0,
                     n: d.n || "your authority", at: x.at || d.at || new Date().toISOString(),
                     by: x.by || d.by || "", issued: !!x.issued, hra: x.body.hra,
+                    dirty: false, savedSig: null,
                     body: x.body};
     if(i >= 0) LIBRARY[i] = entry; else LIBRARY.unshift(entry);
     n++; if(x.issued) issued++;
@@ -11574,7 +11637,8 @@ const CHECKS = [
        ((S.g[f] || {}).cfr || []).filter(v => v).length));
      return n ? {v:"met", note:`${n} year${n===1?"":"s"} entered.`}
               : {v:"gap", note:"Nothing entered. Every indicator is built from it.", go:3};
-   }},
+   },
+   mark(){ return ckCells('#ledger input[data-k="cfr"]:not([data-i="-1"])', 3); }},
   {k:"walk", src:"PC E9", g:"Figures", in:CK_ALL,
    t:"The CFR movement reconciles with the MRP and capital expenditure entered",
    run(){
@@ -11598,7 +11662,8 @@ const CHECKS = [
        ? {v:"met", note:`£${m1(S.minliq || (g.liq||[])[0] || 0)}m applied across every year.`}
        : {v:"gap", note:"Not set. Without it the liability benchmark is the net treasury "
           + "position, which is a different indicator.", go:3};
-   }},
+   },
+   mark(){ return ckCells("#minliq", 1); }},
   /* The maturity ladders are the one part of the report the tool cannot derive
      and cannot check against anything except itself. What it CAN do is notice
      that the ladder and the holdings, which measure the same money, disagree —
@@ -11619,7 +11684,8 @@ const CHECKS = [
           + `£${m1(held)}m held.`}
        : {v:"gap", go:2, note:`£${m1(L.total)}m in the ladder against £${m1(held)}m held — `
           + `a difference of £${m1(Math.abs(gap))}m. Both charts go in the report.`};
-   }},
+   },
+   mark(){ return ckCells('input[data-mat="d"]', 3); }},
   {k:"matinv", src:"TMC 2026 consultation", g:"Portfolio", in:CK_ALL,
    t:"The investment ladder reconciles with the investments held",
    run(){
@@ -11637,7 +11703,8 @@ const CHECKS = [
           + `£${m1(held)}m held.`}
        : {v:"gap", go:2, note:`£${m1(L.total)}m in the ladder against £${m1(held)}m held — `
           + `a difference of £${m1(Math.abs(gap))}m.`};
-   }},
+   },
+   mark(){ return ckCells('input[data-mat="i"]', 3); }},
   {k:"nrs", src:"PC E10", g:"Figures", in:CK_ALL,
    t:"A net revenue stream is entered, so affordability can be computed",
    run(){
@@ -11646,7 +11713,8 @@ const CHECKS = [
        ? {v:"met", note:"Financing costs to net revenue stream are computed for every year entered."}
        : {v:"gap", note:"Not entered, so the affordability ratio cannot be shown — and having "
           + "regard to affordability is a duty, not an option.", go:3};
-   }},
+   },
+   mark(){ return ckCells('#ledger input[data-k="nrs"]:not([data-i="-1"])', 3); }},
 
   /* ---- the indicators themselves ---------------------------------------- */
   {k:"lb", src:"TMC 2026 consultation", g:"Indicators", in:CK_ALL,
@@ -11690,13 +11758,16 @@ const CHECKS = [
   /* ---- what a forward-looking report must SET ---------------------------- */
   {k:"borrow", src:"TMC 5", g:"Strategy", in:CK_FWD,
    t:"A borrowing strategy is stated for the year ahead",
-   run(){ return written("borrow_body", 3, "Section 4 is empty."); }},
+   run(){ return written("borrow_body", 6, "Section 4 is empty."); },
+   mark(){ return ckWording(["borrow_body"]); }},
   {k:"mrp", src:"MRP Guidance", g:"Strategy", in:CK_FWD,
    t:"An MRP or loans fund policy statement is included for members to approve",
-   run(){ return written("mrp_body", 6, "The statement is a formal approval; the report cannot go without it."); }},
+   run(){ return written("mrp_body", 6, "The statement is a formal approval; the report cannot go without it."); },
+   mark(){ return ckWording(["mrp_body"]); }},
   {k:"invest", src:"Investment Guidance", g:"Strategy", in:CK_FWD,
    t:"An investment strategy states the objectives, in the Guidance's order of priority",
-   run(){ return written("invest_body", 6, "Section 5 is empty."); }},
+   run(){ return written("invest_body", 6, "Section 5 is empty."); },
+   mark(){ return ckWording(["invest_body"]); }},
   {k:"cp", src:"Investment Guidance", g:"Strategy", in:CK_FWD,
    t:"Counterparty limits are set — who, for how long, and how much",
    run(){
@@ -11706,12 +11777,14 @@ const CHECKS = [
           + (S.cp && S.cp.country ? ", country policy set" : "") + "."}
        : {v:"gap", note:"No sector limits set. The Guidance requires the specified and "
           + "non-specified investments to be defined.", go:5};
-   }},
+   },
+   mark(){ return ckCells('section[data-step="5"] input[data-cp][inputmode="decimal"]', 3); }},
 
   /* ---- what a backward-looking report must REPORT ------------------------ */
   {k:"activity", src:"TMC 8", g:"The period", in:CK_BACK,
    t:"The borrowing and investment activity of the period is described",
-   run(){ return written("activity_body", 6, "A report on a period that has happened has to say what happened in it."); }},
+   run(){ return written("activity_body", 6, "A report on a period that has happened has to say what happened in it."); },
+   mark(){ return ckWording(["activity_body"]); }},
   {k:"limits", src:"PC E12 / TMC 8", g:"The period", in:CK_BACK,
    t:"Actual debt is compared against the limits members approved",
    run(){
@@ -11725,14 +11798,15 @@ const CHECKS = [
           + `shown as such. The Code requires this to be reported to members with the action taken `
           + `— check the commentary says so.`}
        : {v:"met", note:`${rows.length} limit${rows.length===1?"":"s"} tested, all observed throughout.`};
-   }},
+   },
+   mark(){ return ckCells("input[data-lim]", 4); }},
 
   /* ---- required of every report ------------------------------------------ */
   {k:"perf", src:"TMC 8", g:"The period", in:CK_BACK,
    t:"What the period cost and earned is reported, against the budget set for it",
    run(){
      const rows = (typeof perfRows === "function" ? perfRows() : []).filter(r => r.any);
-     if(!rows.length) return {v:"gap", go:6,
+     if(!rows.length) return {v:"gap", go:7,
        note:"Nothing entered. A report on a period that has ended is expected to say what it "
           + "cost and what it earned, not only that the limits held."};
      const withB = rows.filter(r => r.cells.budget && r.cells.budget.v != null
@@ -11740,9 +11814,10 @@ const CHECKS = [
      return withB.length
        ? {v:"met", note:`${rows.length} line${rows.length===1?"":"s"} entered, `
           + `${withB.length} compared against budget.`}
-       : {v:"gap", go:6, note:`${rows.length} line${rows.length===1?"":"s"} entered, but none `
+       : {v:"gap", go:7, note:`${rows.length} line${rows.length===1?"":"s"} entered, but none `
           + `against a budget — so no variance can be shown.`};
-   }},
+   },
+   mark(){ return ckCells('input[data-p="intpay"][data-pc="budget"], input[data-p="intpay"][data-pc="actual"]', 2); }},
   {k:"prior", src:"PC E9", g:"The period", in:CK_BACK,
    t:"Prior-year comparatives are given, as the Code expects from the statement of accounts",
    run(){
@@ -11750,23 +11825,25 @@ const CHECKS = [
      const n = rows.filter(r => r.cells.prior && r.cells.prior.v != null).length;
      return n
        ? {v:"met", note:`${n} line${n===1?"":"s"} carry last year's figure.`}
-       : {v:"gap", go:6, note:"None entered. E9 expects previous years' indicators to be taken "
+       : {v:"gap", go:7, note:"None entered. E9 expects previous years' indicators to be taken "
           + "from the statement of accounts; a figure without a comparative is not a movement."};
-   }},
+   },
+   mark(){ return ckCells('input[data-pc="prior"]', 2); }},
   {k:"bench", src:"TMC 8", g:"The period", in:CK_BACK,
    t:"The return achieved is measured against a benchmark",
    run(){
      const rows = (typeof perfRows === "function" ? perfRows() : []);
      const g = k => { const r = rows.find(x=>x.k===k); return r ? r.cells.actual.v : null; };
      const ret = g("ret"), bench = g("bench");
-     if(ret == null) return {v:"gap", go:6,
+     if(ret == null) return {v:"gap", go:7,
        note:"No rate of return — enter investment income and the average balance held and it "
           + "computes itself, or type your own."};
-     if(bench == null) return {v:"gap", go:6,
+     if(bench == null) return {v:"gap", go:7,
        note:`A return of ${ret.toFixed(2)}% is reported against nothing. 61% of outturns in the `
           + `corpus name a benchmark; without one the figure cannot be judged.`};
      return {v:"met", note:`${ret.toFixed(2)}% against ${bench.toFixed(2)}%.`};
-   }},
+   },
+   mark(){ return ckCells('input[data-p="bench"][data-pc="actual"], input[data-p="ret"][data-pc="actual"]', 2); }},
   {k:"carried", src:"PC E9", g:"The document", in:CK_ALL,
    t:"The report is set against the one before it",
    run(){
@@ -11794,7 +11871,8 @@ const CHECKS = [
        : {v:"gap", go:6, note:`Not entered, so the charts commence at ${fy(S.fy0)} — the `
           + `first projected year. The consultation asks that they start at the most recent `
           + `actual year-end, with the figures from the statement of accounts.`};
-   }},
+   },
+   mark(){ return ckCells("input[data-ac]", 3); }},
   {k:"pi", src:"PC S5", g:"Indicators", in:CK_ALL,
    t:"The four prudential indicators carry a previous-year actual beside the estimates",
    run(){
@@ -11838,10 +11916,15 @@ const CHECKS = [
        ? {v:"met", note:`${qs.length} of ${qs.length} written.`}
        : {v:"gap", go:6, note:`${done} of ${qs.length} written. The draft marks the rest as `
           + `visible gaps, so nothing reads as finished when it is not.`};
+   },
+   mark(){
+     const qs = visibleSections().flatMap(s => s.qs || []);
+     return ckWording(qs.filter(q => (S.text[q.k]||"").trim().length <= 40).map(q => q.k));
    }},
   {k:"gov", src:"TMC 3", g:"The document", in:CK_ALL,
    t:"The reporting and scrutiny arrangements are stated",
-   run(){ return written("gov_body", 6, "Who receives this, and when, is a Code requirement."); }},
+   run(){ return written("gov_body", 6, "Who receives this, and when, is a Code requirement."); },
+   mark(){ return ckWording(["gov_body"]); }},
 
   /* ---- and the things it cannot judge ------------------------------------ */
   {k:"cfo", src:"PC — named NOT COVERED", g:"Yours to confirm", in:CK_ALL,
@@ -11869,6 +11952,56 @@ const CHECKS = [
    run(){ return {v:"yours", note:"Nothing here is extrapolated and nothing is verified against "
      + "your ledger. A blank year is used as nil. Check it before it reaches a committee."}; }}
 ];
+
+/* WHERE A GAP IS, ON THE STEP THAT CLOSES IT. Each gap above names the
+   boxes it is about (mark), and markNeeds() below outlines them in red and
+   lists the step's gaps under its heading — Phil's ask: a red boundary on
+   the cell and a warning on the tab. ckCells takes the first few matches;
+   a whole column of red is noise, the first cells say where to start. */
+function ckCells(sel, n){
+  return [...document.querySelectorAll(sel)].slice(0, n || 3);
+}
+/* A wording box, and the section button that reaches it: the section list
+   shows one section at a time, so the button is what is visible from the
+   others. */
+function ckWording(keys){
+  return keys.flatMap(k => {
+    const sec = (typeof SECTIONS !== "undefined")
+      ? SECTIONS.find(s => (s.qs || []).some(q => q.k === k)) : null;
+    return ckCells(`#t_${k}`, 1).concat(sec ? ckCells(`#seclist button[data-s="${sec.k}"]`, 1) : []);
+  });
+}
+let _needsBusy = false;
+function markNeeds(){
+  if(_needsBusy || typeof document === "undefined") return;
+  _needsBusy = true;
+  try{
+    document.querySelectorAll(".needs").forEach(el => { el.classList.remove("needs"); delete el.dataset.need; });
+    const gaps = (S.gss && S.report) ? checkOpen().filter(r => r.v === "gap") : [];
+    const by = {};
+    gaps.forEach(r => {
+      if(r.go) (by[r.go] = by[r.go] || []).push(r);
+      let els = [];
+      try{ els = r.mark ? (r.mark() || []) : []; }catch(e){ els = []; }
+      els.forEach(el => { el.classList.add("needs"); el.dataset.need = r.t; });
+    });
+    (typeof STEPS !== "undefined" ? STEPS : []).forEach(s => {
+      const panel = document.querySelector(`.panel[data-step="${s.n}"]:not(.doc)`);
+      if(!panel) return;
+      let box = panel.querySelector(":scope > .needbox");
+      const rows = by[s.n];
+      if(!rows){ if(box) box.hidden = true; return; }
+      if(!box){
+        box = document.createElement("div"); box.className = "needbox";
+        const head = panel.querySelector(":scope > .phead");
+        panel.insertBefore(box, head ? head.nextSibling : panel.firstChild);
+      }
+      box.hidden = false;
+      box.innerHTML = `<b>${rows.length} to complete on this step</b><ul>${
+        rows.map(r => `<li><b>${esc(r.t)}</b> ${r.note}</li>`).join("")}</ul>`;
+    });
+  } finally { _needsBusy = false; }
+}
 
 /* A wording section, tested the same way the rail tests it. */
 function written(key, step, why){
@@ -11938,8 +12071,16 @@ function checkHTML(){
  * the top of this file: a check that folded those into "found" would turn an
  * honest instrument into a rubber stamp.
  * ======================================================================== */
+let _ckMemo = null;
 function checkOpen(){
   if(!S.gss || !S.report) return [];
+  /* Memoised for the tick: the rail, the outlines and the per-step lists
+     all ask during one paint, and one run of the checks is enough. */
+  if(_ckMemo) return _ckMemo;
+  setTimeout(() => { _ckMemo = null; }, 0);
+  return (_ckMemo = checkOpenNow());
+}
+function checkOpenNow(){
   /* ONLY THE TWO THAT ASK SOMETHING OF THE READER. A check can also answer
      "n/a" at run time — "no investments held", so no ladder to reconcile —
      which is not met and not open; it is simply not this report's. Filtering
@@ -12168,7 +12309,7 @@ function renderRail(){
       style="--sc:var(--s${s.n})"
       data-go="${s.n}" aria-current="${STEP===s.n?"step":"false"}">
       <span class="rn">${st.state==="done" && !on ? "&#10003;" : s.n}</span>
-      <span class="rt"><b>${esc(tt.t)}${on ? `<span class="ropen" title="${o.gap} outstanding, ${o.yours} yours to confirm">${on}</span>` : ""}</b><i>${esc(st.note || tt.s)}</i></span>
+      <span class="rt"><b>${esc(tt.t)}${on ? `<span class="ropen${o.gap ? " need" : ""}" title="${o.gap} to complete, ${o.yours} yours to confirm">${on}</span>` : ""}</b><i>${esc(st.note || tt.s)}</i></span>
     </button>`;
   }).join("");
   const done = RAIL.filter(s => stepStatus(s.k).state === "done").length;
@@ -12212,6 +12353,7 @@ function showStep(n){
   document.querySelectorAll("[data-step]").forEach(el => {
     el.hidden = (+el.dataset.step !== STEP);
   });
+  if(typeof markNeeds === "function") markNeeds();
   // Arriving at the draft is what builds it, since render() no longer does so
   // while it is hidden. Without this the step opens empty and the rail keeps
   // saying "open it to build the draft" on the step you are standing on.
@@ -12810,16 +12952,23 @@ function markDirty(quiet){
   if(!S.gss || !S.report) return;
   libNote(S.gss, S.report, S.fy0, workPayload(), {hra:S.hra, issued: S.issued,
     locked:S.locked, lockedAt:S.lockedAt, overrideCount: (S.overrides||[]).length});
-  FILE_DIRTY = true;
-  recoverKeep();
+  /* DERIVED, NOT ASSERTED — see libNote: a note is a change only when the
+     body differs from what the file holds. So the flag can go back to clean
+     on its own (undo to the saved state), and "Unsaved changes" is only ever
+     said when it is true. */
+  const was = FILE_DIRTY;
+  FILE_DIRTY = libFileDirty(S.gss);
+  if(FILE_DIRTY) recoverKeep();
   if(typeof libFill === "function") libFill();
-  // The explanation of WHAT Save does now lives in the file caption (see
-  // paintFileStatus in ui.js), painted once and staying true regardless of
-  // dirty state — this phrase only has to say THAT it needs saving, in the
-  // same words every doc editor already uses for this exact state, and the
-  // same root word the returns list uses for the same state (renderReturnsList).
-  saveHint("Unsaved changes");
+  if(FILE_DIRTY) saveHint("Unsaved changes");
+  else if(was || SAVE_HINT === "Unsaved changes") saveHint("All changes saved");
+  else paintFileStatus();
 }
+/* LEAVING WITH UNSAVED CHANGES IS THE ONE THING THE BROWSER SHOULD STOP AND
+   ASK ABOUT. Meaningful only now that the flag is true (see markDirty). */
+window.addEventListener("beforeunload", e => {
+  if(typeof FILE_DIRTY !== "undefined" && FILE_DIRTY){ e.preventDefault(); e.returnValue = ""; }
+});
 /* A grid saved by an older build carries only the columns that existed then.
    The model reads every column by name, so a missing one is not a missing
    figure — it is a crash. And applyVersion's own try/catch used to swallow
@@ -14569,6 +14718,12 @@ function setupSummary(){
     if(typeof cpRender === "function") cpRender();
     renderSections(); render(); libFill();
     clearTimeout(_auto);
+    /* AS SAVED, FROM THIS MOMENT. The signature is taken from the live
+       payload after the restore, not from the file's bytes, so the
+       migrations applyVersion runs on the way in (grid padding, choices)
+       never read as an edit the reader did not make. */
+    e.savedSig = libSig(workPayload()); e.dirty = false;
+    FILE_DIRTY = libFileDirty(S.gss);
     const nm = (REPORTS.find(r => r.k === S.report) || {}).t || S.report;
     saveHint(`Opened ${nm} ${fy(S.fy0)}`
       + (e.by ? `, saved by ${e.by}` : "") + (e.at ? ` ${whenLine(e.at)}` : "") + ".");
@@ -15212,6 +15367,17 @@ function setupSummary(){
   const slot = (id, label) =>
     `<div class="startslot" data-slot="${id}"${label ? ` aria-label="${esc(label)}"` : ""}></div>`;
 
+  /* UNSAVED, SAID WHERE THE NEXT THING HAPPENS. Home is where a reader
+     opens another file or starts another report — the two moments an
+     unsaved file is at risk of being forgotten — so the file's own state
+     is the first thing on it, with Save right there. */
+  function unsavedWarn(){
+    if(!(typeof FILE_DIRTY !== "undefined" && FILE_DIRTY && S.gss)) return "";
+    const who = (LB[S.gss] || {}).n || (libFor(S.gss)[0] || {}).n || S.otherName || "This file";
+    return `<div class="startwarn"><span><b>Unsaved changes.</b> ${esc(who)}'s reports have
+        changes not yet saved to a file.</span>
+      <button type="button" class="primary" data-savenow="1">Save now</button></div>`;
+  }
   let startView = "doors";
   function startOpen(view){
     startView = view || "doors";
@@ -15251,8 +15417,8 @@ function setupSummary(){
         ? `${(REPORTS.find(x=>x.k===rec.report)||{}).t || "report"} ${fy(rec.fy0)}`
           + (rec.n ? ` — ${rec.n}` : "")
         : "";
-      $(SV.body).innerHTML =
-        (rec ? `<button type="button" class="startdoor primary" data-door="recover">
+      $(SV.body).innerHTML = unsavedWarn()
+      + (rec ? `<button type="button" class="startdoor primary" data-door="recover">
              <span class="sd-ic">${svg(ICON.undo)}</span>
              <span><span class="sd-t">Pick up where you left off</span>
                <span class="sd-s">${esc(recName)}, last edited ${esc(fmtWhen(rec.at))}.
@@ -15362,7 +15528,7 @@ function setupSummary(){
         + `<button type="button" class="startdoor quiet" data-door="another">
              <span><span class="sd-t">${sug ? "or choose a different report" : "Start another report"}</span></span>
            </button>`;
-      $(SV.body).innerHTML = (rows.length
+      $(SV.body).innerHTML = unsavedWarn() + (rows.length
         ? rows.map(e => {
             const nm = (REPORTS.find(x=>x.k===e.report)||{}).t || e.report;
             const saved = (e.by ? `saved by ${byLine(e)}, ` : "saved ") + esc(whenLine(e.at));
@@ -15400,8 +15566,9 @@ function setupSummary(){
      the box for every visit. */
   $(SV.box).addEventListener("click", e => {
     const t = e.target.closest("[data-door],[data-open],[data-del],[data-delyes],"
-      + "[data-delno],#s-back,#s-next,#s-go,#s-close");
+      + "[data-delno],[data-savenow],#s-back,#s-next,#s-go,#s-close");
     if(!t) return;
+    if(t.getAttribute("data-savenow")){ startClose(); $("libfile").click(); return; }
     const d = t.getAttribute("data-door");
     if(d && /^demo:/.test(d)){
       $("council").value = d;
