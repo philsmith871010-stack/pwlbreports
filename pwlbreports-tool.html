@@ -836,21 +836,24 @@ table.dtab td.wrap{white-space:normal;line-height:1.5}
  * after the icon row read as a toolbar nobody could name the buttons of. */
 .ribbon{display:flex;align-items:center;gap:10px;padding:0 0 10px;
   border-bottom:1px solid var(--hair);margin-bottom:12px;flex-wrap:wrap}
-.ribbon-file{display:flex;align-items:center;gap:8px;min-width:0;flex:1 1 200px;flex-wrap:wrap}
-.ribbon-doc{font-family:var(--sans);font-size:13.5px;font-weight:600;color:var(--ink);
-  letter-spacing:-.005em;white-space:nowrap}
-.ribbon-doc b{color:var(--accent)}
+/* Two tiers: the authority, then the report and year with the filename and
+   the save state beside them. The state is a pill, orange when unsaved. */
+.ribbon-file{display:flex;flex-direction:column;align-items:flex-start;gap:3px;min-width:0;flex:1 1 200px}
+.ribbon-doc{font-family:var(--sans);font-size:16px;font-weight:700;color:var(--accent);
+  letter-spacing:-.01em;white-space:nowrap;line-height:1.15}
 .ribbon-doc[hidden]{display:none}
-.ribbon-filename{font-family:var(--mono);font-size:11.5px;color:var(--ink2);
+.ribbon-line2{display:flex;align-items:center;gap:9px;flex-wrap:wrap;min-width:0}
+.ribbon-rep{font-family:var(--sans);font-size:13px;font-weight:600;color:var(--ink);white-space:nowrap}
+.ribbon-rep:empty{display:none}
+.ribbon-filename{font-family:var(--mono);font-size:11.5px;color:var(--muted);
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;max-width:34ch}
 .ribbon-filename:empty{display:none}
-.ribbon-doc:not([hidden]) ~ .ribbon-filename:not(:empty)::before{content:"\00b7";
-  color:var(--muted);margin-right:8px;font-family:var(--sans)}
-.ribbon-filedot{width:7px;height:7px;border-radius:50%;flex:none;background:var(--good)}
-.ribbon-file:has(.ribbon-status.dirty) .ribbon-filedot{background:var(--orange)}
-.ribbon-file:has(.ribbon-status:empty) .ribbon-filedot{display:none}
-.ribbon-status{font-family:var(--sans);font-size:11.5px;color:var(--muted);white-space:nowrap}
-.ribbon-status.dirty{color:var(--orange);font-weight:600}
+.ribbon-rep:not(:empty) ~ .ribbon-filename:not(:empty)::before{content:"\00b7";
+  color:var(--faint);margin-right:9px;font-family:var(--sans)}
+.ribbon-status{font-family:var(--sans);font-size:11.5px;font-weight:600;color:var(--muted);white-space:nowrap;
+  padding:2px 9px;border-radius:999px;background:var(--sunken)}
+.ribbon-status:empty{display:none}
+.ribbon-status.dirty{color:#fff;background:var(--orange)}
 .ribbon-acts{display:flex;align-items:center;gap:6px;flex:none;flex-wrap:wrap;margin-left:auto}
 .ribbon-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;
   height:32px;padding:0 11px 0 9px;border-radius:var(--r-sm);border:1px solid var(--line2);
@@ -866,6 +869,20 @@ table.dtab td.wrap{white-space:normal;line-height:1.5}
   width:12px;height:12px;border-radius:99px;background:var(--orange)}
 .ribbon-btn#draftbtn.on{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
 .ribbon-btn[hidden]{display:none}
+/* THE BUTTONS THAT HAD NO STYLE OF THEIR OWN. The start screen's footer
+   (Back, Continue, Start the report, Back to my report), Set up's Change /
+   Choose a report, and the remove cross outside the loans table were the
+   browser's default grey. One rule for the footers and one for the cross. */
+.startfoot button,.setupsum .ss-go button{font-family:var(--sans);font-size:13px;font-weight:500;
+  padding:8px 14px;border-radius:7px;border:1px solid var(--line2);background:var(--card);
+  color:var(--ink2);cursor:pointer;line-height:1.3}
+.startfoot button:hover,.setupsum .ss-go button:hover{border-color:var(--accent);color:var(--accent)}
+.startfoot button.primary,.setupsum .ss-go button.primary{background:var(--accent);
+  border-color:var(--accent);color:var(--on-accent);font-weight:600}
+.startfoot button.primary:hover,.setupsum .ss-go button.primary:hover{filter:brightness(1.08);
+  color:var(--on-accent)}
+button.rm{border:0;background:transparent;color:var(--muted);cursor:pointer;font-size:15px;padding:2px 6px}
+button.rm:hover{color:var(--alert)}
 @media (max-width:640px){
   .ribbon-btn span{display:none}
   .ribbon-btn{padding:0 8px}
@@ -1817,9 +1834,11 @@ td.nask{background:repeating-linear-gradient(45deg,var(--hair),var(--hair) 4px,
     <div class="ribbon">
       <div class="ribbon-file">
         <span class="ribbon-doc" id="ribbondoc" hidden></span>
-        <span class="ribbon-filename" id="filename"></span>
-        <span class="ribbon-filedot" aria-hidden="true"></span>
-        <span class="ribbon-status" id="saved"></span>
+        <span class="ribbon-line2">
+          <span class="ribbon-rep" id="ribbonrep"></span>
+          <span class="ribbon-filename" id="filename"></span>
+          <span class="ribbon-status" id="saved"></span>
+        </span>
       </div>
       <div class="ribbon-acts">
         <button type="button" class="ribbon-btn" id="startbtn"
@@ -1829,12 +1848,12 @@ td.nask{background:repeating-linear-gradient(45deg,var(--hair),var(--hair) 4px,
             <path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V20h14V9.5"/><path d="M9.5 20v-6h5v6"/>
           </svg><span>Home</span>
         </button>
-        <button type="button" class="ribbon-btn" id="draftbtn" title="The draft, and back">
+        <button type="button" class="ribbon-btn" id="draftbtn" title="My report — the draft as it stands, and back">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path d="M6 3h8l5 5v13a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"/>
             <path d="M14 3v5h5"/><path d="M9 13h6"/><path d="M9 17h6"/><path d="M9 9h2"/>
-          </svg><span>Draft</span>
+          </svg><span>My report</span>
         </button>
         <button type="button" class="ribbon-btn" id="libfile" title="Save this file">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
@@ -1850,7 +1869,7 @@ td.nask{background:repeating-linear-gradient(45deg,var(--hair),var(--hair) 4px,
             <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
           </svg><span>Save as</span>
         </button>
-        <input type="file" id="libopen" data-libopen accept=".json,application/json" hidden>
+        <input type="file" id="libopen" data-libopen accept=".pwlb,.json,application/json" hidden>
       </div>
     </div>
     <div class="railtrack"><div class="railbar" id="railbar"></div></div>
@@ -2628,12 +2647,14 @@ function paintFileStatus(){
     // Both, not just the authority — picking the report is what actually
     // starts one now (see the #rtype handler in wire.js), so an authority
     // on its own is not yet a document to name.
-    if(!S.gss || !S.report){ doc.hidden = true; }
+    const rp = $("ribbonrep");
+    if(!S.gss || !S.report){ doc.hidden = true; if(rp) rp.textContent = ""; }
     else{
       const who = (LB[S.gss] || {}).n || S.otherName || "this authority";
       const rep = (REPORTS.find(r => r.k === S.report) || {}).t || "";
       doc.hidden = false;
-      doc.innerHTML = `<b>${esc(who)}</b> &middot; ${esc(rep)} ${esc(fy(S.fy0))}`;
+      doc.textContent = who;
+      if(rp) rp.textContent = `${rep} ${fy(S.fy0)}`;
     }
   }
   // Set up's own summary of the same facts, repainted with the ribbon so it
@@ -7588,7 +7609,7 @@ function monPanel(){
        If you saved the strategy this report monitors from this tool, the approved column is
        taken from it. Otherwise type what members agreed.</div>
        <label class="filebtn" for="libopen2">Open a file</label>
-       <input type="file" id="libopen2" data-libopen accept=".json,application/json" hidden></div>`;
+       <input type="file" id="libopen2" data-libopen accept=".pwlb,.json,application/json" hidden></div>`;
   const cell = (r, c) => {
     const raw = (S.mon[r.k] || {})[c];
     /* The placeholder is the derived figure where there is one, and the UNIT
@@ -10210,6 +10231,7 @@ function documentHTML(forExport){
   // vanish — a chart that silently loses its data is the worst thing we could
   // hand a committee. Resolve each token to a literal before export.
   const resolved = inlineColours(head + body + caveat());
+  if(forExport === "body") return resolved;
   return `<!doctype html><html><head><meta charset="utf-8">
     <title>${esc(name)} — ${esc(rep.t)}</title>
     <!-- Word reads these two and opens the file as a document rather than a
@@ -10281,6 +10303,10 @@ function documentHTML(forExport){
    exported document stands alone. Reads the live computed style, which also
    means an export made in dark mode carries dark-mode colours — so we force
    the light palette by reading from a detached element on the default root. */
+/* The document's content alone — head, sections and caveat, colours
+   resolved — for the .docx writer (docx.js), which renders it into a hidden
+   host in the page and reads it back with the page's own styles applied. */
+function documentBodyHTML(){ return documentHTML("body"); }
 function inlineColours(html){
   const cs = getComputedStyle(document.documentElement);
   return html.replace(/var\((--[a-z0-9-]+)\)/gi, (m, tok) => {
@@ -10626,6 +10652,576 @@ function caveat(){
     ${esc(NAT().n)}.${S.hra==="two" ? ` Under the two-pool approach LB2 to LB4 are shown separately
     for each fund, with General Fund lending to or borrowing from the HRA as a further series,
     as the Code recommends.` : ""}</div>`;
+}
+
+/* ===========================================================================
+ * A REAL WORD FILE.
+ *
+ * "Download for Word" used to hand Word an HTML file with a .doc name —
+ * Word's own "Web Page" format. Word reads it, but as a web page: its own
+ * styles ignored, the tables flat, and the charts — inline SVG, which Word's
+ * HTML importer does not draw — gone. Phil's ask was an exact replication of
+ * what is on screen, so this writes a .docx: a zip of WordprocessingML, built
+ * here from the draft as the page has rendered it, with no library and no
+ * request (the tool fetches its rate file and nothing else, and that promise
+ * is not for sale for a zip routine).
+ *
+ * HOW IT READS THE DRAFT. documentBodyHTML() (doc.js) is rendered into a
+ * hidden .doc host inside the page, so every computed style — the fonts,
+ * the alignment of a figure, the weight of a total row, the colour of a
+ * breach — is the one a reader sees on screen. The walker below turns that
+ * DOM into paragraphs, tables and pictures. Every SVG chart is drawn to a
+ * canvas at print resolution and embedded as a PNG; the bar charts built
+ * from divs are redrawn as SVG first and go the same way.
+ *
+ * WHAT WORD GETS. A4 landscape (the reasoning is the same as the old export's:
+ * fourteen of the tables carry more than nine year columns), real heading
+ * styles so the navigation pane and a table of contents work, tables with a
+ * repeated header row, real bulleted and numbered lists, a footer with the
+ * authority, the report and the page number, and prose kept to a reading
+ * measure while tables and charts take the whole width.
+ * ======================================================================== */
+const DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+const DOCX_PAGE = {w: 16838, h: 11906, margin: 1134};           // A4 landscape, 2cm, in twips
+const DOCX_TEXT_W = DOCX_PAGE.w - 2 * DOCX_PAGE.margin;         // 14570 twips
+const DOCX_PROSE_RIGHT = 4800;                                   // prose stops ~8.5cm short
+const DOCX_FONTS = {serif: "Georgia", sans: "Calibri", mono: "Consolas"};
+
+/* ---- a store-only zip ------------------------------------------------- */
+const _crcTable = (() => {
+  const t = new Uint32Array(256);
+  for(let n = 0; n < 256; n++){
+    let c = n;
+    for(let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+    t[n] = c >>> 0;
+  }
+  return t;
+})();
+function crc32(bytes){
+  let c = 0xFFFFFFFF;
+  for(let i = 0; i < bytes.length; i++) c = _crcTable[(c ^ bytes[i]) & 0xFF] ^ (c >>> 8);
+  return (c ^ 0xFFFFFFFF) >>> 0;
+}
+function zipStore(files){
+  const enc = new TextEncoder();
+  const parts = [], central = [];
+  let offset = 0;
+  const dosDate = ((2026 - 1980) << 9) | (9 << 5) | 21, dosTime = 0;
+  files.forEach(f => {
+    const name = enc.encode(f.name);
+    const data = f.data instanceof Uint8Array ? f.data : enc.encode(f.data);
+    const crc = crc32(data), n = data.length;
+    const lh = new DataView(new ArrayBuffer(30));
+    lh.setUint32(0, 0x04034b50, true); lh.setUint16(4, 20, true); lh.setUint16(6, 0x0800, true);
+    lh.setUint16(8, 0, true); lh.setUint16(10, dosTime, true); lh.setUint16(12, dosDate, true);
+    lh.setUint32(14, crc, true); lh.setUint32(18, n, true); lh.setUint32(22, n, true);
+    lh.setUint16(26, name.length, true); lh.setUint16(28, 0, true);
+    parts.push(new Uint8Array(lh.buffer), name, data);
+    const ch = new DataView(new ArrayBuffer(46));
+    ch.setUint32(0, 0x02014b50, true); ch.setUint16(4, 20, true); ch.setUint16(6, 20, true);
+    ch.setUint16(8, 0x0800, true); ch.setUint16(10, 0, true); ch.setUint16(12, dosTime, true);
+    ch.setUint16(14, dosDate, true); ch.setUint32(16, crc, true); ch.setUint32(20, n, true);
+    ch.setUint32(24, n, true); ch.setUint16(28, name.length, true); ch.setUint16(30, 0, true);
+    ch.setUint16(32, 0, true); ch.setUint16(34, 0, true); ch.setUint16(36, 0, true);
+    ch.setUint32(38, 0, true); ch.setUint32(42, offset, true);
+    central.push(new Uint8Array(ch.buffer), name);
+    offset += 30 + name.length + n;
+  });
+  const cdStart = offset;
+  let cdLen = 0; central.forEach(c => { cdLen += c.length; });
+  const eocd = new DataView(new ArrayBuffer(22));
+  eocd.setUint32(0, 0x06054b50, true); eocd.setUint16(4, 0, true); eocd.setUint16(6, 0, true);
+  eocd.setUint16(8, files.length, true); eocd.setUint16(10, files.length, true);
+  eocd.setUint32(12, cdLen, true); eocd.setUint32(16, cdStart, true); eocd.setUint16(20, 0, true);
+  return new Blob(parts.concat(central, [new Uint8Array(eocd.buffer)]), {type: DOCX_MIME});
+}
+
+/* ---- WordprocessingML helpers ----------------------------------------- */
+const xe = s => String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;")
+  .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+const hexOf = rgb => {
+  const m = /rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)(?:\s*,\s*([\d.]+))?/.exec(rgb || "");
+  if(!m) return null;
+  if(m[4] !== undefined && +m[4] === 0) return null;
+  return [m[1], m[2], m[3]].map(v => (+v).toString(16).padStart(2, "0")).join("").toUpperCase();
+};
+const fontOf = fam => /mono/i.test(fam || "") ? DOCX_FONTS.mono
+  : /serif/i.test(fam || "") && !/sans/i.test(fam || "") ? DOCX_FONTS.serif : DOCX_FONTS.sans;
+const halfPt = px => Math.max(12, Math.round((parseFloat(px) || 15) * 0.75 * 2));
+const twipsOf = px => Math.round((parseFloat(px) || 0) * 15);
+
+function rPr(o){
+  return `<w:rPr><w:rFonts w:ascii="${o.font}" w:hAnsi="${o.font}" w:cs="${o.font}"/>`
+    + (o.b ? "<w:b/><w:bCs/>" : "") + (o.i ? "<w:i/><w:iCs/>" : "")
+    + (o.caps ? "<w:caps/>" : "")
+    + (o.color ? `<w:color w:val="${o.color}"/>` : "")
+    + (o.sz ? `<w:sz w:val="${o.sz}"/><w:szCs w:val="${o.sz}"/>` : "")
+    + (o.sup ? '<w:vertAlign w:val="superscript"/>' : "") + "</w:rPr>";
+}
+function run(text, o){
+  if(!text) return "";
+  return `<w:r>${rPr(o)}<w:t xml:space="preserve">${xe(text)}</w:t></w:r>`;
+}
+function para(runs, p){
+  p = p || {};
+  const ppr = "<w:pPr>" + (p.style ? `<w:pStyle w:val="${p.style}"/>` : "")
+    + (p.keepNext ? "<w:keepNext/>" : "")
+    + (p.num ? `<w:numPr><w:ilvl w:val="0"/><w:numId w:val="${p.num}"/></w:numPr>` : "")
+    + (p.border ? `<w:pBdr><w:top w:val="single" w:sz="4" w:space="6" w:color="${p.border}"/>`
+        + `<w:left w:val="single" w:sz="4" w:space="8" w:color="${p.border}"/>`
+        + `<w:bottom w:val="single" w:sz="4" w:space="6" w:color="${p.border}"/>`
+        + `<w:right w:val="single" w:sz="4" w:space="8" w:color="${p.border}"/></w:pBdr>` : "")
+    + (p.shade ? `<w:shd w:val="clear" w:color="auto" w:fill="${p.shade}"/>` : "")
+    + (p.spacing ? `<w:spacing w:before="${p.spacing[0]}" w:after="${p.spacing[1]}"${p.spacing[2] ? ` w:line="${p.spacing[2]}" w:lineRule="auto"` : ""}/>` : "")
+    + (p.ind ? `<w:ind${p.ind.left != null ? ` w:left="${p.ind.left}"` : ""}${p.ind.right != null ? ` w:right="${p.ind.right}"` : ""}${p.ind.hanging != null ? ` w:hanging="${p.ind.hanging}"` : ""}/>` : "")
+    + (p.jc ? `<w:jc w:val="${p.jc}"/>` : "") + "</w:pPr>";
+  return `<w:p>${ppr}${runs}</w:p>`;
+}
+
+/* ---- pictures --------------------------------------------------------- */
+const SVG_PROPS = ["fill", "stroke", "stroke-width", "stroke-dasharray", "stroke-linecap",
+  "stroke-linejoin", "opacity", "fill-opacity", "stroke-opacity", "font-family", "font-size",
+  "font-weight", "font-style", "text-anchor", "dominant-baseline", "letter-spacing", "visibility"];
+/* An SVG as a PNG at print resolution. `attached` SVGs are in the page, so
+   their computed styles (class-set fills, fonts) are copied inline first —
+   the rasteriser sees only the markup, never the page's stylesheet. */
+async function svgToPng(svg, attached){
+  const clone = svg.cloneNode(true);
+  if(attached){
+    const src = svg.querySelectorAll("*"), dst = clone.querySelectorAll("*");
+    src.forEach((el, i) => {
+      const cs = getComputedStyle(el);
+      dst[i].setAttribute("style", SVG_PROPS.map(p => `${p}:${cs.getPropertyValue(p)}`).join(";"));
+    });
+    const cs = getComputedStyle(svg);
+    clone.setAttribute("style", `font-family:${cs.fontFamily};font-size:${cs.fontSize}`);
+  }
+  clone.querySelectorAll("foreignObject,script").forEach(n => n.remove());
+  /* THE PAGE'S CHARTS ARE HTML, AND HTML ALLOWS WHAT XML DOES NOT. A text
+     element flagged <text mono> (a bare attribute the stylesheet keys on)
+     serialises as a valueless attribute, which the XML parser inside the
+     image loader refuses — every chart failed to load, silently. The flags
+     are only hooks for the stylesheet, whose effect is already inlined
+     above, and the data-* tooltip payloads are dead weight; both go. */
+  [clone].concat([...clone.querySelectorAll("*")]).forEach(el => {
+    [...el.attributes].forEach(a => {
+      if(a.value === "" || /^data-/.test(a.name) || a.name === "role") el.removeAttribute(a.name);
+    });
+  });
+  const vb = (svg.getAttribute("viewBox") || "").split(/[\s,]+/).map(Number);
+  const w = vb[2] || svg.clientWidth || parseFloat(svg.getAttribute("width")) || 800;
+  const h = vb[3] || svg.clientHeight || parseFloat(svg.getAttribute("height")) || 400;
+  clone.setAttribute("width", String(w)); clone.setAttribute("height", String(h));
+  if(!clone.getAttribute("viewBox")) clone.setAttribute("viewBox", `0 0 ${w} ${h}`);
+  const scale = Math.max(2, Math.min(4, 2200 / w));
+  /* The serialiser writes the SVG namespace itself for an element parsed
+     from the page; setting an xmlns attribute as well produced it twice,
+     which is not XML, and every chart failed to load as an image. Only
+     added where it is genuinely missing. */
+  let xml = new XMLSerializer().serializeToString(clone);
+  if(!/^<svg[^>]*\sxmlns=/.test(xml)) xml = xml.replace(/^<svg/, '<svg xmlns="http://www.w3.org/2000/svg"');
+  const img = await new Promise((ok, no) => {
+    const im = new Image();
+    im.onload = () => ok(im); im.onerror = () => no(new Error("svg"));
+    im.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(xml);
+  });
+  const cv = document.createElement("canvas");
+  cv.width = Math.round(w * scale); cv.height = Math.round(h * scale);
+  const g = cv.getContext("2d");
+  g.fillStyle = "#ffffff"; g.fillRect(0, 0, cv.width, cv.height);
+  g.drawImage(img, 0, 0, cv.width, cv.height);
+  const blob = await new Promise(ok => cv.toBlob(ok, "image/png"));
+  return {bytes: new Uint8Array(await blob.arrayBuffer()), w, h, type: "png"};
+}
+/* A data-URI image (the logo) as bytes; an SVG one is rasterised. */
+async function dataUriToImage(uri){
+  const m = /^data:image\/(png|jpeg|jpg|svg\+xml)(;base64)?,(.*)$/s.exec(uri || "");
+  if(!m) return null;
+  if(m[1] === "svg+xml"){
+    const txt = m[2] ? atob(m[3]) : decodeURIComponent(m[3]);
+    const el = new DOMParser().parseFromString(txt, "image/svg+xml").documentElement;
+    const out = await svgToPng(el, false);
+    return out;
+  }
+  const bin = m[2] ? atob(m[3]) : decodeURIComponent(m[3]);
+  const bytes = new Uint8Array(bin.length);
+  for(let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  const dims = await new Promise(ok => {
+    const im = new Image(); im.onload = () => ok({w: im.naturalWidth, h: im.naturalHeight});
+    im.onerror = () => ok({w: 260, h: 60}); im.src = uri;
+  });
+  return {bytes, w: dims.w, h: dims.h, type: m[1] === "png" ? "png" : "jpeg"};
+}
+/* The bar charts are divs on a grid; redrawn as SVG so they become pictures
+   the same way the real charts do. */
+function barwrapToSvg(el){
+  const rows = [...el.querySelectorAll(".barrow")];
+  const W = 980, RH = 28, LAB = 250, RATE = rows.some(r => r.querySelector(".br")) ? 70 : 0;
+  const barX = LAB + RATE + 10, barW = W - barX - 110;
+  const H = rows.length * RH + 6;
+  const t = (x, y, s, o) => `<text x="${x}" y="${y}" font-family="${o.mono ? "Consolas, Menlo, monospace" : "Calibri, Arial, sans-serif"}" font-size="${o.sz || 13}" fill="${o.fill || "#3a4a5a"}"${o.anchor ? ` text-anchor="${o.anchor}"` : ""}${o.italic ? ' font-style="italic"' : ""}>${xe(s)}</text>`;
+  let body = "";
+  rows.forEach((r, i) => {
+    const y = i * RH + 4;
+    const bn = (r.querySelector(".bn") || {}).textContent || "";
+    const br = (r.querySelector(".br") || {}).textContent || "";
+    const bv = (r.querySelector(".bv") || {}).textContent || "";
+    body += t(0, y + 18, bn.trim(), {italic: r.classList.contains("none")});
+    if(RATE) body += t(LAB + RATE, y + 18, br.trim(), {mono: true, sz: 12, anchor: "end"});
+    body += `<rect x="${barX}" y="${y + 6}" width="${barW}" height="16" rx="2" fill="#e6eaee"/>`;
+    let x = barX;
+    [...r.querySelectorAll(".bt i")].forEach(seg => {
+      const pct = parseFloat(seg.style.width) || 0;
+      const w = Math.max(0, barW * pct / 100);
+      const fill = hexOf(getComputedStyle(seg).backgroundColor) || "4899C9";
+      body += `<rect x="${x.toFixed(1)}" y="${y + 6}" width="${w.toFixed(1)}" height="16" fill="#${fill}"/>`;
+      if(r.querySelector(".bt.lad")) x += w;
+    });
+    body += t(W, y + 18, bv.trim(), {mono: true, sz: 12.5, fill: "#0f1a24", anchor: "end"});
+  });
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}">${body}</svg>`;
+  return new DOMParser().parseFromString(svg, "image/svg+xml").documentElement;
+}
+
+/* ---- the document ----------------------------------------------------- */
+class DocxBuilder {
+  constructor(){
+    this.body = [];      // block XML
+    this.media = [];     // {name, bytes}
+    this.rels = [];      // extra relationships (images)
+    this.nums = [];      // numbering instances: abstract id per num
+    this.imgN = 0;
+  }
+  addNum(abstract){ this.nums.push(abstract); return this.nums.length; }
+  addImage(img, widthTwips){
+    const id = ++this.imgN, ext = img.type === "jpeg" ? "jpeg" : "png";
+    const name = `image${id}.${ext}`;
+    this.media.push({name, bytes: img.bytes});
+    const rId = `rIdImg${id}`;
+    this.rels.push(`<Relationship Id="${rId}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/${name}"/>`);
+    const cx = Math.round(widthTwips * 635), cy = Math.round(cx * img.h / img.w);
+    return `<w:r><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0">
+      <wp:extent cx="${cx}" cy="${cy}"/><wp:docPr id="${id}" name="Picture ${id}"/>
+      <a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">
+        <a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture">
+          <pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture">
+            <pic:nvPicPr><pic:cNvPr id="${id}" name="${name}"/><pic:cNvPicPr/></pic:nvPicPr>
+            <pic:blipFill><a:blip r:embed="${rId}"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill>
+            <pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm>
+              <a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr>
+          </pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r>`;
+  }
+}
+
+/* Inline content of an element as runs, with the formatting the page gives
+   each piece — weight, style and colour read from computed style, so a bold
+   total, a red breach and a grey note come out as they look. */
+function runsOf(el, base){
+  let out = "";
+  const walk = (node, o) => {
+    if(node.nodeType === 3){ out += run(node.nodeValue.replace(/\s+/g, " "), o); return; }
+    if(node.nodeType !== 1) return;
+    const tag = node.tagName.toLowerCase();
+    if(tag === "br"){ out += "<w:r><w:br/></w:r>"; return; }
+    if(node.classList.contains("secn") || node.classList.contains("no-print")) return;
+    if(tag === "svg"){
+      // a line-style legend swatch: a rule in the line's own colour
+      if(node.classList.contains("lsw")){
+        const ln = node.querySelector("line,path,rect");
+        const col = ln ? (hexOf(getComputedStyle(ln).stroke) || hexOf(getComputedStyle(ln).fill)) : null;
+        if(col) out += run("\u2501\u2501 ", Object.assign({}, o, {color: col, font: DOCX_FONTS.sans}));
+      }
+      return;
+    }
+    if(tag === "button" || tag === "input" || tag === "select") return;
+    if(tag === "i" && !node.textContent.trim()){
+      // a legend swatch: a coloured square
+      const col = hexOf(getComputedStyle(node).backgroundColor);
+      if(col) out += run("■ ", Object.assign({}, o, {color: col, font: DOCX_FONTS.sans}));
+      return;
+    }
+    const cs = getComputedStyle(node);
+    const o2 = Object.assign({}, o, {
+      b: o.b || tag === "b" || tag === "strong" || parseInt(cs.fontWeight, 10) >= 600,
+      i: o.i || tag === "i" || tag === "em" || cs.fontStyle === "italic",
+      sup: o.sup || tag === "sup",
+      color: hexOf(cs.color) || o.color,
+      font: fontOf(cs.fontFamily),
+      sz: halfPt(cs.fontSize)
+    });
+    if(tag === "a" && node.classList.contains("lbtag")) { out += run(node.textContent + " ", o2); return; }
+    [...node.childNodes].forEach(n => walk(n, o2));
+  };
+  [...el.childNodes].forEach(n => walk(n, base));
+  return out;
+}
+function baseOf(el){
+  const cs = getComputedStyle(el);
+  return {font: fontOf(cs.fontFamily), sz: halfPt(cs.fontSize), color: hexOf(cs.color),
+          b: parseInt(cs.fontWeight, 10) >= 600, i: cs.fontStyle === "italic"};
+}
+
+async function docxTable(tbl, D){
+  const rows = [...tbl.querySelectorAll("tr")].filter(tr => tr.closest("table") === tbl);
+  if(!rows.length) return "";
+  const rect = tbl.getBoundingClientRect();
+  const natural = twipsOf(rect.width);
+  const scale = natural > DOCX_TEXT_W ? DOCX_TEXT_W / natural : 1;
+  const totalW = Math.round(natural * scale);
+  // column grid from the widest row
+  let grid = [];
+  rows.forEach(tr => {
+    const cells = [...tr.children];
+    if(cells.length >= grid.length){
+      grid = [];
+      cells.forEach(td => { const w = Math.round(twipsOf(td.getBoundingClientRect().width) * scale);
+        const span = +td.getAttribute("colspan") || 1;
+        for(let i = 0; i < span; i++) grid.push(Math.round(w / span)); });
+    }
+  });
+  const mono = /mono/i.test(getComputedStyle(tbl).fontFamily);
+  const trs = rows.map(tr => {
+    const inHead = !!tr.closest("thead") || [...tr.children].every(c => c.tagName === "TH");
+    const trBg = hexOf(getComputedStyle(tr).backgroundColor);
+    const tcs = [...tr.children].map(td => {
+      const cs = getComputedStyle(td);
+      const span = +td.getAttribute("colspan") || 1;
+      const w = Math.round(twipsOf(td.getBoundingClientRect().width) * scale);
+      const jc = cs.textAlign === "right" || cs.textAlign === "end" ? "right" : cs.textAlign === "center" ? "center" : null;
+      const bg = hexOf(cs.backgroundColor) || trBg || (inHead ? "EDF1F5" : null);
+      const base = Object.assign(baseOf(td), {b: inHead || parseInt(cs.fontWeight, 10) >= 600,
+        font: mono && !/sans|serif/i.test(cs.fontFamily) ? DOCX_FONTS.mono : fontOf(cs.fontFamily)});
+      const txt = runsOf(td, base);
+      return `<w:tc><w:tcPr><w:tcW w:w="${w}" w:type="dxa"/>${span > 1 ? `<w:gridSpan w:val="${span}"/>` : ""}`
+        + (bg ? `<w:shd w:val="clear" w:color="auto" w:fill="${bg}"/>` : "")
+        + `<w:tcMar><w:top w:w="50" w:type="dxa"/><w:left w:w="80" w:type="dxa"/><w:bottom w:w="50" w:type="dxa"/><w:right w:w="80" w:type="dxa"/></w:tcMar>`
+        + `<w:vAlign w:val="bottom"/></w:tcPr>`
+        + para(txt || run(" ", base), {spacing: [0, 0], jc}) + "</w:tc>";
+    }).join("");
+    return `<w:tr>${inHead ? "<w:trPr><w:tblHeader/><w:cantSplit/></w:trPr>" : "<w:trPr><w:cantSplit/></w:trPr>"}${tcs}</w:tr>`;
+  }).join("");
+  return `<w:tbl><w:tblPr><w:tblW w:w="${totalW}" w:type="dxa"/>
+    <w:tblBorders><w:top w:val="single" w:sz="4" w:space="0" w:color="D3DAE0"/>
+      <w:left w:val="nil"/><w:bottom w:val="single" w:sz="4" w:space="0" w:color="D3DAE0"/>
+      <w:right w:val="nil"/><w:insideH w:val="single" w:sz="4" w:space="0" w:color="E6EAEE"/>
+      <w:insideV w:val="nil"/></w:tblBorders>
+    <w:tblLayout w:type="fixed"/>
+    <w:tblCellMar><w:left w:w="80" w:type="dxa"/><w:right w:w="80" w:type="dxa"/></w:tblCellMar></w:tblPr>
+    <w:tblGrid>${grid.map(w => `<w:gridCol w:w="${w}"/>`).join("")}</w:tblGrid>${trs}</w:tbl>`
+    + para("", {spacing: [0, 120]});
+}
+
+async function docxBlocks(el, D, ctx){
+  ctx = ctx || {prose: true};
+  for(const node of [...el.childNodes]){
+    if(node.nodeType === 3){
+      if(node.nodeValue.trim()) D.body.push(para(run(node.nodeValue.trim(), baseOf(el)), {ind: {right: DOCX_PROSE_RIGHT}}));
+      continue;
+    }
+    if(node.nodeType !== 1) continue;
+    const tag = node.tagName.toLowerCase(), cl = node.classList;
+    if(cl.contains("no-print") || cl.contains("docnav") || cl.contains("dh") || cl.contains("warn")) continue;
+    /* SCREEN CONTROLS ARE NOT CONTENT. The term pickers under the rate
+       charts, the fund tabs and their hints are for choosing what to plot;
+       the picture already shows the choice. */
+    if(/^(button|input|select|label|nav)$/.test(tag) || cl.contains("pick") || cl.contains("pickhint")
+       || node.getAttribute("role") === "group" || node.getAttribute("aria-hidden") === "true") continue;
+    if(tag === "img"){
+      const img = await dataUriToImage(node.getAttribute("src"));
+      if(img){ const w = Math.min(3400, Math.round(img.w * 15)); D.body.push(para(D.addImage(img, w), {spacing: [0, 160]})); }
+      continue;
+    }
+    if(tag === "h2"){ D.body.push(para(runsOf(node, baseOf(node)), {style: "Title"})); continue; }
+    if(tag === "p" && cl.contains("lede")){ D.body.push(para(runsOf(node, baseOf(node)), {style: "Subtitle"})); continue; }
+    if(tag === "h3"){
+      const n = (node.querySelector(".secn") || {}).textContent || "";
+      const base = Object.assign(baseOf(node), {b: true});
+      D.body.push(para(run(n ? n + "  " : "", Object.assign({}, base, {font: DOCX_FONTS.mono, color: "68757F"})) + runsOf(node, base), {style: "Heading1", keepNext: true}));
+      continue;
+    }
+    if(tag === "h4"){ D.body.push(para(runsOf(node, Object.assign(baseOf(node), {b: true})), {style: "Heading2", keepNext: true})); continue; }
+    if(tag === "p"){
+      const base = baseOf(node);
+      const p = {ind: ctx.prose ? {right: DOCX_PROSE_RIGHT} : null};
+      if(cl.contains("gap")) Object.assign(base, {i: true, color: "B3352A", font: DOCX_FONTS.sans});
+      if(cl.contains("dnote") || cl.contains("note")) Object.assign(base, {color: "68757F"});
+      D.body.push(para(runsOf(node, base), p));
+      continue;
+    }
+    if(tag === "ul" || tag === "ol"){
+      const num = D.addNum(tag === "ul" ? 0 : 1);
+      [...node.children].forEach(li => {
+        if(li.tagName !== "LI") return;
+        D.body.push(para(runsOf(li, baseOf(li)), {num, ind: {left: 720, hanging: 360, right: ctx.prose ? DOCX_PROSE_RIGHT : null}, spacing: [0, 80]}));
+      });
+      continue;
+    }
+    if(tag === "table"){ D.body.push(await docxTable(node, D)); continue; }
+    if(tag === "svg"){
+      try{ const img = await svgToPng(node, true); D.body.push(para(D.addImage(img, DOCX_TEXT_W), {spacing: [120, 120]})); }
+      catch(e){ D.body.push(para(run("[chart could not be drawn]", {font: DOCX_FONTS.sans, i: true, color: "68757F", sz: 18}))); }
+      continue;
+    }
+    if(cl.contains("barwrap")){
+      try{ const img = await svgToPng(barwrapToSvg(node), false); D.body.push(para(D.addImage(img, DOCX_TEXT_W), {spacing: [80, 120]})); }
+      catch(e){}
+      continue;
+    }
+    if(cl.contains("legend")){
+      const base = Object.assign(baseOf(node), {font: DOCX_FONTS.sans, sz: 19});
+      const items = [...node.children].map(sp => runsOf(sp, base));
+      D.body.push(para(items.join(run("\u00a0\u00a0\u00a0\u00a0", base)), {spacing: [0, 200]}));
+      continue;
+    }
+    if(cl.contains("headline")){
+      const tiles = [...node.children];
+      const w = Math.round(DOCX_TEXT_W / Math.max(1, tiles.length));
+      const tcs = tiles.map(t => {
+        const lab = (t.querySelector("span") || {}).textContent || "", val = (t.querySelector("b") || {}).textContent || "",
+              sm = (t.querySelector("small") || {}).textContent || "";
+        return `<w:tc><w:tcPr><w:tcW w:w="${w}" w:type="dxa"/>`
+          + `<w:tcBorders><w:left w:val="single" w:sz="12" w:space="0" w:color="0A2540"/></w:tcBorders>`
+          + `<w:shd w:val="clear" w:color="auto" w:fill="EDF1F5"/>`
+          + `<w:tcMar><w:top w:w="120" w:type="dxa"/><w:left w:w="160" w:type="dxa"/><w:bottom w:w="120" w:type="dxa"/><w:right w:w="120" w:type="dxa"/></w:tcMar></w:tcPr>`
+          + para(run(lab.trim(), {font: DOCX_FONTS.sans, sz: 15, color: "68757F", b: true, caps: true}), {spacing: [0, 40]})
+          + para(run(val.trim(), {font: DOCX_FONTS.mono, sz: 36, color: "0F1A24"}), {spacing: [0, 40]})
+          + para(run(sm.trim(), {font: DOCX_FONTS.sans, sz: 16, color: "68757F"}), {spacing: [0, 0]}) + "</w:tc>";
+      }).join("");
+      D.body.push(`<w:tbl><w:tblPr><w:tblW w:w="${DOCX_TEXT_W}" w:type="dxa"/>
+        <w:tblBorders><w:top w:val="nil"/><w:left w:val="nil"/><w:bottom w:val="nil"/><w:right w:val="nil"/><w:insideH w:val="nil"/><w:insideV w:val="single" w:sz="24" w:space="0" w:color="FFFFFF"/></w:tblBorders>
+        <w:tblLayout w:type="fixed"/>
+        <w:tblCellMar><w:left w:w="120" w:type="dxa"/><w:right w:w="120" w:type="dxa"/></w:tblCellMar></w:tblPr>
+        <w:tblGrid>${tiles.map(() => `<w:gridCol w:w="${w}"/>`).join("")}</w:tblGrid><w:tr>${tcs}</w:tr></w:tbl>` + para("", {spacing: [0, 120]}));
+      continue;
+    }
+    if(cl.contains("caveat")){
+      const base = Object.assign(baseOf(node), {font: DOCX_FONTS.sans});
+      D.body.push(para(runsOf(node, base), {border: "D3DAE0", shade: "F4F6F8", spacing: [200, 200], ind: {right: DOCX_PROSE_RIGHT}}));
+      continue;
+    }
+    if(tag === "hr"){ D.body.push(para("", {spacing: [120, 120]})); continue; }
+    // everything else is a container: sections, indicator blocks, chart wraps
+    await docxBlocks(node, D, {prose: ctx.prose && !cl.contains("chartwrap")});
+  }
+}
+
+function docxStyles(){
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:docDefaults><w:rPrDefault><w:rPr><w:rFonts w:ascii="${DOCX_FONTS.serif}" w:hAnsi="${DOCX_FONTS.serif}" w:cs="${DOCX_FONTS.serif}" w:eastAsia="${DOCX_FONTS.serif}"/>
+    <w:color w:val="0F1A24"/><w:sz w:val="22"/><w:szCs w:val="22"/><w:lang w:val="en-GB"/></w:rPr></w:rPrDefault>
+    <w:pPrDefault><w:pPr><w:spacing w:after="160" w:line="300" w:lineRule="auto"/></w:pPr></w:pPrDefault></w:docDefaults>
+  <w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/><w:qFormat/></w:style>
+  <w:style w:type="paragraph" w:styleId="Title"><w:name w:val="Title"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/><w:qFormat/>
+    <w:pPr><w:spacing w:before="120" w:after="60" w:line="240" w:lineRule="auto"/><w:contextualSpacing/></w:pPr>
+    <w:rPr><w:rFonts w:ascii="${DOCX_FONTS.serif}" w:hAnsi="${DOCX_FONTS.serif}"/><w:b/><w:spacing w:val="-8"/><w:sz w:val="52"/><w:szCs w:val="52"/></w:rPr></w:style>
+  <w:style w:type="paragraph" w:styleId="Subtitle"><w:name w:val="Subtitle"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/><w:qFormat/>
+    <w:pPr><w:spacing w:after="360"/></w:pPr><w:rPr><w:i/><w:color w:val="3A4A5A"/><w:sz w:val="27"/><w:szCs w:val="27"/></w:rPr></w:style>
+  <w:style w:type="paragraph" w:styleId="Heading1"><w:name w:val="heading 1"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/><w:qFormat/>
+    <w:pPr><w:keepNext/><w:keepLines/><w:pBdr><w:top w:val="single" w:sz="6" w:space="10" w:color="0A2540"/></w:pBdr>
+      <w:spacing w:before="520" w:after="180" w:line="240" w:lineRule="auto"/><w:outlineLvl w:val="0"/></w:pPr>
+    <w:rPr><w:rFonts w:ascii="${DOCX_FONTS.sans}" w:hAnsi="${DOCX_FONTS.sans}"/><w:b/><w:color w:val="0A2540"/><w:sz w:val="28"/><w:szCs w:val="28"/></w:rPr></w:style>
+  <w:style w:type="paragraph" w:styleId="Heading2"><w:name w:val="heading 2"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/><w:qFormat/>
+    <w:pPr><w:keepNext/><w:keepLines/><w:spacing w:before="320" w:after="100" w:line="240" w:lineRule="auto"/><w:outlineLvl w:val="1"/></w:pPr>
+    <w:rPr><w:rFonts w:ascii="${DOCX_FONTS.sans}" w:hAnsi="${DOCX_FONTS.sans}"/><w:b/><w:color w:val="0F1A24"/><w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr></w:style>
+  <w:style w:type="paragraph" w:styleId="Footer"><w:name w:val="footer"/><w:basedOn w:val="Normal"/>
+    <w:pPr><w:spacing w:after="0"/></w:pPr><w:rPr><w:rFonts w:ascii="${DOCX_FONTS.sans}" w:hAnsi="${DOCX_FONTS.sans}"/><w:color w:val="68757F"/><w:sz w:val="16"/></w:rPr></w:style>
+</w:styles>`;
+}
+function docxNumbering(nums){
+  const abs = [
+    `<w:abstractNum w:abstractNumId="0"><w:multiLevelType w:val="singleLevel"/><w:lvl w:ilvl="0"><w:start w:val="1"/><w:numFmt w:val="bullet"/><w:lvlText w:val="•"/><w:lvlJc w:val="left"/><w:pPr><w:ind w:left="720" w:hanging="360"/></w:pPr><w:rPr><w:rFonts w:ascii="${DOCX_FONTS.sans}" w:hAnsi="${DOCX_FONTS.sans}"/></w:rPr></w:lvl></w:abstractNum>`,
+    `<w:abstractNum w:abstractNumId="1"><w:multiLevelType w:val="singleLevel"/><w:lvl w:ilvl="0"><w:start w:val="1"/><w:numFmt w:val="decimal"/><w:lvlText w:val="%1."/><w:lvlJc w:val="left"/><w:pPr><w:ind w:left="720" w:hanging="360"/></w:pPr></w:lvl></w:abstractNum>`
+  ].join("");
+  const inst = nums.map((a, i) => `<w:num w:numId="${i + 1}"><w:abstractNumId w:val="${a}"/><w:lvlOverride w:ilvl="0"><w:startOverride w:val="1"/></w:lvlOverride></w:num>`).join("");
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:numbering xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">${abs}${inst}</w:numbering>`;
+}
+function docxFooter(text){
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:ftr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:p><w:pPr><w:pStyle w:val="Footer"/><w:tabs><w:tab w:val="right" w:pos="${DOCX_TEXT_W}"/></w:tabs></w:pPr>
+    <w:r><w:t xml:space="preserve">${xe(text)}</w:t></w:r><w:r><w:tab/></w:r>
+    <w:r><w:t xml:space="preserve">Page </w:t></w:r><w:r><w:fldChar w:fldCharType="begin"/></w:r>
+    <w:r><w:instrText xml:space="preserve"> PAGE </w:instrText></w:r><w:r><w:fldChar w:fldCharType="separate"/></w:r>
+    <w:r><w:t>1</w:t></w:r><w:r><w:fldChar w:fldCharType="end"/></w:r>
+    <w:r><w:t xml:space="preserve"> of </w:t></w:r><w:r><w:fldChar w:fldCharType="begin"/></w:r>
+    <w:r><w:instrText xml:space="preserve"> NUMPAGES </w:instrText></w:r><w:r><w:fldChar w:fldCharType="separate"/></w:r>
+    <w:r><w:t>1</w:t></w:r><w:r><w:fldChar w:fldCharType="end"/></w:r></w:p>
+</w:ftr>`;
+}
+
+/* THE EXPORT. Renders the draft into a hidden host inside the page (so the
+   page's own styles apply, in the light theme whatever the reader's), walks
+   it, and packs the result. Returns a Blob. */
+async function exportDocx(){
+  const root = document.documentElement;
+  const hadTheme = root.getAttribute("data-theme");
+  root.setAttribute("data-theme", "light");
+  const host = document.createElement("div");
+  host.className = "doc";
+  host.setAttribute("aria-hidden", "true");
+  host.style.cssText = "position:absolute;left:-12000px;top:0;width:1100px;background:#fff;color:#0f1a24";
+  host.innerHTML = documentBodyHTML();
+  document.body.appendChild(host);
+  try{
+    const D = new DocxBuilder();
+    await docxBlocks(host, D, {prose: true});
+    const c = LB[S.gss], name = c ? c.n : (S.otherName || "Your authority");
+    const rep = (REPORTS.find(r => r.k === S.report) || {}).t || "Treasury report";
+    const footer = `${name} · ${rep} ${fy(S.fy0)}`;
+    const NS = 'xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" '
+      + 'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" '
+      + 'xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" '
+      + 'xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" '
+      + 'xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"';
+    const document_xml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document ${NS}><w:body>${D.body.join("")}
+<w:sectPr><w:footerReference w:type="default" r:id="rIdFooter"/>
+  <w:pgSz w:w="${DOCX_PAGE.w}" w:h="${DOCX_PAGE.h}" w:orient="landscape"/>
+  <w:pgMar w:top="${DOCX_PAGE.margin}" w:right="${DOCX_PAGE.margin}" w:bottom="${DOCX_PAGE.margin}" w:left="${DOCX_PAGE.margin}" w:header="567" w:footer="567" w:gutter="0"/>
+</w:sectPr></w:body></w:document>`;
+    const rels = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rIdStyles" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
+  <Relationship Id="rIdNumbering" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/numbering" Target="numbering.xml"/>
+  <Relationship Id="rIdFooter" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/footer" Target="footer1.xml"/>
+  ${D.rels.join("\n  ")}
+</Relationships>`;
+    const files = [
+      {name: "[Content_Types].xml", data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Default Extension="png" ContentType="image/png"/>
+  <Default Extension="jpeg" ContentType="image/jpeg"/>
+  <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+  <Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>
+  <Override PartName="/word/numbering.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.numbering+xml"/>
+  <Override PartName="/word/footer1.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.footer+xml"/>
+  <Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/>
+</Types>`},
+      {name: "_rels/.rels", data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
+  <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/>
+</Relationships>`},
+      {name: "docProps/core.xml", data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <dc:title>${xe(name)} — ${xe(rep)} ${xe(fy(S.fy0))}</dc:title><dc:creator>${xe(typeof whoAmI === "function" ? whoAmI() : "")}</dc:creator>
+  <dcterms:created xsi:type="dcterms:W3CDTF">${new Date().toISOString()}</dcterms:created>
+</cp:coreProperties>`},
+      {name: "word/document.xml", data: document_xml},
+      {name: "word/styles.xml", data: docxStyles()},
+      {name: "word/numbering.xml", data: docxNumbering(D.nums)},
+      {name: "word/footer1.xml", data: docxFooter(footer)},
+      {name: "word/_rels/document.xml.rels", data: rels}
+    ].concat(D.media.map(m => ({name: `word/media/${m.name}`, data: m.bytes})));
+    return zipStore(files);
+  } finally {
+    host.remove();
+    if(hadTheme === null) root.removeAttribute("data-theme"); else root.setAttribute("data-theme", hadTheme);
+  }
 }
 
 /* ===========================================================================
@@ -11472,7 +12068,9 @@ function suggestNext(gss, now){
 function libFileName(){
   const c = LB[S.gss] || {};
   const who = (c.n || S.otherName || "authority").replace(/\W+/g, "-").toLowerCase();
-  return `${who}-treasury-reports.json`;
+  // .pwlb — the tool's own extension (Phil's call). JSON inside, so an
+  // older .json file still opens; the pickers offer both.
+  return `${who}-treasury-reports.pwlb`;
 }
 
 function libExport(){
@@ -11638,7 +12236,7 @@ const CHECKS = [
      return n ? {v:"met", note:`${n} year${n===1?"":"s"} entered.`}
               : {v:"gap", note:"Nothing entered. Every indicator is built from it.", go:3};
    },
-   mark(){ return ckCells('#ledger input[data-k="cfr"]:not([data-i="-1"])', 3); }},
+   mark(){ return ckCells('#ledger input[data-k="cfr"]:not([data-i="-1"])', 5); }},
   {k:"walk", src:"PC E9", g:"Figures", in:CK_ALL,
    t:"The CFR movement reconciles with the MRP and capital expenditure entered",
    run(){
@@ -11685,7 +12283,7 @@ const CHECKS = [
        : {v:"gap", go:2, note:`£${m1(L.total)}m in the ladder against £${m1(held)}m held — `
           + `a difference of £${m1(Math.abs(gap))}m. Both charts go in the report.`};
    },
-   mark(){ return ckCells('input[data-mat="d"]', 3); }},
+   mark(){ return ckCells('input[data-mat="d"]', 99); }},
   {k:"matinv", src:"TMC 2026 consultation", g:"Portfolio", in:CK_ALL,
    t:"The investment ladder reconciles with the investments held",
    run(){
@@ -11704,7 +12302,7 @@ const CHECKS = [
        : {v:"gap", go:2, note:`£${m1(L.total)}m in the ladder against £${m1(held)}m held — `
           + `a difference of £${m1(Math.abs(gap))}m.`};
    },
-   mark(){ return ckCells('input[data-mat="i"]', 3); }},
+   mark(){ return ckCells('input[data-mat="i"]', 99); }},
   {k:"nrs", src:"PC E10", g:"Figures", in:CK_ALL,
    t:"A net revenue stream is entered, so affordability can be computed",
    run(){
@@ -11714,7 +12312,7 @@ const CHECKS = [
        : {v:"gap", note:"Not entered, so the affordability ratio cannot be shown — and having "
           + "regard to affordability is a duty, not an option.", go:3};
    },
-   mark(){ return ckCells('#ledger input[data-k="nrs"]:not([data-i="-1"])', 3); }},
+   mark(){ return ckCells('#ledger input[data-k="nrs"]:not([data-i="-1"])', 5); }},
 
   /* ---- the indicators themselves ---------------------------------------- */
   {k:"lb", src:"TMC 2026 consultation", g:"Indicators", in:CK_ALL,
@@ -11778,7 +12376,7 @@ const CHECKS = [
        : {v:"gap", note:"No sector limits set. The Guidance requires the specified and "
           + "non-specified investments to be defined.", go:5};
    },
-   mark(){ return ckCells('section[data-step="5"] input[data-cp][inputmode="decimal"]', 3); }},
+   mark(){ return ckCells('section[data-step="5"] input[data-cp][inputmode="decimal"]', 99); }},
 
   /* ---- what a backward-looking report must REPORT ------------------------ */
   {k:"activity", src:"TMC 8", g:"The period", in:CK_BACK,
@@ -11799,7 +12397,7 @@ const CHECKS = [
           + `— check the commentary says so.`}
        : {v:"met", note:`${rows.length} limit${rows.length===1?"":"s"} tested, all observed throughout.`};
    },
-   mark(){ return ckCells("input[data-lim]", 4); }},
+   mark(){ return ckCells("input[data-lim]", 99); }},
 
   /* ---- required of every report ------------------------------------------ */
   {k:"perf", src:"TMC 8", g:"The period", in:CK_BACK,
@@ -11828,7 +12426,7 @@ const CHECKS = [
        : {v:"gap", go:7, note:"None entered. E9 expects previous years' indicators to be taken "
           + "from the statement of accounts; a figure without a comparative is not a movement."};
    },
-   mark(){ return ckCells('input[data-pc="prior"]', 2); }},
+   mark(){ return ckCells('input[data-pc="prior"]', 99); }},
   {k:"bench", src:"TMC 8", g:"The period", in:CK_BACK,
    t:"The return achieved is measured against a benchmark",
    run(){
@@ -11956,8 +12554,11 @@ const CHECKS = [
 /* WHERE A GAP IS, ON THE STEP THAT CLOSES IT. Each gap above names the
    boxes it is about (mark), and markNeeds() below outlines them in red and
    lists the step's gaps under its heading — Phil's ask: a red boundary on
-   the cell and a warning on the tab. ckCells takes the first few matches;
-   a whole column of red is noise, the first cells say where to start. */
+   the cell and a warning on the tab. What gets outlined is the whole of the
+   thing that is missing: every band of an empty ladder, every approved
+   limit, the whole prior-year column — and for a projection, the five MTFP
+   years the ledger marks as the reader's own, since fifty rows of red would
+   hide the message. */
 function ckCells(sel, n){
   return [...document.querySelectorAll(sel)].slice(0, n || 3);
 }
@@ -12136,7 +12737,7 @@ const STEPS = [
      panel markup carries it — but rail:false keeps it off the rail and out of
      "n of N complete". Everything else on the rail is input; this is the
      output of all of it, reached from the ribbon (#draftbtn) from anywhere,
-     and from "See the draft" at the end of the walk. */
+     and from "See my report" at the end of the walk. */
   {n:8, k:"draft",     t:"The draft",    s:"read and export", rail:false}
   /* NO STEP 9. The check's findings live on the draft and in the rail now —
      see checkGapsByStep in check.js and the ropen pill in renderRail below. The
@@ -12440,7 +13041,7 @@ function renderNav(){
     const on = document.createElement("button");
     on.type = "button"; on.className = "navbtn primary";
     on.dataset.go = String(next.n);
-    on.innerHTML = next.k === "draft" ? "See the draft &rarr;" : `${esc(stepTitle(next).t)} &rarr;`;
+    on.innerHTML = next.k === "draft" ? "See my report &rarr;" : `${esc(stepTitle(next).t)} &rarr;`;
     head.appendChild(on);
   }
   // The draft step carries the document itself, so the nav goes above it
@@ -14628,27 +15229,26 @@ function setupSummary(){
     $("xpaste").hidden = true; $("xtext").value = "";
     $("xhint").textContent = r.note;
   });
+  /* A REAL .docx — see docx.js. Built from the draft as rendered, charts
+     included; the old .doc was HTML that Word read as a web page. */
   $("expdoc").addEventListener("click", async ()=>{
-    const html = documentHTML(true);
-    const who=(LB[S.gss]||{n:"authority"}).n.replace(/\W+/g,"-").toLowerCase();
-    // .doc, not .html. The bytes are the same — Word's own "Web Page" format
-    // is HTML — but a file called .html opens in a browser when you
-    // double-click it, which is not what a button labelled "Download for
-    // Word" should do.
-    const fn=`${S.report}-${who}-${S.fy0}.doc`;
+    const who=(LB[S.gss]||{n:S.otherName||"authority"}).n.replace(/\W+/g,"-").toLowerCase();
+    const fn=`${S.report}-${who}-${S.fy0}.docx`;
+    $("dhint").textContent = "Building the Word file…";
+    let blob;
+    try{ blob = await exportDocx(); }
+    catch(err){ $("dhint").textContent = "The Word file could not be built — try again."; return; }
     if(DOWNLOADS){
-      try{ await DOWNLOADS.save({filename:fn, data:html});
-        $("dhint").textContent=`Saved ${fn}. Open it in Word — headings, tables and charts carry over.`; }
-      catch(err){ const c=(err&&err.code)||"unavailable";
-        $("dhint").textContent = c==="declined" ? "Save cancelled."
-          : "Saving is not available here — try again."; }
-      return;
+      try{ await DOWNLOADS.save({filename:fn, data:blob});
+        $("dhint").textContent=`Saved ${fn}. Open it in Word — headings, tables and charts carry over.`;
+        return; }
+      catch(err){ if(err && err.code === "declined"){ $("dhint").textContent = "Save cancelled."; return; } }
     }
     const a=document.createElement("a");
-    a.href=URL.createObjectURL(new Blob([html],{type:"application/msword"}));
+    a.href=URL.createObjectURL(blob);
     a.download=fn; document.body.appendChild(a); a.click(); a.remove();
     setTimeout(()=>URL.revokeObjectURL(a.href),2000);
-    $("dhint").textContent=`Downloading ${fn}. Open it in Word.`;
+    $("dhint").textContent=`Downloading ${fn}. Open it in Word — headings, tables and charts carry over.`;
   });
   /* The library: what this authority has already written, and what taking it
      would do. Refreshed whenever the authority, the report or the year
@@ -14912,7 +15512,7 @@ function setupSummary(){
     let handle;
     try{
       handle = await window.showSaveFilePicker({suggestedName: libFileName(),
-        types: [{description: "PWLBreports file", accept: {"application/json": [".json"]}}],
+        types: [{description: "PWLBreports file", accept: {"application/json": [".pwlb", ".json"]}}],
         ...(FILE_HANDLE ? {startIn: FILE_HANDLE} : {})});
     }catch(err){
       if(err && err.name !== "AbortError") saveHint("Could not choose a new location.");
@@ -14964,7 +15564,7 @@ function setupSummary(){
       try{
         if(!FILE_HANDLE){
           FILE_HANDLE = await window.showSaveFilePicker({suggestedName: name,
-            types: [{description: "PWLBreports file", accept: {"application/json": [".json"]}}]});
+            types: [{description: "PWLBreports file", accept: {"application/json": [".pwlb", ".json"]}}]});
         }
         await withTimeout(writeToHandle(FILE_HANDLE, data), 8000);
         FILE_DIRTY = false; recoverClear();
@@ -15092,7 +15692,7 @@ function setupSummary(){
     let handle;
     try{
       [handle] = await window.showOpenFilePicker({
-        types: [{description: "PWLBreports file", accept: {"application/json": [".json"]}}]
+        types: [{description: "PWLBreports file", accept: {"application/json": [".pwlb", ".json"]}}]
       });
     }catch(err){
       if(err && err.name !== "AbortError") saveHint("Could not open that file.");
