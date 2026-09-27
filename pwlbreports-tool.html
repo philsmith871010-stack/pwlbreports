@@ -2241,7 +2241,7 @@ const NATIONS = {
     mrpCap:"Minimum revenue provision",
     mrpTitle:"Minimum revenue provision",
     mrpGuidance:"the statutory guidance on minimum revenue provision",
-    invGuidance:"the statutory guidance on local government investments issued under section 15(1)(a) of that Act"
+    invGuidance:"the statutory guidance on local government investments issued under section 15(1)(a) of the Local Government Act 2003"
   },
   combined: {
     n:"England",
@@ -2252,7 +2252,7 @@ const NATIONS = {
     mrpCap:"Minimum revenue provision",
     mrpTitle:"Minimum revenue provision",
     mrpGuidance:"the statutory guidance on minimum revenue provision",
-    invGuidance:"the statutory guidance on local government investments issued under section 15(1)(a) of that Act"
+    invGuidance:"the statutory guidance on local government investments issued under section 15(1)(a) of the Local Government Act 2003"
   },
   wales: {
     n:"Wales",
@@ -2671,6 +2671,11 @@ const m1 = v => (Math.round(v*10)/10).toLocaleString("en-GB",{minimumFractionDig
    invisible alone, wrong against the consultation's own chart. */
 const LINE_W = 2.2;
 const fy = y => y + "/" + String((y+1)%100).padStart(2,"0");
+/* A sentence starts with a capital, even when the first word is a token like
+   "the Local Government Act 2003" or arrives after a caption. Skips any tags
+   in front of the first letter so "<b>the" is handled too. */
+const capFirst = s => String(s == null ? "" : s)
+  .replace(/^((?:\s*<[^>]+>)*\s*)([a-z])/, (m, t, c) => t + c.toUpperCase());
 const num = v => { const n=parseFloat(String(v).replace(/[£,\s]/g,"")); return isFinite(n)?n:0; };
 
 /* ---- charts -------------------------------------------------------------- */
@@ -5490,13 +5495,29 @@ function invLadder(){
  * ------------------------------------------------------------------------ */
 function matFromHoldings(){
   const out = {d:{}, i:{}}, r1 = v => Math.round(v * 10) / 10;
-  ladder(debtLoans(), DEBT_BANDS, {noneLabel:"Maturity not stated"})
-    .rows.filter(r => !r.none).forEach(r => { out.d[r.k] = r1(r.v); });
+  /* ROUNDED BANDS THAT ADD UP TO THE ROUNDED TOTAL. Each band is written to
+     one decimal, and seven bands rounded separately can sum to £0.2m more
+     than the holdings they were cut from — which the report then printed as
+     "Total £162.6m" under a debt table that said £162.4m. The residual goes
+     on the largest band, where a tenth is invisible. */
+  const settle = (grid, rows) => {
+    const total = r1(rows.reduce((a, r) => a + r.v, 0));
+    const got = r1(Object.keys(grid).reduce((a, k) => a + grid[k], 0));
+    const diff = r1(total - got);
+    if(!diff) return;
+    const big = Object.keys(grid).reduce((m, k) => grid[k] > (m == null ? -Infinity : grid[m]) ? k : m, null);
+    if(big != null) grid[big] = r1(grid[big] + diff);
+  };
+  const dRows = ladder(debtLoans(), DEBT_BANDS, {noneLabel:"Maturity not stated"})
+    .rows.filter(r => !r.none);
+  dRows.forEach(r => { out.d[r.k] = r1(r.v); });
+  settle(out.d, dRows);
   const inv = (S.portfolio || []).filter(x => x.amt).map(x => ({
     amt: +x.amt, iso: x.matd || (x.mat ? x.mat + "-03-31" : null)
   }));
-  ladder(inv, INV_BANDS, {noneLabel:"Instant access", noneFirst:true})
-    .rows.forEach(r => { out.i[r.k] = r1(r.v); });
+  const iRows = ladder(inv, INV_BANDS, {noneLabel:"Instant access", noneFirst:true}).rows;
+  iRows.forEach(r => { out.i[r.k] = r1(r.v); });
+  settle(out.i, iRows);
   return out;
 }
 
@@ -6088,49 +6109,132 @@ function matTotals(which){
 /* ===========================================================================
  * The worked example, finished.
  *
- * The landing page frames this tool and scrolls the report past, to answer one
- * question: does your strategy read like this? A report carrying fifty-nine
- * highlighted prompts and eight "to be written" boxes does not answer it. Those
- * marks are right in the product — they are the tool asking the author for the
- * things only the author can supply — and wrong in a shop window, where the
- * point is what a finished paper looks like.
+ * A demonstration authority is meant to read as a finished paper. A report
+ * carrying fifty-nine highlighted prompts and eight "to be written" boxes does
+ * not: those marks are right in the product — the tool asking the author for
+ * the things only the author can supply — and wrong in a worked example,
+ * where the point is what a finished paper looks like.
  *
- * So reel mode swaps in prose for every passage the draft would otherwise ask
- * for. It is used NOWHERE ELSE: a real user filling the demonstration still
- * gets the prompts, because for them the prompts are the useful part.
+ * So the demonstration swaps in prose for every passage the draft would
+ * otherwise ask for. It is used NOWHERE ELSE: a real user still gets the
+ * prompts, because for them the prompts are the useful part.
+ *
+ * EVERY FIGURE IN THE PROSE IS READ FROM THE DEMONSTRATION'S OWN STATE. The
+ * first version of this file carried numbers typed in by hand — "£847.8m
+ * against an authorised limit of £1,167.1m", "interest payable is £1.4m above
+ * budget" — beside tables that said £140.2m, £192.6m and £0.2m. A report
+ * whose commentary contradicts its own tables is the one thing a member
+ * catches on the first read, and it is what "does your strategy read like
+ * this?" must never show. So each passage is a function of the figures, run
+ * at the moment the demonstration is filled, and the figures it quotes are
+ * the ones the tables beside it show.
+ *
+ * EACH REPORT TYPE GETS ITS OWN WORDS WHERE THE PURPOSE DIFFERS. A strategy
+ * asks members to approve; a mid-year review asks whether anything should be
+ * revised; an outturn reports a year that has closed. The introduction, the
+ * rate view, the assumptions and every backward-looking passage are written
+ * once per purpose, not once for the strategy and reused.
  *
  * THE AUTHORITY IS FICTIONAL, AND THAT IS DELIBERATE. The loan book underneath
  * is a real one, published by the PWLB, and the arithmetic on it is real. The
- * adviser contract, the training record, the reserves and the committee below
- * are invented. Attaching invented commitments to a named council — on a
- * public marketing page, in a document that by design looks finished — would
- * be a fabricated report about a real organisation. Example Borough Council
- * owes nobody anything.
+ * adviser contract, the training record, the committee dates and the group
+ * companies are invented. Attaching invented commitments to a named council
+ * would be a fabricated report about a real organisation.
  * ======================================================================== */
 const REEL_GSS  = "E08000039";              // a real published book, English regime
 const REEL_NAME = "Example Borough Council";
 
+/* The demonstration's figures, as the prose sees them. Whole-authority
+   wherever there is an HRA, on the same model the executive summary, the
+   indicators and the compliance step use — so a number quoted here is the
+   number in the table beside it. */
+function reelCtx(){
+  const hasHRA = S.hra !== "no";
+  const whole = buildModel(S, hasHRA ? "all" : "gf");
+  const a = whole[0] || {};
+  const g0 = (hasHRA ? buildModel(S, "gf") : whole)[0] || a;
+  const nMt = Math.min(MTFP, whole.length) - 1;
+  const z = whole[nMt] || a;
+  const L = S.limits || {}, P = S.perf || {};
+  const pot = (S.portfolio || []).reduce((s, x) => s + (+x.amt || 0), 0);
+  const peakNeed = whole.reduce((m, r) => r.need > m.need ? r : m, whole[0] || {need:0, fy:S.fy0});
+  const firstNeed = whole.find(r => r.need > 0.05) || null;
+  const mon  = (typeof monRows  === "function") ? monRows()  : [];
+  const perf = (typeof perfRows === "function") ? perfRows() : [];
+  const pv = (k, c) => { const r = perf.find(x => x.k === k);
+    const cell = r && r.cells && r.cells[c]; return (cell && cell.v != null) ? cell.v : null; };
+  const mv = k => { const r = mon.find(x => x.k === k);
+    if(!r || r.approved.v == null || r.latest.v == null) return null;
+    return {ap: r.approved.v, la: r.latest.v, d: r.latest.v - r.approved.v, pct: !!r.pct}; };
+  const cp = (typeof cpState === "function") ? cpState() : {sec:{}};
+  // A ticked row with no typed figure publishes the survey's starting figure
+  // (cpSectionHTML does the same), so the prose quotes what the table shows.
+  const cpVal = (k, f) => { const v = String(((cp.sec || {})[k] || {})[f] || "").trim();
+    if(v) return +v;
+    const sec = (typeof CP_SECTORS !== "undefined") ? CP_SECTORS.find(x => x.k === k) : null;
+    const d = (sec && typeof cpDefault === "function") ? cpDefault(sec.b, f) : "\u2014";
+    return d === "\u2014" || d === "" ? null : +d; };
+  const cash = k => cpVal(k, "cash");
+  const months = k => cpVal(k, "months");
+  // The largest single holding, and the limit that applies to its type.
+  const SEC_OF = {DMADF:"gov", MMF:"mmf", "Local authority":"la", "Call account":"bank",
+                  Bank:"bank", "Building society":"bs"};
+  const WORD_OF = {gov:"the Debt Management Account Deposit Facility", mmf:"a money market fund",
+                   la:"another local authority", bank:"a bank call account", bs:"a building society"};
+  const big = (S.portfolio || []).reduce((m, x) => (+x.amt || 0) > (m ? +m.amt : 0) ? x : m, null);
+  const bigSec = big ? SEC_OF[big.type] : null;
+  const r1 = v => Math.round(v * 10) / 10;
+  const R = S.report || "tmss";
+  const yr = S.fy0;
+  const PERIOD = {
+    out:   {p:"the year", at:"the year end", to:`31 March ${yr + 1}`, done:true},
+    mid:   {p:"the first half of the year", at:"the half-year", to:`30 September ${yr}`, done:false},
+    quart: {p:"the quarter", at:"the quarter end", to:"the end of the quarter", done:false},
+    tmss:  {p:"the year", at:"the year end", to:`31 March ${yr + 1}`, done:false}
+  }[R] || {p:"the period", at:"the period end", to:"the period end", done:false};
+  return {hasHRA, whole, a, g0, z, L, P, pot, peakNeed, firstNeed, mon, perf, pv, mv, cash, months,
+    big, bigSec, bigWord: bigSec ? WORD_OF[bigSec] : null, r1, R, back: R !== "tmss", PERIOD,
+    yr, FY: fy(yr), FY0: fy(yr - 1), FY1: fy(yr + 1), FYN: fy(yr + nMt),
+    m: v => m1(v), officer: natText("[[officer]]"),
+    cttee: ((S.choices || {}).committee || "").trim() || "the committee responsible for treasury scrutiny",
+    // The rate the ledger implies, which is what the budget "assumed".
+    ratePaid: a.el > 0 ? (a.intpay / a.el * 100) : null,
+    // The budget assumes the benchmark return where one is entered; the
+    // ledger's own ratio otherwise (which, on figures held to one decimal,
+    // can round to a rate the tables never show).
+    rateEarned: (P.bench && P.bench.actual != null) ? +P.bench.actual
+              : a.ei > 0 ? (a.intinc / a.ei * 100) : null,
+    liq: (S.minliq != null && S.minliq !== "") ? +S.minliq : (a.liq || 0)};
+}
+
+/* One passage, for the report type on screen: the per-type entry where the
+   purpose differs, the shared one otherwise; a function is given the figures.
+   [[tokens]] are expanded for the nation, as the generic drafting's are. */
+function reelText(key){
+  const by = REEL_BY_REPORT[key];
+  let v = (by && by[S.report]) || REEL_TEXT[key];
+  if(v == null) return null;
+  if(typeof v === "function") v = v(reelCtx());
+  return v ? natText(v) : null;
+}
+function reelGap(key){
+  let v = REEL_GAPS[key];
+  if(v == null) return null;
+  if(typeof v === "function") v = v(reelCtx());
+  return v ? natText(v) : null;
+}
+
+/* Wording helpers. A variance reads differently by its sign, and a passage
+   that only knows one sign is wrong the day the figures move. */
+const REEL_W = {
+  ab: d => d > 0 ? "above" : "below",
+  upDown: d => d > 0 ? "up" : "down",
+  roseFell: d => d > 0 ? "rose" : "fell",
+  bp: d => Math.round(Math.abs(d) * 100),
+  n: (n, one, many) => `${n} ${n === 1 ? one : many}`
+};
+
 const REEL_TEXT = {
-
-intro_body:
-/* NOT the statutory recital again. The Code-required clause immediately above
-   this in section 1 already gives the timing, both Codes and the statute, so
-   the demonstration used to state all of it a second time in slightly
-   different words — the single most obvious redundancy in the whole draft,
-   and the first thing a reader meets. What is left is the part the clause
-   does not carry: that the authority has adopted the clauses. */
-`The authority has formally adopted the clauses of both CIPFA Codes and maintains the \
-treasury management practices that sit beneath them.
-
-Members are asked to approve the treasury management strategy and the borrowing strategy set \
-out below, the annual investment strategy and the counterparty criteria within it, the policy \
-on minimum revenue provision, and the prudential and treasury indicators and limits given in \
-section 7, including the authorised limit for external debt.
-
-The strategy was considered by the Audit and Governance Committee on 14 January 2026, which \
-recommended it to Council for approval. The Committee reviewed the counterparty policy and the \
-liability benchmark in detail and asked for the maturity profile of borrowing to be reported \
-alongside the strategy each year; that profile is at section 4.`,
 
 econ:
 `Bank Rate has been held at 3.75% since August 2025. Inflation has fallen back towards the 2% \
@@ -6153,10 +6257,18 @@ The strategy is not dependent on rates following that path. The borrowing requir
 by the liability benchmark is driven by the balance sheet rather than by the rate view, and the \
 timing of any borrowing will be taken in the light of rates prevailing at the time.`,
 
-borrow_body:
-`Sources considered are the Public Works Loan \
-Board at the certainty rate, other local authorities, the UK Infrastructure Bank where the \
-scheme qualifies, and the market where terms are better than PWLB on a like-for-like basis.
+borrow_body: X => {
+  const need0 = X.a.need || 0, pk = X.peakNeed;
+  const plan = need0 > 0.05
+    ? `New external borrowing of up to £${X.m(need0)}m is planned in ${X.FY}, and the benchmark \
+identifies a requirement rising to £${X.m(pk.need)}m by ${fy(pk.fy)}`
+    : X.firstNeed
+      ? `No new external borrowing is required in ${X.FY}; the benchmark identifies a requirement \
+of £${X.m(X.firstNeed.need)}m from ${fy(X.firstNeed.fy)}, rising to £${X.m(pk.need)}m by ${fy(pk.fy)}`
+      : `No new external borrowing is required across the projection`;
+  return `Sources considered are the Public Works Loan Board at the certainty rate, other local \
+authorities, the UK Infrastructure Bank where the scheme qualifies, and the market where terms \
+are better than PWLB on a like-for-like basis.
 
 The authority's preference is for the cheapest borrowing consistent with managing refinancing \
 risk. That means it will not concentrate maturities in a small number of years, and will weigh \
@@ -6165,11 +6277,10 @@ an unknown rate. Internal borrowing is used where it is available, recognising t
 rather than avoids the requirement and that reserves used in this way must be replaced when \
 they are needed.
 
-New external borrowing of up to £45m is planned in 2026/27, against a requirement identified by \
-the benchmark from 2027/28 onwards; the authority expects to take it from the Public Works Loan \
-Board unless the market offers better terms on a like-for-like basis. Any loan is authorised by \
-the [[officer]], or in their absence by the deputy [[officer]], and every loan \
-taken is reported to the Audit and Governance Committee at its next meeting.`,
+${plan}; the authority expects to take it from the Public Works Loan Board unless the market \
+offers better terms on a like-for-like basis. Any loan is authorised by the ${X.officer}, or in \
+their absence by the deputy ${X.officer}, and every loan taken is reported to the ${X.cttee} at \
+its next meeting.`; },
 
 resched:
 `The authority reviews its debt portfolio for rescheduling opportunities but does not expect to \
@@ -6178,27 +6289,27 @@ rate applying at the time; where that rate is below the coupon on the loan a pre
 and the authority will only repay early where the whole-life saving is demonstrable and \
 affordable.`,
 
-invest_body:
+invest_body: X =>
 `Balances arise from reserves, provisions, working capital and the timing difference between \
 receipts and payments. The authority distinguishes between the balance it must hold to remain \
-liquid — its minimum liquidity balance of £42.0m, set by reference to the largest short-term \
-outflow it could face — and any balance held above that, which is available for investment over \
-a longer horizon at a better return.
+liquid — its minimum liquidity balance of £${X.m(X.liq)}m, set by reference to the largest \
+short-term outflow it could face — and any balance held above that, which is available for \
+investment over a longer horizon at a better return.
 
 Instruments used are the Debt Management Account Deposit Facility, money market funds, call and \
 notice accounts, fixed-term deposits with banks and building societies meeting the criteria in \
-section 6, certificates of deposit, and deposits with other local authorities. Investments are \
-made in sterling only. The authority does use externally managed pooled funds, and holds them \
-for their income rather than for capital growth.
+the counterparty policy below, certificates of deposit, and deposits with other local \
+authorities. Investments are made in sterling only. The authority does use externally managed \
+pooled funds, and holds them for their income rather than for capital growth.
 
 Funds may be committed for up to twelve months with any counterparty other than the UK \
 Government and other local authorities, for which the limit is thirty-six months. The authority \
 intends to hold not less than half of its portfolio in instruments repayable within one month, \
 and expects the balance to sit in terms of three to twelve months.`,
 
-credit:
-`The approved counterparty list is maintained by the [[officer]], who authorises any \
-addition to it.
+credit: X =>
+`The approved counterparty list is maintained by the ${X.officer}, who authorises any addition \
+to it.
 
 The minimum long-term rating for a bank or building society counterparty is A-, taken from Fitch \
 and Moody's, using the lowest of the ratings held. Ratings are supplemented by credit watches, \
@@ -6209,35 +6320,33 @@ minimum criteria is withdrawn from use immediately and no new investment is plac
 Limits by counterparty type are set out in the table below. A group of related counterparties \
 counts as one for the purposes of the monetary limit.
 
-An exception to these criteria may be approved only by the [[officer]], and only where \
-the security of the sum invested is not reduced. Any exception used is reported to the Audit and \
-Governance Committee at its next meeting, with the reason for it and the period for which it \
-applied.`,
+An exception to these criteria may be approved only by the ${X.officer}, and only where the \
+security of the sum invested is not reduced. Any exception used is reported to the ${X.cttee} at \
+its next meeting, with the reason for it and the period for which it applied.`,
 
-corefunds_body:
+corefunds_body: X =>
 `The authority's core cash comes from reserves, provisions, balances held on behalf of others, \
 and the working capital arising from the timing of receipts and payments. Core funds are \
 distinguished from cash that is merely passing through: only the former can prudently be \
 invested for a term.
 
-Reserves and balances are projected at £58.4m at the start of the year, falling to £49.1m by \
-2029/30 as approved reserve movements take effect. The cash flow through the year has a \
-predictable seasonal shape, with balances at their lowest in February and their highest in May; \
-the minimum liquidity balance of £42.0m is set with reference to that low point rather than to \
-the average.
+Reserves and balances are projected at £${X.m(X.a.obs)}m at the start of the year, \
+${X.z.obs < X.a.obs ? "falling" : "rising"} to £${X.m(X.z.obs)}m by ${X.FYN} as approved \
+reserve movements take effect. The cash flow through the year has a predictable seasonal shape, \
+with balances at their lowest in February and their highest in May; the minimum liquidity \
+balance of £${X.m(X.liq)}m is set with reference to that low point rather than to the average.
 
 Expected investment balances over the forecast are shown in section 3. Where the projection \
 shows a balance above the liquidity requirement it is available for longer-dated investment; \
 where it falls to the liquidity requirement, the authority holds it in instant access.`,
 
+/* The clauses above already state the statutory basis and the asset-life
+   method, so the commentary carries only what they do not: leases, voluntary
+   provision, service loans, receipts. */
 mrp_body:
-`The authority will make prudent provision for the repayment of debt in accordance with the \
-statutory guidance on minimum revenue provision.
-
-For capital expenditure financed by borrowing, provision is made on an asset life, equal \
-instalment basis, over a period no longer than the useful life of the asset the expenditure \
-created. Provision begins in the financial year following the one in which the asset became \
-operational.
+`The estimated useful life of each asset is taken from the authority's fixed asset register, \
+and provision on expenditure that does not create an asset of the authority's own is made over \
+the period of the benefit it secures.
 
 For finance leases and arrangements accounted for as such, the provision is equal to the \
 principal element of the rent or charge payable in the year.
@@ -6250,183 +6359,455 @@ principal is repaid, rather than over the life of an asset, on the basis that th
 themselves extinguish the liability. The authority holds no capital receipts strategy that \
 bears on the calculation.`,
 
-nontreasury_body:
-`The authority holds investments that are not treasury investments: industrial and retail \
-property held for rental return, and loans to a wholly owned housing development company made \
-in pursuit of a service objective. These are held for service and regeneration purposes and are \
-not made in pursuit of a treasury return.
+/* Service loans to the group companies, and nothing bought for return. The
+   "no non-treasury investments" clause used to sit directly above a passage
+   describing £96m of commercial property: the choice said one thing and the
+   commentary the opposite. The demonstration now holds service loans only,
+   the choice says so, and the figures come from the group table above. */
+nontreasury_body: X => {
+  const cos = ((S.group || {}).cos || []);
+  const intra = cos.reduce((s, c) => s + (+c.intra || 0), 0);
+  const loans = X.r1(intra > 0 ? intra / 0.06 : X.pot * 4);
+  const prov  = X.r1(loans * 0.05);
+  const inc   = X.g0.comminc || intra;
+  const share = X.g0.commratio;
+  return `The authority holds investments that are not treasury investments: loans to its wholly \
+owned housing development company and to the two other companies in its group, made in pursuit \
+of service and regeneration objectives rather than for a treasury return. It holds no \
+commercial property and nothing bought primarily for financial return, and no part of what it \
+holds was acquired with borrowing taken for that purpose.
 
-The total held is £96.3m at 31 March 2026, against which the authority has set aside £8.1m. The \
-income they generate is £4.6m a year, representing 0.8% of the net revenue budget; the authority \
-is satisfied that this dependence is proportionate, and no reduction plan is therefore required.
+Loans advanced total £${X.m(loans)}m, against which £${X.m(prov)}m is held in reserve against \
+the risk of loss. The income they generate is £${X.m(inc)}m a year${share != null
+  ? `, ${share.toFixed(1)}% of the net revenue stream` : ""}; the authority is satisfied that \
+this dependence is proportionate and that services could continue were the income to cease, so \
+no reduction plan is required.
 
-Each is reviewed at least annually for its contribution to the objective it was made for and for \
-any indication of impairment. The authority does not borrow in order to make investments \
-primarily for financial return, and no part of this portfolio was acquired with borrowing taken \
-for that purpose.`,
+Each loan is reviewed at least annually for its contribution to the objective it was made for \
+and for any indication of impairment, and the group indicators show what each company earns \
+from third parties against what it pays the authority. Decisions on these loans are taken with \
+advice from the authority's treasury adviser and its legal advisers, neither of which has an \
+interest in the transactions.`; },
 
-gov_body:
-`Responsibility for treasury management rests with the [[officer]], who exercises it \
+gov_body: X => {
+  const second = Math.max(5, Math.round(X.pot * 1.5));
+  return `Responsibility for treasury management rests with the ${X.officer}, who exercises it \
 under the scheme of delegation approved by members and within the treasury management practices \
 adopted by the authority.
 
-The Audit and Governance Committee scrutinises treasury management \
-activity and reports to full Council. The authority's treasury management practices and the \
-schedules beneath them are reviewed annually and are available to members on request.
+The ${X.cttee} scrutinises treasury management activity and reports to full Council. The \
+authority's treasury management practices and the schedules beneath them are reviewed annually \
+and are available to members on request.
 
 Day-to-day dealing is undertaken by the Treasury and Investments team, with each transaction \
 authorised and recorded separately from the officer who arranged it. Dealers may place \
 transactions within the approved counterparty list and limits without further authority; any \
-transaction above £10m, or with a counterparty added to the list since the strategy was \
-approved, requires a second authorisation from the Chief Accountant or the [[officer]].`,
+transaction above £${second}m, or with a counterparty added to the list since the strategy was \
+approved, requires a second authorisation from the Chief Accountant or the ${X.officer}.`; },
 
-training_body:
-/* The Code clauses above already say the authority recognises the need for
-   the knowledge and skills, and that the responsible officer keeps a record
-   of the training and assesses it. Both were restated here almost word for
-   word — the same clause-against-body duplication the introduction, the
-   borrowing strategy and the investment strategy each carried. What is left
-   is what the clauses cannot know: who holds what, and how much. */
+training_body: X =>
 `Officers involved in treasury management hold CIPFA and AAT qualifications and undertook \
-42 hours of continuing professional development in the year. The record is kept by the [[officer]] and covers members of the Audit and Governance Committee as well as officers.
+42 hours of continuing professional development in the year. The record is kept by the \
+${X.officer} and covers members of the ${X.cttee} as well as officers.
 
 Training delivered in the period comprised a members' session on the liability benchmark and the \
-2026 Code changes in October 2025, delivered by the authority's treasury adviser; a workshop on \
-counterparty credit assessment for officers in June 2025; and attendance by two officers at the \
-CIPFA treasury management conference. Members receiving treasury reports were offered a briefing \
-in advance of this strategy being presented.
+2026 Code changes in October ${X.yr - 1}, delivered by the authority's treasury adviser; a \
+workshop on counterparty credit assessment for officers in June ${X.yr - 1}; and attendance by \
+two officers at the CIPFA treasury management conference. Members receiving treasury reports \
+were offered a briefing in advance of this report being presented.
 
 The assessment made against the Code's requirement was that the treasury team's knowledge is \
-adequate to current activity, but that the retirement of one senior officer in 2026/27 \
+adequate to current activity, but that the retirement of one senior officer in ${X.FY1} \
 concentrates the authority's experience of long-dated borrowing in a single post. A successor is \
 being trained during the year and the assessment will be repeated once that is complete.`,
 
-group_body:
-`The authority's group indicators are set out above alongside the single-entity figures. \
-Income from the housing development company covers the interest it pays the authority with \
-headroom of £1.4m, and the company's business plan shows that headroom widening as units are \
-completed. The energy services company does not yet cover its debt cost from operations and is \
-funded from the authority's general reserves; its position is reviewed at each quarter and a \
-decision on its future is expected in 2027/28. The authority is satisfied that the group's \
-indicators do not disclose a risk that the single-entity indicators conceal.`,
+group_body: X => {
+  const cos = ((S.group || {}).cos || []).filter(c => c && c.n);
+  const covers = cos.filter(c => (+c.income || 0) >= (+c.intra || 0) && (+c.intra || 0) > 0);
+  const short  = cos.filter(c => (+c.income || 0) <  (+c.intra || 0));
+  const first = covers[0];
+  return `The authority's group indicators are set out above alongside the single-entity figures. \
+${first ? `Income from the ${first.n.toLowerCase()} covers what it pays the authority with \
+headroom of £${X.m((+first.income || 0) - (+first.intra || 0))}m, and the company's business plan \
+shows that headroom widening as units are completed. ` : ""}${short.length
+  ? `${short.map(c => c.n).join(" and ")} ${short.length === 1 ? "does" : "do"} not yet cover \
+what ${short.length === 1 ? "it pays" : "they pay"} the authority from ${short.length === 1
+  ? "its" : "their"} own operations; the shortfall is met from the authority's general reserves, \
+the position is reviewed each quarter, and a decision on ${short.length === 1 ? "its" : "their"} \
+future is expected in ${X.FY1}. ` : ""}The authority is satisfied that the group's indicators \
+do not disclose a risk that the single-entity indicators conceal.`; },
 
-advisers:
-`The authority retains an external treasury management adviser under a contract \
-running to 31 March 2028. The scope of the contract covers credit advice, interest rate views, \
+advisers: X =>
+`The authority retains an external treasury management adviser under a contract running to \
+31 March ${X.yr + 2}. The scope of the contract covers credit advice, interest rate views, \
 technical guidance on the Codes, and training for officers and members.
 
 The authority recognises that responsibility for its treasury management decisions remains with \
 it at all times and that undue reliance must not be placed on external advice. Decisions are \
 taken having regard to all available information, of which the adviser's view is one source \
-among several. The value obtained from the contract is assessed annually by the [[officer]] against the scope above and reported to the Audit and Governance Committee, and the \
-appointment was made following a competitive tender in 2024.`,
+among several. The value obtained from the contract is assessed annually by the ${X.officer} \
+against the scope above and reported to the ${X.cttee}, and the appointment was made following \
+a competitive tender in ${X.yr - 2}.`,
 
-/* The six that were left to the generic draft wording, which carries fill-in markers
-   by design — so a demonstration authority produced a report with
-   orange placeholder spans through it and "To be written" blocks under the
-   monitoring sections. A demonstration has to read as a finished report;
-   these are written out, in the same voice as the rest. */
+/* ---- the backward-looking passages, from the period's own figures ------- */
 
-assumptions:
-`The interest and income figures in this report assume £45m of new borrowing drawn in the third \
-quarter at 4.6%, with short-term debt rolling at 4.1%. No LOBO is assumed to be called. \
-Investment returns are assumed at 3.9%, on balances falling from £47m to £41m across the year.
+compliance_body: X => {
+  const L = X.L, W = REEL_W;
+  const breach = (typeof complianceRows === "function") ? complianceRows().filter(r => !r.ok) : [];
+  const lim = X.bigSec ? X.cash(X.bigSec) : null;
+  const opening = breach.length
+    ? `${W.n(breach.length, "limit was", "limits were")} exceeded in ${X.PERIOD.p}: ${breach.map(r =>
+        `the ${r.label.toLowerCase()} of £${X.m(r.limit)}m, by £${X.m(r.actual - r.limit)}m`).join("; ")}. \
+The reason and the action taken are set out below the table.`
+    : `No limit was exceeded at any point in ${X.PERIOD.p}, and no counterparty fell below \
+the minimum criteria while funds were placed with it.`;
+  return `${opening} The maximum external debt reached was £${X.m(L.debt_max)}m, against an \
+authorised limit of £${X.m(L.al_approved)}m${L.ob_approved != null
+  ? ` and an operational boundary of £${X.m(L.ob_approved)}m` : ""}; the headroom of \
+£${X.m((L.al_approved || 0) - (L.debt_max || 0))}m is what the strategy anticipated for a year \
+in which borrowing was planned.${X.big && lim ? ` The largest single exposure was \
+£${X.m(+X.big.amt)}m, with ${X.bigWord}, within the £${lim}m limit for that counterparty \
+type.` : ""}`; },
+
+indmon_body: X => {
+  const W = REEL_W, out = X.R === "out";
+  const cx = X.mv("capex"), cf = X.mv("cfr"), db = X.mv("debt"), iv = X.mv("inv"),
+        lb = X.mv("lb"), af = X.mv("afford");
+  const bits = [];
+  if(cx && Math.abs(cx.d) >= 0.05)
+    bits.push(`Capital expenditure is £${X.m(Math.abs(cx.d))}m ${W.ab(cx.d)} the figure approved: \
+${cx.d < 0 ? `schemes have slipped into ${X.FY1}, and the borrowing that would have funded them \
+has not been taken` : `schemes have been brought forward from ${X.FY1}, and the borrowing to \
+fund them has been taken earlier than planned`}.`);
+  if(cf && Math.abs(cf.d) >= 0.05)
+    bits.push(`The capital financing requirement follows it, ${out ? "closing" : "expected to close"} \
+£${X.m(Math.abs(cf.d))}m ${W.ab(cf.d)} the approved figure.`);
+  const nb = X.pv("newborr","actual"), plan = X.a.need || 0;
+  const taken = nb ? `only £${X.m(nb)}m of the borrowing assumed for the year ${out ? "was" : "has been"} taken` : `none of the borrowing assumed for the year ${out ? "was" : "has been"} taken`;
+  if(db && Math.abs(db.d) >= 0.05)
+    bits.push(`External debt is £${X.m(Math.abs(db.d))}m ${W.ab(db.d)} the approved figure \
+${db.d < 0 ? (out ? `because ${taken} once the programme slipped; the balance of the \
+requirement${plan > 0.05 ? `, £${X.m(plan)}m,` : ""} is met from internal balances for now and \
+is carried into the strategy for the year ahead` : `because ${taken}; the rest will be taken if \
+the programme catches up, and deferred if it does not`) : "because the year's borrowing was \
+taken earlier, and in a larger amount, than assumed"}.`);
+  if(iv && Math.abs(iv.d) >= 0.05)
+    bits.push(`Treasury investments are £${X.m(Math.abs(iv.d))}m ${W.ab(iv.d)} the approved \
+figure ${iv.d > 0 ? "because capital receipts arrived earlier in the year than assumed" :
+"because capital receipts assumed for the year have not yet arrived"}.`);
+  if(lb) bits.push(Math.abs(lb.d) < 0.05
+    ? `The liability benchmark is as approved: it is set by the balance sheet rather than by \
+the timing of borrowing, and the balance sheet has moved as the strategy anticipated.`
+    : `The liability benchmark is £${X.m(Math.abs(lb.d))}m ${W.ab(lb.d)} the approved figure, \
+following the movement in the capital financing requirement.`);
+  if(af && Math.abs(af.d) >= 0.005)
+    bits.push(`The financing costs ratio is ${Math.abs(af.d).toFixed(2)} points ${W.ab(af.d)} \
+the approved figure, ${af.d < 0 ? "following the lower interest cost" : "following the higher \
+interest cost"}.`);
+  const close = out
+    ? `None of the movements took an indicator outside the range the strategy anticipated, and \
+none required a revision to it during the year.`
+    : `None of the movements takes an indicator outside the range the strategy anticipated, and \
+no revision to the strategy or to the indicators approved for the year is proposed.`;
+  return bits.length ? `${bits.join(" ")}\n\n${close}` : close; },
+
+performance_body: X => {
+  const W = REEL_W, pv = X.pv, out = X.R === "out";
+  const ip = pv("intpay","actual"), ipb = pv("intpay","budget"), ipp = pv("intpay","prior");
+  const ii = pv("intinc","actual"), iib = pv("intinc","budget"), iip = pv("intinc","prior");
+  const ret = pv("ret","actual"), bench = pv("bench","actual");
+  const nb = pv("newborr","actual"), nr = pv("newrate","actual");
+  const ai = pv("avginv","actual"), aip = pv("avginv","prior");
+  const paras = [];
+  if(ip != null && ipb != null){
+    const d = ip - ipb;
+    paras.push(Math.abs(d) < 0.05
+      ? `Interest payable of £${X.m(ip)}m was on budget.`
+      : `Interest payable ${out ? "was" : "is"} £${X.m(ip)}m against a budget of £${X.m(ipb)}m, \
+£${X.m(Math.abs(d))}m ${d > 0 ? "adverse" : "favourable"}. ${d > 0
+  ? `The budget assumed the year's borrowing would be drawn in the third quarter; \
+${nb ? `the £${X.m(nb)}m` : "it"} was taken in the second, when the certainty rate was \
+favourable against the range seen since, and the additional cost in this year buys a lower rate \
+over the life of the loan.`
+  : `The borrowing assumed in the budget was taken later than planned, so a smaller part of the \
+year carried the interest on it.`}`);
+  }
+  if(ii != null && iib != null){
+    const d = ii - iib;
+    paras.push(Math.abs(d) < 0.05
+      ? `Investment income of £${X.m(ii)}m was on budget${ai != null ? `, on an average balance \
+of £${X.m(ai)}m` : ""}.`
+      : `Investment income ${out ? "was" : "is"} £${X.m(Math.abs(d))}m ${W.ab(d)} budget on a \
+balance that ran ${d > 0 ? "higher" : "lower"} than assumed.`);
+  }
+  if(ret != null && bench != null){
+    const d = ret - bench;
+    paras.push(`The return of ${ret.toFixed(2)}% ${out ? "was" : "is"} ${Math.abs(d) < 0.005
+      ? "in line with the benchmark" : `${W.bp(d)} basis points ${W.ab(d)} the benchmark of \
+${bench.toFixed(2)}%`}, ${d >= 0 ? "reflecting the longer average duration the portfolio could \
+carry once the year's borrowing decision had been taken" : "reflecting the shorter average \
+duration held while the borrowing decision was open"}.`);
+  }
+  const prior = [];
+  if(ip != null && ipp != null && Math.abs(ip - ipp) >= 0.05)
+    prior.push(`interest payable ${W.roseFell(ip - ipp)} £${X.m(Math.abs(ip - ipp))}m as \
+${ip > ipp ? "the debt taken in the year carried its first interest" : "debt ran off"}`);
+  if(ii != null && iip != null && Math.abs(ii - iip) >= 0.05)
+    prior.push(`investment income ${W.roseFell(ii - iip)} £${X.m(Math.abs(ii - iip))}m on \
+${ai != null && aip != null ? `an average balance ${ai > aip ? "up" : "down"} £${X.m(Math.abs(ai - aip))}m` : "the balance held"}`);
+  if(prior.length) paras.push(`Against ${X.FY0}, ${prior.join(", and ")}.`);
+  return paras.join("\n\n"); },
+
+activity_body: X => {
+  const pv = X.pv, L = X.L, out = X.R === "out";
+  const nb = pv("newborr","actual"), nr = pv("newrate","actual"), rp = pv("repaid","actual");
+  const ai = pv("avginv","actual"), ret = pv("ret","actual"), bench = pv("bench","actual");
+  const plan = X.a.need || 0;
+  const paras = [];
+  paras.push(nb
+    ? `New borrowing of £${X.m(nb)}m was taken in the second quarter${nr != null ? ` at an \
+average rate of ${nr.toFixed(2)}%` : ""}${plan > 0.05 ? `, against a requirement of \
+£${X.m(plan)}m identified by the liability benchmark for the year; the balance is met from \
+internal borrowing for now and is carried into the strategy for ${X.FY1}` : ""}. All of it was \
+taken from the Public Works Loan Board at the certainty rate, which was better than the \
+quotations obtained from other local authorities on the day, for a term chosen to fill a gap in \
+the maturity profile rather than to add to a year already carrying maturities.`
+    : `No new borrowing was taken in ${X.PERIOD.p}; the requirement identified by the liability \
+benchmark was met from internal balances.`);
+  paras.push(`${rp ? `Repayments of £${X.m(rp)}m fell due and were met from cash balances. ` : ""}\
+External debt at ${X.PERIOD.at} ${out ? "stood" : "stands"} at £${X.m(L.debt_close)}m, against \
+an authorised limit of £${X.m(L.al_approved)}m and a capital financing requirement of \
+£${X.m(X.a.cfr)}m.`);
+  paras.push(`Investment balances averaged £${X.m(ai != null ? ai : L.inv_close)}m over \
+${X.PERIOD.p} and stood at £${X.m(L.inv_close)}m at ${X.PERIOD.at}${ret != null ? `, earning \
+${ret.toFixed(2)}%${bench != null ? ` against a benchmark of ${bench.toFixed(2)}%` : ""}` : ""}. \
+No counterparty failed to repay in full and on time, and no institution on the approved list was \
+downgraded below the minimum criteria while funds were placed with it.`);
+  return paras.join("\n\n"); },
+
+deals: X => {
+  const pv = X.pv;
+  const nb = pv("newborr","actual"), nr = pv("newrate","actual");
+  const ai = pv("avginv","actual"), ret = pv("ret","actual");
+  const n = Math.max(6, Math.round((ai || X.pot) * 3));
+  const placed = X.r1((ai || X.pot) * 24);
+  const mmf = Math.round(n * 0.6), la = Math.round(n * 0.26), dm = n - mmf - la;
+  return `The authority summarises rather than lists. ${n} deposits were placed in \
+${X.PERIOD.p}, with a total value of £${X.m(placed)}m${ret != null ? ` and a weighted average \
+rate of ${ret.toFixed(2)}%` : ""}: ${mmf} with money market funds, ${la} with other local \
+authorities, and ${dm} with the Debt Management Account Deposit Facility. ${nb
+  ? `One loan was taken, from the Public Works Loan Board, of £${X.m(nb)}m${nr != null
+      ? ` at ${nr.toFixed(2)}%` : ""}.` : "No loans were taken."}
+
+Deal-level detail is held by the treasury team and is available to members on request.`; },
+
+/* The assumptions behind the budget lines — for a strategy, what they rest
+   on; for a report on a period, what was assumed and what happened. */
+assumptions: X => {
+  const need0 = X.a.need || 0;
+  const draw = need0 > 0.05
+    ? `new borrowing of £${X.m(need0)}m drawn in the third quarter`
+    : `no new borrowing in the year`;
+  const rp = X.ratePaid != null ? `${X.ratePaid.toFixed(1)}%` : "the rate on the debt held";
+  const re = X.rateEarned != null ? `${X.rateEarned.toFixed(2)}%` : "the rate currently earned";
+  const inv0 = X.a.ei || 0, invN = X.z.ei || 0;
+  return `The interest and income figures in this report assume ${draw}, with interest on debt \
+outstanding at an average of ${rp} and any short-term debt rolling at Bank Rate plus a margin. \
+No LOBO is assumed to be called. Investment returns are assumed at ${re}, on balances of \
+£${X.m(inv0)}m at the start of the year ${invN < inv0 ? "falling" : "rising"} to \
+£${X.m(invN)}m by ${X.FYN} as reserves are applied.
 
 The rate view behind those assumptions is the market-implied path shown in section 2, taken on \
 the report date and not updated since. The figures are most sensitive to the timing of the \
 drawdown rather than to the rate on it: a quarter's delay is worth more to the outturn than \
-twenty-five basis points on the loan.`,
+twenty-five basis points on the loan.`; }
+};
 
-compliance_body:
-`All treasury management activity in the period was undertaken within the limits and indicators \
-approved by members. No limit was exceeded at any point, and no counterparty fell below the \
-minimum criteria while funds were placed with it.
+/* Where the purpose of the report changes the words. A strategy asks for
+   approval; a review asks whether anything should change; an outturn reports
+   a year that has closed. */
+const REEL_BY_REPORT = {
 
-The maximum external debt reached in the period was £847.8m, against an authorised limit of \
-£1,167.1m. The maximum invested with a single counterparty was £15.0m, within the £20m limit \
-for a bank of that rating.`,
+intro_body: {
+  tmss: X =>
+`The authority has formally adopted the clauses of both CIPFA Codes and maintains the \
+treasury management practices that sit beneath them.
 
-indmon_body:
-`The capital financing requirement is £13.1m above the figure approved, and external debt £13.0m \
-below it: the capital programme has run slightly ahead while the borrowing to fund it has not \
-yet been taken. The two move together and the position closes as the drawdown is made in the \
-third quarter.
+Members are asked to approve the treasury management strategy and the borrowing strategy set \
+out below, the annual investment strategy and the counterparty criteria within it, the policy \
+on the [[mrp]], and the prudential and treasury indicators and limits, including the authorised \
+limit for external debt.
 
-Treasury investments are £4.4m above the approved figure because receipts arrived earlier in the \
-year than assumed. The liability benchmark and the financing costs ratio are within a point of \
-the approved position and require no revision to the strategy.`,
+The strategy was considered by the ${X.cttee} in January ${X.yr}, which recommended it to \
+Council for approval. The Committee reviewed the counterparty policy and the liability benchmark \
+in detail and asked for the maturity profile of borrowing to be reported alongside the strategy \
+each year; that profile is in the portfolio section below.`,
 
-performance_body:
-`Interest payable is £1.4m above budget. The budget assumed the year's borrowing would be drawn \
-evenly; it was taken in a single tranche in the second quarter, when the certainty rate was \
-favourable against the range seen since, and the additional cost in this year buys a lower rate \
-over the life of the loan.
+  out: X => {
+    const breach = (typeof complianceRows === "function") ? complianceRows().filter(r => !r.ok) : [];
+    return `The strategy for ${X.FY} was approved by Council in February ${X.yr}. This is the \
+last of the three reports the Code requires for the year, following the strategy itself and the \
+mid-year review.
 
-Investment income is £0.1m below budget on a balance that ran slightly lower than assumed. The \
-return of 3.40% is 32 basis points below the benchmark, which reflects the shorter average \
-duration held through the first half while the borrowing decision was open.`,
+Members are asked to note the outturn position, the activity reported below, and the position \
+against each indicator and limit approved for the year. ${breach.length
+  ? `${REEL_W.n(breach.length, "limit was", "limits were")} exceeded during the year; the \
+circumstances and the action taken are reported under compliance below.`
+  : "Every limit approved for the year was observed throughout it."}
 
-activity_body:
-`New borrowing of £50.4m was taken in the second quarter at an average rate of 4.48%, against a \
-plan of £45.0m. The additional £5.4m was drawn to meet capital expenditure brought forward from \
-the following year. All of it was taken from the Public Works Loan Board at the certainty rate, \
-which was better than the quotations obtained from other local authorities on the day.
+The report was considered by the ${X.cttee} in July ${X.yr + 1} before being presented to \
+Council.`; },
 
-Repayments of £33.6m fell due and were met from maturing investments. External debt at the \
-period end stood at £839.4m, against an authorised limit of £1,167.1m and a capital financing \
-requirement of £1,091.2m.
+  mid: X => {
+    const rev = X.L.al_revised != null && X.L.al_revised !== "";
+    return `It covers the first half of ${X.FY}, to ${X.PERIOD.to}, against the strategy \
+Council approved in February ${X.yr}.
 
-Investment balances averaged £47.0m over the period and stood at £42.0m at the period end, \
-earning an average of 3.40% against a benchmark of 3.72%. No counterparty failed to repay in \
-full and on time, and no institution on the approved list was downgraded below the minimum \
-criteria while funds were placed with it.`,
+Members are asked to note the position at the half-year and the activity reported below, and \
+${rev ? `to approve a revised authorised limit of £${X.m(+X.L.al_revised)}m, for the reasons \
+given under compliance below` : `to note that no revision to the strategy or to the indicators \
+approved for the year is proposed`}.
 
-deals:
-`The authority summarises rather than lists. Twenty-three deposits were placed in the period, \
-with a total value of £186.4m and a weighted average rate of 3.41%: fourteen with money market \
-funds, six with other local authorities, and three with the Debt Management Account Deposit \
-Facility. Two loans were taken, both from the Public Works Loan Board, totalling £50.4m at a \
-weighted average of 4.48%.
+The report was considered by the ${X.cttee} in November ${X.yr}.`; },
 
-Deal-level detail is held by the treasury team and is available to members on request.`,
+  quart: X => {
+    const rev = X.L.al_revised != null && X.L.al_revised !== "";
+    return `It covers the latest quarter of ${X.FY}, against the strategy Council approved in \
+February ${X.yr}, and is one of the quarterly reports members adopted in place of a single \
+mid-year review.
+
+Members are asked to note the position at the quarter end and the activity in the quarter, and \
+${rev ? `to approve a revised authorised limit of £${X.m(+X.L.al_revised)}m, for the reasons \
+given under compliance below` : `to note that no revision to the strategy or to the indicators \
+approved for the year is proposed`}.
+
+The report is presented to the ${X.cttee} as part of that cycle.`; }
+},
+
+rateview: (() => {
+  const back = X => {
+    const pv = X.pv, out = X.R === "out";
+    const nb = pv("newborr","actual"), nr = pv("newrate","actual"), ret = pv("ret","actual");
+    return `Bank Rate was held at 3.75% through ${X.PERIOD.p}, and gilt yields rose across the \
+curve, carrying PWLB rates with them: the certainty rate is fixed at 60 basis points over the \
+equivalent gilt and the standard rate at 80, so the movement in PWLB pricing reflects the gilt \
+market rather than any change in margin.
+
+The strategy assumed the market-implied path shown in section 2 and did not depend on it: the \
+borrowing requirement is set by the balance sheet, and the rate view bears only on timing. \
+${nb ? `The £${X.m(nb)}m borrowed in the second quarter${nr != null ? ` at ${nr.toFixed(2)}%` : ""} \
+was timed against that view, when the certainty rate sat in the lower half of the range seen \
+in ${X.PERIOD.p}.` : `No borrowing was timed against it in ${X.PERIOD.p}.`}\
+${ret != null && X.rateEarned != null ? ` Investment returns of ${ret.toFixed(2)}% compare with \
+the ${X.rateEarned.toFixed(2)}% the budget assumed.` : ""}${out ? "" : ` The assumption is \
+unchanged for the rest of the year.`}`; };
+  return {out: back, mid: back, quart: back};
+})(),
+
+assumptions: (() => {
+  const back = X => {
+    const pv = X.pv, out = X.R === "out";
+    const nb = pv("newborr","actual"), nr = pv("newrate","actual"), ret = pv("ret","actual");
+    const rp = X.ratePaid != null ? `${X.ratePaid.toFixed(1)}%` : "the rate on the debt held";
+    const re = X.rateEarned != null ? `${X.rateEarned.toFixed(2)}%` : "the rate then earned";
+    return `The budget for ${X.FY} assumed the borrowing identified by the liability benchmark \
+would be drawn in the third quarter, with interest on debt outstanding at an average of ${rp} \
+and investment returns at ${re} on a balance running down as reserves were applied. No LOBO was \
+assumed to be called.
+
+In the event ${nb ? `£${X.m(nb)}m was taken in the second quarter${nr != null ? ` at \
+${nr.toFixed(2)}%` : ""}` : "no new borrowing was taken"}${ret != null ? `, and investments \
+returned ${ret.toFixed(2)}%` : ""}. The interest and income figures in this report are \
+${out ? "the outturn for the year" : "the latest expectation for the year: what has been \
+realised, plus the forecast to the year end on the same assumptions"}, and the variances \
+against budget are explained under performance below.`; };
+  return {out: back, mid: back, quart: back};
+})()
 };
 
 /* The passages the document asks for directly, rather than through a text
-   field. Keyed, so the draft can look one up instead of matching on wording. */
-
+   field. Keyed, so the draft can look one up instead of matching on wording;
+   a function where the figures or the report type change the words. */
 const REEL_GAPS = {
 
-options:
-`Three approaches were considered. Continuing to borrow internally against reserves would avoid \
-external interest for a further year, but the liability benchmark shows the reserves supporting \
-that position falling below the liquidity allowance in 2028/29, so the deferral would have to be \
-reversed at whatever rate then applied. Borrowing the whole requirement in 2026/27 would remove \
-that exposure but would carry the cost of holding cash the authority does not yet need. The \
-strategy recommended takes the requirement in tranches as it arises, which is the approach that \
-keeps the maturity profile even and leaves the timing decision to be taken on the rate available.`,
+options: X => {
+  if(X.R === "mid" || X.R === "quart"){
+    const head = (X.L.al_approved || 0) - (X.L.debt_max || 0);
+    return `Two courses were open at ${X.PERIOD.at}: to revise the indicators approved for the \
+year in the light of the position reported, or to leave them as approved. Every indicator is \
+within the range the strategy anticipated and the authorised limit carries headroom of \
+£${X.m(head)}m over the highest debt reached, so no revision is proposed. Revising indicators \
+part way through a year for movements of this size would make them a forecast rather than a \
+limit, which is not what members approved them to be.`;
+  }
+  const pk = X.peakNeed;
+  return `Three approaches were considered. Continuing to borrow internally against reserves \
+would avoid external interest for a further year, but the liability benchmark shows the \
+reserves supporting that position being consumed across the medium term, so the deferral would \
+have to be reversed at whatever rate then applied. Borrowing the whole requirement of \
+£${X.m(pk.need)}m in ${X.FY} would remove that exposure but would carry the cost of holding \
+cash the authority does not need until ${fy(pk.fy)}. The strategy recommended takes the \
+requirement in tranches as it arises, which is the approach that keeps the maturity profile \
+even and leaves the timing decision to be taken on the rate available.`; },
 
-wfin: `The 2026/27 budget provides £22.9m for interest payable and £31.2m for minimum revenue \
-provision, and assumes £1.9m of investment income. A one percentage point movement in short-term \
-rates changes investment income by approximately £0.4m and, on the borrowing planned for the \
-year, interest payable by approximately £0.5m. Neither is material against the net revenue \
-stream, and both are within the risk provision held in the budget.`,
+wfin: X => {
+  const pv = X.pv;
+  if(X.back){
+    const ip = pv("intpay","actual"), ipb = pv("intpay","budget");
+    const ii = pv("intinc","actual"), iib = pv("intinc","budget");
+    const net = (ip != null && ipb != null ? ip - ipb : 0) - (ii != null && iib != null ? ii - iib : 0);
+    const lines = [];
+    if(ip != null && ipb != null) lines.push(`interest payable ${X.R === "out" ? "was" : "is"} \
+£${X.m(ip)}m against a budget of £${X.m(ipb)}m`);
+    if(ii != null && iib != null) lines.push(`investment income £${X.m(ii)}m against \
+£${X.m(iib)}m`);
+    return `${lines.length ? `${lines.join(", and ")[0].toUpperCase()}${lines.join(", and ").slice(1)}. ` : ""}\
+${Math.abs(net) < 0.05 ? "The treasury budget is on target" : `The net effect is \
+£${X.m(Math.abs(net))}m ${net > 0 ? "adverse" : "favourable"} on the treasury budget`}, which \
+is reflected in the ${X.R === "out" ? "outturn" : "forecast outturn"} for the year. No change \
+to the budget is sought.`;
+  }
+  const a = X.a, ai = X.a.ei || 0, need0 = a.need || 0;
+  return `The ${X.FY} budget provides £${X.m(a.intpay)}m for interest payable and \
+£${X.m(a.mrp)}m for ${natText("[[mrp]]")}, and assumes £${X.m(a.intinc)}m of investment income. \
+A one percentage point movement in short-term rates changes investment income by approximately \
+£${X.m(ai * 0.01)}m and, on the borrowing planned for the year, interest payable by \
+approximately £${X.m(Math.max(need0, 1) * 0.01)}m. Neither is material against the net revenue \
+stream, and both are within the risk provision held in the budget.`; },
 
-wlegal: `The authority has adopted the clauses of both Codes and complies with the reporting \
-requirements set out in them. No specific legal risk arises from the strategy beyond those \
-addressed in the risk implications below.`,
+wlegal: X => `The authority has adopted the clauses of both Codes and complies with the reporting \
+requirements set out in them. No specific legal risk arises from ${X.back ? "this report" : "the \
+strategy"} beyond those addressed in the risk implications below.`,
 
-wrisk: `The principal treasury risks in the year are refinancing risk on the £45m of borrowing \
-planned, and credit risk on the investment portfolio. Refinancing risk is controlled by the \
-maturity profile at section 4 and by taking the requirement in tranches rather than in one \
-transaction. Credit risk is controlled by the counterparty policy at section 6, under which no \
-single non-government counterparty may hold more than £10m and no unsecured bank deposit may run \
-beyond thirteen months.`,
+wrisk: X => {
+  const bank = X.cash("bank"), mo = X.months("bank"), pv = X.pv;
+  if(X.back){
+    const nb = pv("newborr","actual");
+    return `The principal treasury risks in ${X.PERIOD.p} were refinancing risk on the debt \
+maturing in it and credit risk on the investment portfolio. Both were managed within the \
+approved strategy: ${nb ? `the £${X.m(nb)}m borrowed was taken for a term that fills a gap in \
+the maturity profile rather than adding to a year already carrying maturities, ` : ""}no \
+counterparty on the approved list fell below the minimum criteria while funds were placed with \
+it, and no limit was exceeded.`;
+  }
+  const need0 = X.a.need || 0;
+  return `The principal treasury risks in the year are refinancing risk on the \
+${need0 > 0.05 ? `£${X.m(need0)}m of borrowing planned` : "debt maturing in the year"}, and credit \
+risk on the investment portfolio. Refinancing risk is controlled by the maturity profile in the \
+portfolio section and by taking the requirement in tranches rather than in one transaction. \
+Credit risk is controlled by the counterparty policy, under which \
+${bank ? `no single bank may hold more than £${bank}m` : "each counterparty type carries a cash \
+limit"}${mo ? ` and no unsecured bank deposit may run beyond ${mo} months` : ""}.`; },
 
-wequality: `An equality impact assessment has been carried out. The strategy sets the framework \
-within which the authority borrows and invests and does not itself determine which services are \
+wequality: X => X.back
+  ? `The report records activity within a framework members have already approved and carries \
+no decision that alters the services the authority delivers, so no equality impact arises from \
+it.`
+  : `An equality impact assessment has been carried out. The strategy sets the framework within \
+which the authority borrows and invests and does not itself determine which services are \
 delivered, so no direct differential impact on people with protected characteristics has been \
-identified. The affordability indicator at section 7 is the measure by which the strategy's \
-indirect effect on the resources available for services is monitored.`,
+identified. The affordability indicator is the measure by which the strategy's indirect effect \
+on the resources available for services is monitored.`,
 
 wclimate: `The authority has no separate environmental, social and governance policy for treasury \
 investments, and does not apply an exclusion list to counterparties: the counterparty policy is \
@@ -6435,11 +6816,13 @@ grounds the authority will prefer the one with the stronger published transition
 Borrowing taken to fund the capital programme carries the environmental appraisal made for the \
 schemes themselves, which is reported with the capital strategy.`,
 
-wconsult: `The strategy was prepared with advice from the authority's treasury adviser and reviewed by the Corporate \
-Management Team on 6 January 2026 and by the Audit and Governance Committee on 14 January 2026. \
-Background papers are the Capital Strategy 2026/27, the Medium Term Financial Strategy 2026/27 \
-to 2029/30, and the treasury management practices and schedules adopted by the authority.`
-
+wconsult: X => X.back
+  ? `Background papers are the treasury management strategy for ${X.FY} as approved by Council, \
+the ${X.R === "out" ? "draft statement of accounts" : "budget monitoring reports"} for ${X.FY}, \
+and the treasury management practices and schedules adopted by the authority.`
+  : `It was reviewed by the Corporate Management Team and by the ${X.cttee} in January ${X.yr}. \
+Background papers are the Capital Strategy ${X.FY}, the Medium Term Financial Strategy ${X.FY} \
+to ${X.FYN}, and the treasury management practices and schedules adopted by the authority.`
 };
 
 /* ===========================================================================
@@ -6775,7 +7158,7 @@ function readoutHTML(tag, d, fundLabel){
   if(!bits.length) return "";
   const plain = plainly(tag, d);
   return (plain ? `<div class="plain"><span class="pt">In plain terms</span>
-      <p>${plain.replace(/^In plain terms: /, "")}</p></div>` : "")
+      <p>${capFirst(plain.replace(/^In plain terms: /, ""))}</p></div>` : "")
     + `<div class="readout"><span class="rt">What ${tag} shows</span>${
     bits.map(b=>`<p>${b}</p>`).join("")}</div>`;
 }
@@ -6994,16 +7377,16 @@ const CLAUSES = [
   t:`[[invGuidance]] require the authority to prepare and approve an annual investment strategy
      before the start of the financial year, setting out the investments it may make and the
      limits applying to each. The permitted investments approved for the year, and the
-     objectives and risks associated with each, are set out in this strategy and were approved
-     by {{the council}} on {{date}}.`},
+     objectives and risks associated with each, are set out in this strategy for approval
+     before the start of the financial year.`},
  {sec:"5", nat:["england","wales"], always:true, req:"Statutory guidance on local government investments",
   t:`The authority has regard to [[invGuidance]] in setting this strategy, which requires it to
      prioritise security and liquidity over yield and to disclose the risk it is prepared to
      accept in pursuit of return.`},
  {sec:"5", when:C=>C.pooled==="yes", req:"TM Code — non-specified and long-term investments",
   t:`The authority uses externally managed and pooled funds, which have no fixed maturity date
-     and whose capital value may fall as well as rise. These are held for a period of at least
-     {{period}} and are reviewed against their objectives at least annually. Movements in
+     and whose capital value may fall as well as rise. These are held for the long term rather
+     than traded, and are reviewed against their objectives at least annually. Movements in
      their fair value are subject to the statutory override, and the authority takes the
      override's current status into account in assessing the risk to the revenue account.
      {{State the override's position as it stands when this strategy is written, and what the
@@ -7061,8 +7444,8 @@ const CLAUSES = [
      for the period. The position at the period end, and the maximum reached during it, are
      set out below against the limits as approved.`},
  {sec:"7b", always:true,
-  t:`The authorised limit is the statutory maximum for external debt under section 3(1) of the
-     Local Government Act 2003. A breach of it is a statutory matter and is reported to
+  t:`The authorised limit is the statutory maximum for external debt under [[act]]. A breach
+     of it is a statutory matter and is reported to
      members with an explanation and the action taken. {{Where a limit was exceeded, state
      when, by how much, why, and what was done. Where none were, say so plainly.}}`},
 
@@ -7171,29 +7554,55 @@ const CLAUSES = [
      transaction. {{Name the expertise relied on and how independence is assured.}}`},
 
  /* ---- 10 Governance ----------------------------------------------------- */
- {sec:"10", always:true, req:"TM Code — knowledge and skills",
-  t:`The authority recognises the importance of ensuring that those charged with treasury
-     management responsibilities, and the members who scrutinise them, have the knowledge and
-     skills to discharge those duties. {{Describe the training provided to officers and
-     members during the year, and how the adequacy of that training is assessed.}}`},
+ /* The knowledge-and-skills clause lived here as well as in 10b, prompt and
+    all, so every report said it twice a page apart. 10b is the section the
+    Code's requirement names; it keeps the clause. */
  {sec:"10", always:true, req:"TM Code — treasury management practices",
   t:`The authority maintains Treasury Management Practices setting out the manner in which it
      will seek to achieve its policies and objectives, together with schedules recording how
      those practices are applied in this authority.`}
 ];
 
+/* A CLAUSE'S PROMPT IS ANSWERED BY THE COMMENTARY BENEATH IT.
+ *
+ * "{{State the minimum long-term rating accepted, the agencies relied on...}}"
+ * sits inside a fixed clause the author cannot edit. It asks for exactly what
+ * the section's own commentary box asks for, and once that commentary is
+ * written the prompt is a question already answered — but it stayed in the
+ * paper, in orange, in every real report, and a demonstration hid it with a
+ * stylesheet rule the Word export could not see. So the prompts are dropped
+ * once the commentary that answers them is written and carries no open
+ * marker of its own, and never shown in a demonstration. A clause that is
+ * nothing but a prompt disappears with it. Until then they stay, because
+ * until then they are the list of what is missing. */
+const CLAUSE_TEXT = {"1":["intro_body"], "2":["econ","rateview"], "4":["borrow_body"],
+  "5":["invest_body","credit"], "5b":["corefunds_body"], "6":["mrp_body"],
+  "7b":["compliance_body"], "8":["activity_body"], "9":["nontreasury_body"],
+  "10":["gov_body"], "10b":["training_body"]};
+function clausePromptsWanted(sec){
+  if(S.demo) return false;
+  const keys = CLAUSE_TEXT[sec] || [];
+  if(!keys.length) return true;
+  const written = keys.map(k => ((S.text || {})[k] || "").trim()).filter(t => t.length > 40);
+  return !(written.length === keys.length && written.every(t => !/\{\{/.test(t)));
+}
+
 /* Assemble the clauses for a section, substituting the answers and leaving
    anything only the authority can supply visible as a placeholder. */
 function clausesFor(sec){
   const C = S.choices || {};
+  const prompts = clausePromptsWanted(sec);
   return CLAUSES.filter(c => c.sec === sec && inReport(c) && inNation(c) && (c.always || (c.when && c.when(C))))
     .map(c => {
-      const txt = natText(c.t).replace(/\s+/g," ").trim()
-        .replace(/\{\{(\w+)\}\}/g, (m,k)=> (C[k]||"").trim() || `{{${k}}}`)
-        .replace(/\{\{([^}]+)\}\}/g,
+      let txt = natText(c.t).replace(/\s+/g," ").trim()
+        .replace(/\{\{(\w+)\}\}/g, (m,k)=> (C[k]||"").trim() || `{{${k}}}`);
+      // Every brace left after the choices are filled is a prompt to the author.
+      if(!prompts) txt = txt.replace(/\s*\{\{[^}]*\}\}/g, "").replace(/\s{2,}/g, " ").trim();
+      if(!txt) return "";
+      txt = txt.replace(/\{\{([^}]+)\}\}/g,
           (m,body)=>`<span class="ph-inline">${esc(body.trim())}</span>`);
       return `<p>${txt}${c.req?`<span class="reqtag" title="${esc(c.req)}">why</span>`:""}</p>`;
-    }).join("");
+    }).filter(Boolean).join("");
 }
 function clauseCount(sec){
   const C = S.choices || {};
@@ -7345,9 +7754,9 @@ function complianceTable(){
     <p class="note">${breached
       ? `<b>${breached}</b> limit${breached===1?" was":"s were"} exceeded. The Code requires
          this to be reported to members with an explanation and the action taken.`
-      : `All limits tested were observed throughout the period.`}
+      : `All limits tested were observed throughout the ${S.report === "out" ? "year" : "period"}.`}
       ${L.inv_close!=null?` Treasury investments stood at <b>£${m1(L.inv_close)}m</b> at the
-      period end, against a maximum of <b>£${m1(L.inv_max)}m</b>.`:""}
+      ${S.report === "out" ? "year end" : "period end"}, against a maximum of <b>£${m1(L.inv_max)}m</b>.`:""}
       ${L.al_revised!=null && L.al_revised !== "" ? ` Members are asked to approve a revised
       authorised limit of <b>£${m1(+L.al_revised)}m</b>${L.al_approved!=null
         ? `, against the <b>£${m1(L.al_approved)}m</b> currently approved` : ""}.`:""}</p>`;
@@ -7658,15 +8067,19 @@ function monTable(){
       the latest expectation for the year, and the comparison is made here.</p>`;
   const f = (x, r) => x.v == null ? "–" : (r.pct ? `${x.v.toFixed(2)}%` : `£${m1(x.v)}m`);
   const moved = rows.filter(r => r.varc != null && Math.abs(r.varc) >= (r.pct?0.005:0.05));
+  // An outturn reports a year that has closed: its column is the actual,
+  // not an expectation, and the note says so.
+  const out = S.report === "out";
   return `<div style="overflow-x:auto"><table class="otable">
-    <thead><tr><th>${esc(fy(S.fy0))}</th><th>Approved</th><th>Latest expected</th>
+    <thead><tr><th>${esc(fy(S.fy0))}</th><th>Approved</th><th>${out ? "Actual" : "Latest expected"}</th>
       <th>Variance</th></tr></thead>
     <tbody>${rows.map(r=>`<tr><td class="w">${esc(r.l)}</td>
       <td>${f(r.approved, r)}</td><td>${f(r.latest, r)}</td>
       <td>${monVar(r)}</td></tr>`).join("")}</tbody></table></div>
     <p class="note">The comparison is for ${esc(fy(S.fy0))} alone — the year the report covers.
-      The approved column is the figure in the strategy members agreed; the latest expectation
-      is what has been realised plus the forecast to the year end.
+      The approved column is the figure in the strategy members agreed; ${out
+        ? "the actual is what the year closed at"
+        : "the latest expectation is what has been realised plus the forecast to the year end"}.
       ${moved.length
         ? `<b>${moved.length}</b> of ${rows.length} indicator${rows.length===1?"":"s"}
            differ${moved.length===1?"s":""} from the approved figure. Whether a movement is
@@ -7828,7 +8241,10 @@ function perfPanel(){
 /* The table the report carries. Variance is stated with its direction named,
    because "£0.4m" against a budget is meaningless without knowing which way
    is good news. */
-function perfTable(){
+/* opts.noNote: the figures-in-words note is for a table nobody has written
+   about yet. Under commentary that explains the same numbers it is the same
+   sentence twice, so the draft passes noNote once commentary exists. */
+function perfTable(opts){
   const all = perfRows();
   const shown = all.filter(r => r.grp || r.any);
   // A group heading with nothing under it is noise.
@@ -7862,7 +8278,7 @@ function perfTable(){
     esc(label)}</td>${cells(c => c === "__var"
       ? `<td>${varc(r, cs)}</td>` : `<td>${f(cs[c], r)}</td>`)}</tr>`;
   return `<div style="overflow-x:auto"><table class="otable">
-    <thead><tr><th>The period</th>${cells(c => `<th>${
+    <thead><tr><th>${S.report === "out" ? "The year" : "The period"}</th>${cells(c => `<th>${
       c === "__var" ? "Variance"
     : esc(PERF_COLS.find(x=>x[0]===c)[1])}</th>`)}</tr></thead>
     <tbody>${rows.map(r => r.grp
@@ -7879,7 +8295,7 @@ function perfTable(){
          interest on them.`}
       The investment lines are whole-authority either way: treasury cash is one portfolio
       managed against one benchmark, so a return cannot be apportioned between funds.</p>` : ""}
-    ${perfNote(rows.filter(r=>!r.grp))}`;
+    ${(opts && opts.noNote) ? "" : perfNote(rows.filter(r=>!r.grp))}`;
 }
 
 function perfNote(rows){
@@ -8146,8 +8562,15 @@ const SECTIONS = [
 const DRAFT_BY_REPORT = {
   intro_body: {out: "This report is presented to members after the year end and sets out the authority's treasury management activity for {{financial year}}, measured against the strategy they approved on {{date}}.\n\nIt is prepared under [[act]] and the CIPFA Treasury Management in the Public Services Code of Practice, which requires the authority to report on its treasury activity and on its performance against the prudential and treasury indicators it set.\n\nMembers are asked to note the outturn position, the activity reported in section 8, and the position against each indicator and limit set out in section 7.\n\n{{Name the committee receiving the report and when, and record whether any limit was exceeded — a breach of the authorised limit must be reported explicitly, not left to a table.}}", mid: "This report is presented to members part way through {{financial year}} and reviews the authority's treasury management activity against the strategy they approved on {{date}}.\n\nIt is prepared under the CIPFA Treasury Management in the Public Services Code of Practice, which requires the authority to review its treasury position during the year and to report any proposed change to the strategy or to the indicators approved for it.\n\nMembers are asked to note the position at {{date}}, the activity reported below, and {{to approve the revisions to the indicators set out in section 7 / that no revision to the approved strategy is proposed}}.\n\n{{Name the committee receiving the report and when.}}",
                quart: "This report is presented to members part way through {{financial year}} and reviews the authority's treasury management activity against the strategy they approved on {{date}}.\n\nIt is prepared under the CIPFA Treasury Management in the Public Services Code of Practice, which requires the authority to review its treasury position during the year and to report any proposed change to the strategy or to the indicators approved for it.\n\nMembers are asked to note the position at {{date}}, the activity reported below, and {{to approve the revisions to the indicators set out in section 7 / that no revision to the approved strategy is proposed}}.\n\n{{Name the committee receiving the report and when.}}"},
-  rateview:   {out: 'Rates over the period moved as follows. Bank Rate {{was held at / moved from ... to ...}}, and gilt yields {{rose / fell}} across the curve, carrying PWLB rates with them: the certainty rate is fixed at 60 basis points over the equivalent gilt and the standard rate at 80, so movement in PWLB pricing over the period reflects the gilt market rather than any change in margin.\n\nThe assumptions on which the strategy was set are compared with what happened in the table below. {{Where borrowing or investment was timed by reference to the rate view, say what was decided and what it achieved.}}', mid: 'Rates over the period moved as follows. Bank Rate {{was held at / moved from ... to ...}}, and gilt yields {{rose / fell}} across the curve, carrying PWLB rates with them: the certainty rate is fixed at 60 basis points over the equivalent gilt and the standard rate at 80, so movement in PWLB pricing over the period reflects the gilt market rather than any change in margin.\n\nThe assumptions on which the strategy was set are compared with what happened in the table below. {{Where borrowing or investment was timed by reference to the rate view, say what was decided and what it achieved.}}',
-               quart: 'Rates over the period moved as follows. Bank Rate {{was held at / moved from ... to ...}}, and gilt yields {{rose / fell}} across the curve, carrying PWLB rates with them: the certainty rate is fixed at 60 basis points over the equivalent gilt and the standard rate at 80, so movement in PWLB pricing over the period reflects the gilt market rather than any change in margin.\n\nThe assumptions on which the strategy was set are compared with what happened in the table below. {{Where borrowing or investment was timed by reference to the rate view, say what was decided and what it achieved.}}'}
+  rateview:   {out: 'Rates over the period moved as follows. Bank Rate {{was held at / moved from ... to ...}}, and gilt yields {{rose / fell}} across the curve, carrying PWLB rates with them: the certainty rate is fixed at 60 basis points over the equivalent gilt and the standard rate at 80, so movement in PWLB pricing over the period reflects the gilt market rather than any change in margin.\n\nThe assumptions on which the strategy was set are set against what happened here: {{say what the strategy assumed for Bank Rate and PWLB rates, what they did, and where borrowing or investment was timed by reference to the rate view, what was decided and what it achieved}}.', mid: 'Rates over the period moved as follows. Bank Rate {{was held at / moved from ... to ...}}, and gilt yields {{rose / fell}} across the curve, carrying PWLB rates with them: the certainty rate is fixed at 60 basis points over the equivalent gilt and the standard rate at 80, so movement in PWLB pricing over the period reflects the gilt market rather than any change in margin.\n\nThe assumptions on which the strategy was set are set against what happened here: {{say what the strategy assumed for Bank Rate and PWLB rates, what they did, and where borrowing or investment was timed by reference to the rate view, what was decided and what it achieved}}.',
+               quart: 'Rates over the period moved as follows. Bank Rate {{was held at / moved from ... to ...}}, and gilt yields {{rose / fell}} across the curve, carrying PWLB rates with them: the certainty rate is fixed at 60 basis points over the equivalent gilt and the standard rate at 80, so movement in PWLB pricing over the period reflects the gilt market rather than any change in margin.\n\nThe assumptions on which the strategy was set are set against what happened here: {{say what the strategy assumed for Bank Rate and PWLB rates, what they did, and where borrowing or investment was timed by reference to the rate view, what was decided and what it achieved}}.'},
+  /* What the budget lines rested on reads differently once the period has
+     happened: what was assumed, then what occurred. Without this the outturn
+     said "the figures in this report assume £Xm of new borrowing drawn in
+     the third quarter" about a year that had closed. */
+  assumptions: {out: 'The budget for {{financial year}} assumed {{£m}} of new borrowing drawn in {{period}} at {{%}}, with short-term debt rolling at {{%}}, and investment returns of {{%}} on balances {{rising / falling}} from {{£m}} to {{£m}} across the year. {{State whether any LOBO was assumed to be called.}}\n\nIn the event {{say what borrowing was taken, when and at what rate, and what return the investments achieved}}. The interest and income figures in this report are the outturn for the year, and the variances against budget are explained under performance below.',
+                mid: 'The budget for {{financial year}} assumed {{£m}} of new borrowing drawn in {{period}} at {{%}}, with short-term debt rolling at {{%}}, and investment returns of {{%}} on balances {{rising / falling}} from {{£m}} to {{£m}} across the year. {{State whether any LOBO was assumed to be called.}}\n\nIn the event {{say what borrowing was taken, when and at what rate, and what return the investments achieved}}. The interest and income figures in this report are the latest expectation for the year: what has been realised to the half-year, plus the forecast to the year end on the same assumptions. The variances against budget are explained under performance below.',
+                quart: 'The budget for {{financial year}} assumed {{£m}} of new borrowing drawn in {{period}} at {{%}}, with short-term debt rolling at {{%}}, and investment returns of {{%}} on balances {{rising / falling}} from {{£m}} to {{£m}} across the year. {{State whether any LOBO was assumed to be called.}}\n\nIn the event {{say what borrowing was taken, when and at what rate, and what return the investments achieved}}. The interest and income figures in this report are the latest expectation for the year: what has been realised to the quarter end, plus the forecast to the year end on the same assumptions. The variances against budget are explained under performance below.'}
 };
 function draftFor(q){
   const byRep = DRAFT_BY_REPORT[q.k];
@@ -9502,7 +9925,14 @@ function reportTitle(){
  * and never read it. */
 function execSummary(d){
   const a = d[0], z = d[d.length-1];
-  const peak = d.reduce((x,y)=> y.need > x.need ? y : x, d[0]);
+  /* THE BENCHMARK, NOT THE REQUIREMENT. This compared the peak borrowing
+     requirement (benchmark less loans) with the loans held and called it the
+     benchmark — so it read "rises to £123.8m... £33.6m above loans currently
+     held" under a chart whose benchmark peaked at £175.1m, and "remains
+     below the loans currently held" for an authority the same paragraph's
+     next section said must borrow £112m. */
+  const peak = d.reduce((x,y)=> y.lb > x.lb ? y : x, d[0]);
+  const peakNeed = d.reduce((x,y)=> y.need > x.need ? y : x, d[0]);
   /* "THIS STRATEGY COVERS 2026/27 TO 2076/77" ON AN ANNUAL OUTTURN. Only one
      of the four report types is a strategy, and only a strategy projects to
      the far end of the horizon — a report on a year that has closed covers
@@ -9516,9 +9946,11 @@ function execSummary(d){
     <b>£${m1(a.el)}m</b>, so it is
     <b>${a.el < a.ntp ? "internally borrowed" : "externally financed"}</b> at
     ${fwd ? "the start of the period" : "the balance sheet date"}.</p>
-    <p>The liability benchmark ${peak.need > a.el
-      ? `rises to <b>£${m1(peak.need)}m</b> in ${fy(peak.fy)}, which is
-         <b>£${m1(peak.need - a.el)}m</b> above loans currently held`
+    <p>The liability benchmark ${peak.lb > a.el + 0.05
+      ? `rises to <b>£${m1(peak.lb)}m</b> in ${fy(peak.fy)}, which is
+         <b>£${m1(peak.lb - a.el)}m</b> above loans currently held${peakNeed.need > 0.05
+           ? `; as existing loans run off, the borrowing requirement it implies peaks at
+              <b>£${m1(peakNeed.need)}m</b> in ${fy(peakNeed.fy)}` : ""}`
       : `remains below the loans currently held throughout the period`}.
     ${z.over > 0.05 ? `By ${fy(z.fy)} loans exceed the benchmark by
       <b>£${m1(z.over)}m</b>.` : ""}</p>
@@ -9528,6 +9960,63 @@ function execSummary(d){
           again is the same sentence three times before the reader reaches
           section 1. A summary says where the authority stands; the
           recommendation asks for something. */""}`;
+}
+
+/* THE SUMMARY OF A REPORT ON A PERIOD SAYS WHAT HAPPENED IN IT. The one
+   above is a strategy's: where the balance sheet stands and where the
+   benchmark goes. Under an outturn it said the same thing, and nothing about
+   the year — not whether a limit was breached, not what interest cost against
+   budget, not whether the indicators closed where members set them. Built
+   from the compliance, performance and monitoring figures, in that order,
+   because that is the order a member asks the questions in. */
+function execSummaryBack(d){
+  const a = d[0], L = S.limits || {}, out = S.report === "out";
+  const rows = (typeof complianceRows === "function") ? complianceRows() : [];
+  const breach = rows.filter(r => !r.ok);
+  const perf = (typeof perfRows === "function") ? perfRows() : [];
+  const pv = (k, c) => { const r = perf.find(x => x.k === k);
+    const cell = r && r.cells && r.cells[c]; return (cell && cell.v != null) ? cell.v : null; };
+  const mon = (typeof monRows === "function") ? monRows().filter(r => r.any) : [];
+  const moved = mon.filter(r => r.varc != null && Math.abs(r.varc) >= (r.pct ? 0.005 : 0.05));
+  const period = {out:"the year", mid:"the first half of the year", quart:"the quarter"}[S.report] || "the period";
+  const at = {out:"the year end", mid:"the half-year", quart:"the quarter end"}[S.report] || "the period end";
+  const rev = L.al_revised != null && L.al_revised !== "";
+  let h = `<p>This report covers ${fy(S.fy0)}, against the strategy members approved for it.`;
+  if(L.debt_close != null)
+    h += ` External debt ${out ? "closed the year" : "stood"} at <b>£${m1(L.debt_close)}m</b>${
+      L.al_approved != null ? ` against an authorised limit of <b>£${m1(L.al_approved)}m</b>` : ""}${
+      L.inv_close != null ? `, and treasury investments at <b>£${m1(L.inv_close)}m</b>` : ""}.`;
+  if(rows.length)
+    h += breach.length
+      ? ` <b>${breach.length}</b> limit${breach.length === 1 ? " was" : "s were"} exceeded in
+         ${period}; the explanation and the action taken are reported under compliance.`
+      : ` Every limit approved for the year was observed throughout ${out ? "it" : period}.`;
+  h += `</p>`;
+  const ip = pv("intpay","actual"), ipb = pv("intpay","budget");
+  const ret = pv("ret","actual"), bench = pv("bench","actual");
+  const bits = [];
+  if(ip != null && ipb != null){ const dd = ip - ipb;
+    bits.push(`interest payable ${out ? "was" : "is"} <b>£${m1(ip)}m</b> against a budget of
+      <b>£${m1(ipb)}m</b>${Math.abs(dd) < 0.05 ? "" : `, <b>£${m1(Math.abs(dd))}m ${
+      dd > 0 ? "adverse" : "favourable"}</b>`}`); }
+  if(ret != null && bench != null){ const dd = ret - bench;
+    bits.push(`investments returned <b>${ret.toFixed(2)}%</b> against a benchmark of
+      ${bench.toFixed(2)}%${Math.abs(dd) < 0.005 ? "" : `, ${Math.round(Math.abs(dd) * 100)}
+      basis points ${dd > 0 ? "above" : "below"} it`}`); }
+  if(bits.length) h += `<p>${capFirst(bits.join("; "))}.</p>`;
+  if(mon.length)
+    h += `<p>${moved.length
+      ? `<b>${moved.length}</b> of ${mon.length} indicators ${out ? "closed" : "are expected to close"}
+         away from the figure approved; the commentary beneath the comparison explains each.`
+      : `Every indicator ${out ? "closed" : "is expected to close"} at the figure approved.`}${
+      out ? "" : rev
+        ? ` Members are asked to approve a revised authorised limit of <b>£${m1(+L.al_revised)}m</b>.`
+        : ` No revision to the strategy or to the indicators approved for the year is proposed.`}</p>`;
+  h += `<p>The authority's capital financing requirement ${out ? "closed the year"
+    : "is expected to close the year"} at <b>£${m1(a.cfr)}m</b>, against external loans of
+    <b>£${m1(a.el)}m</b>, so it ${out ? "was" : "is"}
+    <b>${a.el < a.ntp ? "internally borrowed" : "externally financed"}</b> at ${at}.</p>`;
+  return h;
 }
 
 function docSections(){
@@ -9558,11 +10047,29 @@ function docSections(){
      telling the reader the example was unfinished. */
   // The "reel" class went with the ?reel= mode; a demonstration is the only
   // thing that fills these now.
-  const gap = (what, key) => (typeof REEL_GAPS !== "undefined" && key && REEL_GAPS[key] && S.demo)
-    ? para(REEL_GAPS[key])
-    : `<p class="gap">To be written: ${esc(what)}</p>`;
-  const peakNeed = d.reduce((a,b)=>b.need>a.need?b:a,d[0]);
-  const peakInv  = d.reduce((a,b)=>b.inv>a.inv?b:a,d[0]);
+  const gap = (what, key) => {
+    const demo = (S.demo && key && typeof reelGap === "function") ? reelGap(key) : null;
+    return demo ? para(demo) : `<p class="gap">To be written: ${esc(what)}</p>`;
+  };
+  /* THE AUTHORITY'S FIGURES ARE THE WHOLE AUTHORITY'S. Sections 3 and 3b, the
+     borrowing and investment leads, the core funds and the indicators
+     preamble all read d — the General Fund — and said "the authority's
+     capital financing requirement is £124.9m" two paragraphs under an
+     executive summary that said £201.2m, with the underpinning table
+     agreeing with the summary. Same report, three places, two numbers. The
+     General Fund model stays for what is the General Fund's; the authority's
+     own figures come from `whole`, as the summary and the checks already do. */
+  const W0 = whole[0], Wz = whole[whole.length-1];
+  const H  = S.hra !== "no" ? buildModel(S,"hra") : null;
+  const peakNeed = whole.reduce((a,b)=>b.need>a.need?b:a,whole[0]);
+  const peakInv  = whole.reduce((a,b)=>b.inv>a.inv+0.05?b:a,whole[0]);
+  /* One report type is a strategy. The other three report on a period, and
+     they ask members to note, not to approve. */
+  const back = S.report !== "tmss", out = S.report === "out", mid = S.report === "mid";
+  const L = S.limits || {};
+  const rev = L.al_revised != null && L.al_revised !== "";
+  const breaches = (back && typeof complianceRows === "function")
+    ? complianceRows().filter(r => !r.ok) : [];
 
   const IN2 = k => {
     const sec = SECTIONS.find(x=>x.k===k);
@@ -9581,19 +10088,50 @@ function docSections(){
       only part of the wrapper that is near-universal, so they are not
       optional. The wording is the decision the Code actually requires: the
       strategy, the indicators and the MRP statement are approved together. */
+   /* "APPROVE THE QUARTERLY MONITORING" is not a decision anyone takes. A
+      strategy is approved, with its indicators and its MRP policy; a report
+      on a period is noted, together with the position against what was
+      approved — and a mid-year review or quarterly report says whether it
+      asks for anything to be revised, because that is the one decision it
+      can carry. */
    {k:"recommend", n:"", t:"Recommendations",
-    b: `<p>Members are asked to:</p><ol class="recs">
-        <li>approve the ${esc(reportTitle())} for ${fy(S.fy0)};</li>
-        <li>approve the prudential and treasury management indicators set out in it;</li>
-        ${IN2("mrp") ? `<li>approve the policy on the ${esc(natText("[[mrp]]"))};</li>` : ""}
-        <li>note the counterparty policy and investment limits it contains.</li>
-        </ol>` + (S.choices.wrapoptions === "yes"
+    b: `<p>Members are asked to:</p><ol class="recs">${(() => {
+        const title = esc(reportTitle().toLowerCase());
+        if(!back) return [
+          `approve the ${title} for ${fy(S.fy0)};`,
+          `approve the prudential and treasury management indicators set out in it;`,
+          IN2("mrp") ? `approve the policy on the ${esc(natText("[[mrp]]"))};` : null,
+          `note the counterparty policy and investment limits it contains.`];
+        const items = [out
+          ? `note the treasury management activity and outturn position for ${fy(S.fy0)};`
+          : mid
+          ? `note the treasury management activity in the first half of ${fy(S.fy0)} and the
+             position at the half-year;`
+          : `note the treasury management activity in the quarter and the position at the
+             quarter end;`,
+          `note the position against the prudential and treasury management indicators and
+           limits approved for the year${breaches.length
+             ? `, including the ${breaches.length === 1 ? "limit" : "limits"} exceeded and the
+                action taken` : ""}${out && !rev ? "." : ";"}`];
+        if(rev) items.push(`approve a revised authorised limit for external debt of
+          £${m1(+L.al_revised)}m${L.al_approved != null
+            ? `, in place of the £${m1(L.al_approved)}m approved with the strategy` : ""}.`);
+        else if(!out) items.push(`note that no revision to the strategy or to the indicators
+          approved for the year is proposed.`);
+        return items;
+      })().filter(Boolean).map(x => `<li>${x}</li>`).join("")}</ol>`
+      /* Options belong where there is a decision: which strategy, or whether
+         to revise it at the half-year. An outturn and a quarterly report are
+         for noting, and "options considered" for noting is an empty heading. */
+      + (S.choices.wrapoptions === "yes" && (!back || mid)
         ? `<h4>Options considered</h4>`
-          + gap("the alternatives considered and why this strategy is recommended", "options")
+          + gap(mid ? "the alternatives considered — revising the indicators for the year, or "
+                    + "leaving them as approved — and why"
+                    : "the alternatives considered and why this strategy is recommended", "options")
         : "")},
 
    {k:"summary", n:"", t:"Executive summary", only:"wrapsummary",
-    b: execSummary(whole)},
+    b: back ? execSummaryBack(whole) : execSummary(whole)},
 
    {k:"intro", n:"1", t:"Introduction",
     b: clausesFor("1") + (t("intro_body") ? para(t("intro_body")) : "")},
@@ -9605,13 +10143,16 @@ function docSections(){
      + clausesFor("2") + forecastBlock() + marketBlock()},
 
    {k:"balance", n:"3", t:"Balance sheet summary and forecast",
-    b: `<p>The authority's capital financing requirement is <b>£${m1(d[0].cfr)}m</b> at
-        ${fy(S.fy0)}, against other balance sheet items of <b>£${m1(d[0].obs)}m</b>, giving a
-        net treasury position of <b>£${m1(d[0].ntp)}m</b>. On the authority's own projections
-        the requirement falls to <b>£${m1(d[d.length-1].cfr)}m</b> by
-        ${fy(d[d.length-1].fy)} as the minimum revenue provision is charged. No assumption is
-        made about capital budgets not yet approved.</p>`
-      + otable(d,[{l:"Capital financing requirement",k:"cfr"},
+    b: `<p>The authority's capital financing requirement ${back
+          ? `${out ? "closed" : "is expected to close"} ${fy(S.fy0)} at <b>£${m1(W0.cfr)}m</b>`
+          : `is <b>£${m1(W0.cfr)}m</b> at ${fy(S.fy0)}`}, against other balance sheet items
+        of <b>£${m1(W0.obs)}m</b>, giving a net treasury position of <b>£${m1(W0.ntp)}m</b>.${H
+          ? ` Of the requirement, <b>£${m1(d[0].cfr)}m</b> is the General Fund's and
+             <b>£${m1(H[0].cfr)}m</b> the Housing Revenue Account's.` : ""} On the authority's
+        own projections the requirement ${Wz.cfr < W0.cfr ? "falls" : "rises"} to
+        <b>£${m1(Wz.cfr)}m</b> by ${fy(Wz.fy)} as the ${esc(natText("[[mrp]]"))} is charged.
+        No assumption is made about capital budgets not yet approved.</p>`
+      + otable(whole,[{l:"Capital financing requirement",k:"cfr"},
                   {l:"Other balance sheet items",k:"obs",neg:true},
                   {l:"Net treasury position",k:"ntp",cls:"key"}])
       // Only where a previous report was actually loaded. It never invents a
@@ -9626,11 +10167,14 @@ function docSections(){
                               + "rate, and the view behind them", "balance"))},
 
    {k:"portfolio", n:"3b", t:"Current portfolio position",
-    b: `<p>Existing loan commitments are <b>£${m1(d[0].el)}m</b> at ${fy(S.fy0)}, against a
-        capital financing requirement of <b>£${m1(d[0].cfr)}m</b>. Treasury investments held
-        are <b>£${m1(d[0].ei)}m</b>, and the net treasury position is
-        <b>£${m1(d[0].ntp)}m</b>.</p>`
-      + otable(d,[{l:"Existing loan commitments",k:"el"},
+    b: `<p>${back
+          ? `Loans outstanding at ${out ? "the year end were" : "the period end are"}
+             <b>£${m1(W0.el)}m</b>`
+          : `Existing loan commitments are <b>£${m1(W0.el)}m</b> at ${fy(S.fy0)}`}, against a
+        capital financing requirement of <b>£${m1(W0.cfr)}m</b>. Treasury investments held
+        ${out ? "were" : "are"} <b>£${m1(W0.ei)}m</b>, and the net treasury position
+        ${out ? "was" : "is"} <b>£${m1(W0.ntp)}m</b>.</p>`
+      + otable(whole,[{l:"Existing loan commitments",k:"el"},
                   {l:"Existing investment commitments",k:"ei"},
                   {l:"Net treasury position",k:"ntp",cls:"key"}], 6)
       // What is actually held, at whatever granularity they gave it to us.
@@ -9682,8 +10226,13 @@ function docSections(){
      + (t("resched")?`<h4>Debt rescheduling</h4>${para(t("resched"))}`:"")},
 
    {k:"invest", n:"5", t:"Treasury investment strategy",
-    b: `<p>Implied treasury investments peak at <b>£${m1(peakInv.inv)}m</b> in
-        ${fy(peakInv.fy)}, against a liquidity allowance of <b>£${m1(d[0].liq)}m</b>.
+    b: `<p>${peakInv.inv > W0.liq + 0.05
+        ? `Implied treasury investments peak at <b>£${m1(peakInv.inv)}m</b> in
+           ${fy(peakInv.fy)}, against a liquidity allowance of <b>£${m1(W0.liq)}m</b>.`
+        : `Implied treasury investments sit at the liquidity allowance of
+           <b>£${m1(W0.liq)}m</b> throughout the projection: the authority is a net borrower
+           in every year, so it holds no strategic balances beyond what it needs for
+           day-to-day cash.`}
         Indicator LB5 sets out the split between liquidity, strategic and excess balances.</p>`
      + clausesFor("5")
      + (t("invest_body")?para(t("invest_body")):"")
@@ -9699,28 +10248,33 @@ function docSections(){
     b: cpSectionHTML() || gap("the counterparty limits, credit criteria and country policy")},
 
    {k:"corefunds", n:"5b", t:"Core funds and expected investment balances",
-    b: `<p>Other balance sheet items of <b>£${m1(d[0].obs)}m</b> are set against the capital
+    b: `<p>Other balance sheet items of <b>£${m1(W0.obs)}m</b> are set against the capital
         financing requirement — the extent of internal borrowing. The liquidity allowance of
-        <b>£${m1(d[0].liq)}m</b> sets the treasury investment benchmark wherever the authority
+        <b>£${m1(W0.liq)}m</b> sets the treasury investment benchmark wherever the authority
         is net indebted.</p>`
       + clausesFor("5b")
       + (t("corefunds_body")?para(t("corefunds_body")):"")},
 
    {k:"mrp", n:"6", t:"[[mrpTitle]]",
     b: clausesFor("6") + (t("mrp_body")?para(t("mrp_body")):"")
-     + `<p class="src">MRP of <b>£${m1(d[0].mrp)}m</b> is charged in ${fy(S.fy0)} on the
+     + `<p class="src">MRP of <b>£${m1(W0.mrp)}m</b> is charged in ${fy(S.fy0)} on the
         authority's own figures.</p>`},
 
    {k:"indicators", n:"7", t:"Treasury management prudential indicators", indicators:true,
     b: `<p>The indicators below follow the liability benchmark framework proposed in CIPFA's
-        2026 consultation on the Prudential and Treasury Management Codes. The authorised
-        limit is <b>£${m1(d[0].al)}m</b>, ${d[0].al > d[0].lb + 0.05 && d[0].al <= d[0].el + 0.05
-          ? "the external debt already held, which exceeds the peak of the projected liability "
-            + "benchmark and so sets the limit"
-          : "the peak of the projected liability benchmark"}. Under
+        2026 consultation on the Prudential and Treasury Management Codes. ${back && L.al_approved != null
+          ? `The authorised limit members approved for ${fy(S.fy0)} is
+             <b>£${m1(L.al_approved)}m</b>, and the position against it is reported under
+             compliance. The framework below is shown on the ${out ? "year-end" : "latest"}
+             figures, and on them would derive <b>£${m1(W0.al)}m</b> as the limit for the years
+             ahead.`
+          : `The authorised limit is <b>£${m1(W0.al)}m</b>, ${W0.al > W0.lb + 0.05 && W0.al <= W0.el + 0.05
+              ? "the external debt already held, which exceeds the peak of the projected liability "
+                + "benchmark and so sets the limit"
+              : "the peak of the projected liability benchmark"}.`} Under
         those proposals the operational boundary and the maturity structure of borrowing are no
         longer formal indicators.</p>`
-      + mstructTable() + expoTable() + inv364Table() + grossDebtTable(d)},
+      + mstructTable() + expoTable() + inv364Table() + grossDebtTable(whole)},
 
    {k:"under", n:"7b", t:"The data underpinning the indicators",
     b: `<p>The figures behind the charts above, as the Code recommends they be provided.
@@ -9735,20 +10289,37 @@ function docSections(){
       + (t("compliance_body")?para(t("compliance_body")):"")},
 
    {k:"indmon", n:"7e", t:"Indicators against the approved strategy",
-    b: `<p>The table below sets the indicators members approved for ${fy(S.fy0)} against what
-        the year is now expected to close at — what has been realised, plus the forecast to
-        the year end. Only the year the report covers is shown: the strategy carries the
-        indicators for every year of the horizon, and restating the profile here would bury
-        the one column this report exists to discuss.</p>`
+    b: `<p>The table below sets the indicators members approved for ${fy(S.fy0)} against ${out
+          ? "what the year closed at"
+          : `what the year is now expected to close at — what has been realised to ${mid
+              ? "the half-year" : "the end of the quarter"}, plus the forecast to the year end`}.
+        Only the year the report covers is shown: the strategy carries the indicators for every
+        year of the horizon, and restating the profile here would bury the one column this
+        report exists to discuss.</p>`
       + monTable()
       + (t("indmon_body") ? para(t("indmon_body"))
-                          : gap("why the latest expectation differs from what was approved",
-                                "indmon"))},
+                          : gap(out ? "why the year closed away from what was approved"
+                                    : "why the latest expectation differs from what was approved",
+                                "indmon"))
+      /* A REVIEW SAYS WHETHER ANYTHING CHANGES. The introduction promises that
+         any proposed revision is identified below, and a mid-year review that
+         proposed nothing then said nothing — the reader was left to infer it. */
+      + (out ? "" : `<p>${rev
+          ? `Members are asked to approve a revised authorised limit of
+             <b>£${m1(+L.al_revised)}m</b>${L.al_approved != null
+               ? `, in place of the <b>£${m1(L.al_approved)}m</b> approved with the strategy` : ""};
+             the reasons are given under compliance.`
+          : `No revision to the strategy or to the indicators approved for the year is
+             proposed.`}</p>`)},
 
    {k:"priorpi", n:"6b", t:"Prudential indicators",
     b: `<p>The indicators below are those the Prudential Code requires, each shown with the
-        previous year's actual from the statement of accounts alongside the authority's own
-        estimates for this year, the year ahead and the two after it.</p>`
+        previous year's actual from the statement of accounts alongside ${out
+          ? "the year the report covers and the authority's own estimates for the three years ahead"
+          : back
+          ? "the latest expectation for the year the report covers and the authority's own estimates "
+            + "for the three years ahead"
+          : "the authority's own estimates for this year, the year ahead and the two after it"}.</p>`
       + piTable()},
 
    {k:"group", n:"6c", t:"Group indicators",
@@ -9768,7 +10339,7 @@ function docSections(){
         set for it and against the year before. A comparative is what turns a figure into a
         movement, and the Prudential Code expects previous years' indicators to be taken from
         the authority's statement of accounts.</p>`
-      + perfTable()
+      + perfTable({noNote: !!t("performance_body")})
       + (t("performance_body") ? para(t("performance_body"))
                               : gap("why the outturn differs from budget, and what changed "
                                   + "against last year"))},
@@ -9794,7 +10365,9 @@ function docSections(){
         the prudential and treasury management indicators within it, and any in-year
         change to them.</p>
         <p>${esc(S.choices.committee || "The committee responsible for scrutiny of the treasury function")}
-        receives the mid-year review and the outturn report, and scrutinises treasury
+        receives ${S.choices.cycle === "quarterly"
+          ? "the quarterly monitoring reports and the outturn report"
+          : "the mid-year review and the outturn report"}, and scrutinises treasury
         management on behalf of members.</p>
         <p>The ${esc(natText("[[officer]]"))} is responsible for the execution and
         administration of treasury management decisions within the policy and limits
@@ -9824,12 +10397,16 @@ function docSections(){
      + (t("advisers")?`<h4>Treasury advisers</h4>${para(t("advisers"))}`:"")},
 
    {k:"wfin", n:"", t:"Financial implications", only:"wrapfin",
-    b: `<p>The costs of borrowing and the income from investments are provided for in the
-        budget. The indicators in this strategy set the limits within which those costs
-        are contained.</p>` + gap("any further financial implications your template requires", "wfin")},
+    b: (back
+        ? `<p>The costs of borrowing and the income from investments were provided for in the
+           budget for ${fy(S.fy0)}; the position against that budget is reported under
+           performance above.</p>`
+        : `<p>The costs of borrowing and the income from investments are provided for in the
+           budget. The indicators in this strategy set the limits within which those costs
+           are contained.</p>`) + gap("any further financial implications your template requires", "wfin")},
 
    {k:"wlegal", n:"", t:"Legal implications", only:"wraplegal",
-    b: `<p>${esc(natText("[[act]]"))} requires the authority to determine and keep under
+    b: `<p>${capFirst(esc(natText("[[act]]")))} requires the authority to determine and keep under
         review how much it can afford to borrow, and to have regard to the CIPFA
         Prudential Code and Treasury Management Code and to
         ${esc(natText("[[regs]]"))}.</p>` + gap("any further legal implications your template requires", "wlegal")},
@@ -9837,17 +10414,18 @@ function docSections(){
    {k:"wrisk", n:"", t:"Risk implications", only:"wraprisk",
     b: `<p>Treasury management carries credit, liquidity, interest rate, refinancing and
         legal and regulatory risk. The counterparty policy, the indicators and the
-        liability benchmark in this strategy are the controls applied to them.</p>`
+        liability benchmark in ${back ? "the approved strategy" : "this strategy"} are the
+        controls applied to them${back ? ", and this report sets out the position against each" : ""}.</p>`
         + gap("any further risk implications your template requires", "wrisk")},
 
    {k:"wequality", n:"", t:"Equality implications", only:"wrapequality",
-    b: gap("the equality impact of this strategy, in your authority's own terms", "wequality")},
+    b: gap(`the equality impact of this ${back ? "report" : "strategy"}, in your authority's own terms`, "wequality")},
 
    {k:"wclimate", n:"", t:"Climate and environmental implications", only:"wrapclimate",
     b: gap("the climate or environmental implications, and any ESG position taken on investments", "wclimate")},
 
    {k:"wconsult", n:"", t:"Consultation and background papers", only:"wrapconsult",
-    b: `<p>This strategy has been prepared with advice from
+    b: `<p>This ${back ? "report" : "strategy"} has been prepared with advice from
         ${S.choices.adviser ? esc(S.choices.adviser) : "the authority's treasury adviser"}.</p>`
         + gap("who was consulted, and the background papers relied on", "wconsult")},
   ];
@@ -9858,7 +10436,16 @@ function docSections(){
      group section returns nothing at all where an authority has no group
      undertakings, and it was still being numbered and printed — an empty
      "13 Group indicators" that a reader has to interpret. */
+  /* THREE SECTIONS THE DOCUMENT CARRIES ITSELF, AND ONLY IN A STRATEGY. The
+     counterparty policy and limits are approved with the strategy; a report
+     on a period tests the year against them under compliance rather than
+     restating them. The scheme of delegation and the responsible officer's
+     role are what the strategy sets out — an outturn reading "Full Council
+     approves the annual outturn... and any in-year change to them" was the
+     strategy's paragraph with the wrong noun dropped into it. */
+  const DOC_FWD = ["counterparty", "delegation", "s151role"];
   const kept = all.filter(x => (!x.k || IN(x.k)) && WANT(x)
+                            && !(back && DOC_FWD.indexOf(x.k) >= 0)
                             && String(x.b || "").trim() !== "");
   // Recommendations, the summary and the implications tail are not numbered
   // sections of the strategy: they are the report that carries it. Numbering
@@ -9993,7 +10580,8 @@ function propBlock(have){
     <p>Net income from non-treasury investments is
       <b>${peak.commratio.toFixed(1)}%</b> of the net revenue stream at its highest, in
       ${fy(peak.fy)}. The Prudential Code asks whether the authority could continue to deliver
-      its services if that income ceased; the answer belongs in section 9.</p>`
+      its services if that income ceased; the answer belongs in the section on non-treasury
+      investments.</p>`
     + `<div style="overflow-x:auto"><table class="otable"><thead><tr><th></th>${
         have.slice(0,6).map(r=>`<th>${fy(r.fy)}</th>`).join("")}</tr></thead><tbody>
       <tr><td>Net non-treasury investment income</td>${
@@ -11384,7 +11972,11 @@ function piTable(){
 
   return `<div style="overflow-x:auto"><table class="otable">
     <thead><tr><th>Prudential indicator</th>${cols.map(r =>
-      `<th>${fy(r.fy)}<br><i>${r.actual ? "actual" : "estimate"}</i></th>`).join("")}</tr></thead>
+      `<th>${fy(r.fy)}<br><i>${r.actual ? "actual"
+        // The year a report on a period covers is not an estimate: an outturn
+        // reports what it closed at, a review what it is now expected to.
+        : (r.i === 0 && S.report === "out") ? "actual"
+        : (r.i === 0 && S.report !== "tmss") ? "latest expected" : "estimate"}</i></th>`).join("")}</tr></thead>
     <tbody>${body}</tbody></table></div>
     ${piWalk(rows.all || rows.gf, cols.length)}
     <p class="note">The previous year is the actual from the statement of accounts; the
@@ -14717,20 +15309,39 @@ function setupSummary(){
      decimal made the example fail its own CFR reconciliation, because four
      rounded terms can drift 0.2 against a 0.05 tolerance. A worked example
      that does not reconcile teaches the wrong lesson about the tool. */
-  function fillFund(g, base, k){
+  /* THE FIRST YEAR IS A YEAR. It used to carry no capital spend and no MRP —
+     the opening CFR was written straight into it — so every demonstration
+     reported "Capital expenditure £0.0m" and "MRP £0.0m" in the one year
+     the report is about, an affordability ratio that jumped from 3.8% to
+     9.6% between the first two columns, and a CFR movement the flows beneath
+     it could not explain. The opening figure is now the PRIOR year-end (see
+     S.actual below) and the first year moves from it like every other.
+
+     `share` is the fund's share of the loan book, passed in rather than read
+     from the preset because it depends on the pooling arrangement: under one
+     pool the General Fund carries the whole book and the HRA's loans column
+     is not a thing (ui.js hides it), so writing 35% of the book into it left
+     the model reporting 65% of the authority's debt as all of it. */
+  function fillFund(g, base, k, share){
+    /* THE LEDGER'S LOANS ARE THE LOAN BOOK'S. The column used to carry the
+       PWLB run-off alone, while the debt table beneath it listed a LOBO and a
+       market loan on top — so the report said "existing loan commitments
+       £138.8m" over a bar chart totalling £162.4m. loanProfile is what the
+       model reads for the book; the ledger is filled from the same figure. */
+    const prof = (typeof loanProfile === "function") ? loanProfile(S, LB) : null;
     let cfr = r1(base * k.cfr0);
     for(let i=0;i<S.years;i++){
       // Only the MTFP years carry new capital spend. Past that the CFR simply
       // amortises, which is the method rather than a shortcut.
-      const capex = i && i<MTFP ? r1(base*k.capex) : 0;
-      const mrp   = i ? r1(cfr*k.mrp) : 0;
-      const rec   = i && i<MTFP ? r1(base*k.rec) : 0;
-      if(i) cfr = r1(Math.max(0, cfr + capex - mrp - rec));
+      const capex = i<MTFP ? r1(base*k.capex) : 0;
+      const mrp   = r1(cfr*k.mrp);
+      const rec   = i<MTFP ? r1(base*k.rec) : 0;
+      cfr = r1(Math.max(0, cfr + capex - mrp - rec));
       g.cfr[i]=cfr; g.capex[i]=capex; g.mrp[i]=mrp; g.rec[i]=rec;
       g.obs[i]=r1(base*k.obs*Math.pow(0.97,i));
       g.liq[i]=k.liq==null ? 0 : r1(Math.max(2, base*k.liq));
       g.inv[i]=k.inv==null ? 0 : r1(Math.max(2, base*k.inv)*Math.pow(0.95,i));
-      g.loans[i]=r1((LB[S.gss] && LB[S.gss].r[i]!=null ? LB[S.gss].r[i] : base) * k.share);
+      g.loans[i]=r1((prof ? prof[i] : (LB[S.gss] && LB[S.gss].r[i]!=null ? LB[S.gss].r[i] : base)) * share);
       // Interest is charged on the loans actually outstanding rather than on
       // the CFR, so affordability moves as debt runs off — which is the whole
       // point of the indicator.
@@ -14748,11 +15359,18 @@ function setupSummary(){
      see the "demorep" view. Read once by the #council handler, then cleared. */
   let DEMO_REPORT = null;
   const DEMOS = {
+    /* cfr0 IS SET SO THE BENCHMARK SITS ABOVE THE BOOK IN THE FIRST YEAR. The
+       ledger now carries the whole loan book (LOBO and market loan included),
+       and at the old ratios that put existing loans above the benchmark in
+       year one — so the strategy said no borrowing was needed while the
+       outturn on the same figures reported the year's borrowing "as assumed".
+       One demonstration tells one story: internally borrowed, a requirement
+       in the year, part of it taken. */
     nohra: {mode:"no", label:"no HRA", name:"Example Non-Housing Authority",
-      gf:{cfr0:1.30, capex:0.07, mrp:0.04, rec:0.005, obs:0.38, liq:0.04, inv:0.05,
+      gf:{cfr0:1.60, capex:0.07, mrp:0.04, rec:0.005, obs:0.38, liq:0.04, inv:0.05,
           share:1.00, nrs:0.55, comminc:0}},
     one:  {mode:"one", label:"one pool", name:"Example One-Pool Housing Authority",
-      gf:{cfr0:0.90, capex:0.05, mrp:0.04, rec:0.004, obs:0.30, liq:0.04, inv:0.05,
+      gf:{cfr0:1.05, capex:0.05, mrp:0.04, rec:0.004, obs:0.30, liq:0.04, inv:0.05,
           share:0.65, nrs:0.55, comminc:0},
       // The HRA carries its own CFR and its own debt. Under one pool it still
       // holds a liquidity allowance, because the funds are not separated for
@@ -14760,12 +15378,12 @@ function setupSummary(){
       // No liquidity allowance, no investments, no investment income and no
       // non-treasury income: the General Fund holds all of those for the
       // authority. Filling them here would double-count in the combined sheet.
-      hraK:{cfr0:0.55, capex:0.03, mrp:0.025, rec:0.002, obs:0.06,
+      hraK:{cfr0:0.60, capex:0.03, mrp:0.025, rec:0.002, obs:0.06,
             share:0.35, nrs:0.18}},
     two:  {mode:"two", label:"two pool", name:"Example Two-Pool Housing Authority",
-      gf:{cfr0:0.90, capex:0.05, mrp:0.04, rec:0.004, obs:0.30, liq:0.05, inv:0.06,
+      gf:{cfr0:1.05, capex:0.05, mrp:0.04, rec:0.004, obs:0.30, liq:0.05, inv:0.06,
           share:0.65, nrs:0.55, comminc:0},
-      hraK:{cfr0:0.55, capex:0.03, mrp:0.025, rec:0.002, obs:0.06,
+      hraK:{cfr0:0.60, capex:0.03, mrp:0.025, rec:0.002, obs:0.06,
             share:0.35, nrs:0.18}}
   };
 
@@ -14940,13 +15558,22 @@ function setupSummary(){
                {name:"Market loan", amt:r1(base*0.05), mat:S.fy0+9, rate:4.10, type:"Market", profile:"bullet"}];
 
     S.g = {gf:blank(), hra:blank()};
-    fillFund(S.g.gf, base, D.gf);
-    if(D.hraK) fillFund(S.g.hra, base, D.hraK);
+    fillFund(S.g.gf, base, D.gf, D.mode === "one" ? 1 : D.gf.share);
+    if(D.hraK) fillFund(S.g.hra, base, D.hraK, D.mode === "one" ? 0 : D.hraK.share);
     S.fund = "gf";
 
     // An investment portfolio, at the granularity a council would actually
     // paste: grouped by instrument type rather than counterparty by counterparty.
     const pot = Math.max(4, base*0.05);
+    /* The service loans to the group companies (S.group, below) earn the
+       authority non-treasury income, and the same figure has to appear in
+       the ledger, the affordability section's proportionality block, the
+       group table's single-entity column and the non-treasury commentary.
+       The commentary used to describe £96m of commercial property beside a
+       ledger that carried none and a clause that said the authority held no
+       non-treasury investments at all. */
+    const gIntra = r1(r1(pot*0.14) + r1(pot*0.07) + r1(pot*0.05));
+    for(let i=0;i<MTFP;i++) S.g.gf.comminc[i] = gIntra;
     S.portfolio = [
       {name:"Debt Management Office", type:"DMADF",        amt:r1(pot*0.30), rate:3.95, mat:S.fy0+1},
       {name:"Money market funds",     type:"MMF",          amt:r1(pot*0.35), rate:3.88, mat:null},
@@ -15029,7 +15656,12 @@ function setupSummary(){
        interest and slightly over on income, because a demonstration where
        everything came in on budget teaches nothing about how a variance
        reads. */
-    const inc0 = r1(pot * 0.039), pay0 = r1(dbt * 0.041);
+    /* The year's interest payable and investment income ARE the ledger's
+       first year — the affordability table and the performance table are
+       two views of the same figures, and they used to be filled from two
+       different sums (5.8 in one, 5.7 in the other). */
+    const ledgerSum = k => r1((S.g.gf[k][0] || 0) + (S.hra === "no" ? 0 : (S.g.hra[k][0] || 0)));
+    const inc0 = ledgerSum("intinc") || r1(pot * 0.039), pay0 = ledgerSum("intpay") || r1(dbt * 0.041);
     S.perf = {
       intpay:  {budget: r1(pay0 * 0.96), actual: pay0,             prior: r1(pay0 * 0.92)},
       intinc:  {budget: r1(inc0 * 1.05), actual: inc0,             prior: r1(inc0 * 0.88)},
@@ -15071,15 +15703,30 @@ function setupSummary(){
      * with whichever authority is picked: a year further back on the CFR, a
      * little less debt, and the same shape of revenue account. */
     const back = (k, f) => r1((S.g[f] ? S.g[f][k][0] : 0) * 0.95);
+    /* Last year's debt is this year's, less the borrowing the activity section
+       reports and plus the repayments, in the fund's share — so the movement
+       in external debt across the two columns is the movement the period's
+       figures describe. */
+    const priorLoans = f => { const g = S.g[f]; if(!g) return 0;
+      const l0 = g.loans[0] || 0;
+      const tot = (S.g.gf.loans[0] || 0) + (S.hra === "no" ? 0 : (S.g.hra.loans[0] || 0));
+      const sh = tot > 0 ? l0 / tot : 0;
+      return r1(l0 - (S.perf.newborr.actual || 0) * sh + (S.perf.repaid.actual || 0) * sh); };
+    /* The prior year-end CFR is what the first year's flows move FROM, so
+       the "Movement in CFR" table reconciles: closing less spend plus MRP
+       and receipts. A prior figure set at 95% of the closing one left a
+       movement no line in the table could account for. */
+    const openCfr = f => { const g = S.g[f]; return g
+      ? r1((g.cfr[0]||0) - (g.capex[0]||0) + (g.mrp[0]||0) + (g.rec[0]||0)) : 0; };
     // obs is derived at the opening date and is not the demo's to set.
     S.actual = {gf: {
-      cfr: back("cfr","gf"), loans: back("loans","gf"),
+      cfr: openCfr("gf"), loans: priorLoans("gf"),
       inv: r1(pot), liq: S.g.gf.liq[0] || 0, capex: r1((S.g.gf.capex[1]||0) * 0.9),
       mrp: r1((S.g.gf.mrp[1]||0) * 0.95), intpay: r1(dbt * 0.039),
       intinc: r1(pot * 0.036), nrs: r1((S.g.gf.nrs[0]||0) * 0.97),
       comminc: r1((S.g.gf.comminc[0]||0) * 0.95)}};
     if(S.hra !== "no") S.actual.hra = {
-      cfr: back("cfr","hra"), loans: back("loans","hra"),
+      cfr: openCfr("hra"), loans: priorLoans("hra"),
       capex: r1((S.g.hra.capex[1]||0) * 0.9), mrp: r1((S.g.hra.mrp[1]||0) * 0.95),
       intpay: r1((S.g.hra.intpay[1]||0) * 0.95), nrs: r1((S.g.hra.nrs[0]||0) * 0.97)};
 
@@ -15090,7 +15737,13 @@ function setupSummary(){
        since a demonstration is read under all four. */
     {
       const now = (typeof monLatest === "function") ? monLatest() : {};
-      const apart = {capex: 1.06, cfr: 0.99, debt: 0.97, inv: 1.08, lb: 1.00, afford: 0.98};
+      /* One story, told by every row: the programme slipped (spend below
+         the approved figure), so the CFR closes a little below it, the
+         borrowing planned for it has not been taken (debt below), receipts
+         arrived early (investments above) and the ratio eased. The earlier
+         factors had the CFR ABOVE approved while capital spend was BELOW it,
+         which no commentary can explain. */
+      const apart = {capex: 1.06, cfr: 1.01, debt: 1.03, inv: 0.92, lb: 1.00, afford: 1.02};
       S.mon = {};
       (typeof MONITOR !== "undefined" ? MONITOR : []).forEach(x => {
         const v = x.from(now);
@@ -15129,7 +15782,7 @@ function setupSummary(){
        part-done. An obviously fictional name does both jobs. */
     S.choices = {adviser:"Example Treasury Advisers", mrpmethod:"asset", lfmethod:"annuity",
                  cycle:"thrice", vrp:"no", advance:"no", resched:"no",
-                 pooled:"yes", nontreas:"no", mifid:"yes",
+                 pooled:"yes", nontreas:"yes", mifid:"yes",
                  commprop:"no", commborrow:"no",
                  /* Not us. The demonstration is what a reader takes for the
                     house style, and naming our own service in it is the same
@@ -15181,8 +15834,12 @@ function setupSummary(){
        outturn produced "To be written" under the two sections that outturn
        exists for. Text for a section this report does not have is never
        rendered; text missing from one it does have is a hole in the example. */
+    /* reelText writes each passage for the report type on screen, from the
+       figures set above — so it runs after the ledger, the limits, the
+       period's figures and the counterparty policy are all in place, and a
+       number it quotes is a number the tables beside it show. */
     SECTIONS.forEach(sec => (sec.qs||[]).forEach(q => {
-      const dr = (typeof REEL_TEXT !== "undefined" && REEL_TEXT[q.k]) || draftFor(q);
+      const dr = (typeof reelText === "function" && reelText(q.k)) || draftFor(q);
       if(dr) S.text[q.k] = dr;
     }));
 
