@@ -3419,7 +3419,13 @@ const SELALL = el => el && el.value != null && el.value.length > 0
 
 function excelGrid(root, o){
   if(!root) return;
-  const cols = o.cols, nR = () => o.rows();
+  /* THE COLUMN LIST IS READ WHEN A KEY IS PRESSED, NOT WHEN THE GRID WAS
+     BUILT. It was captured once, at boot, with no HRA and the General Fund on
+     screen — so after the pooling changed, Tab skipped the inter-fund columns,
+     a pasted block landed one column off, and paste or fill starting in a
+     column the boot-time list had never seen indexed −1 and threw. The caller
+     may pass a function, and the ledger does. */
+  const cols = () => (typeof o.cols === "function" ? o.cols() : o.cols), nR = () => o.rows();
   let sel = null;                   // {c0,r0,c1,r1} in index space
 
   /* Undo. Anyone trying figures out will overwrite a column and want it back,
@@ -3441,8 +3447,8 @@ function excelGrid(root, o){
   }
   let typing = null;                // the cell a run of typing began in
   const cellAt = (c, r) => root.querySelector(
-    `input[data-k="${cols[c]}"][data-i="${r}"]`);
-  const idx = el => ({c: cols.indexOf(el.dataset.k), r: +el.dataset.i});
+    `input[data-k="${cols()[c]}"][data-i="${r}"]`);
+  const idx = el => ({c: cols().indexOf(el.dataset.k), r: +el.dataset.i});
   const clamp = (v, hi) => Math.max(0, Math.min(hi, v));
 
   const handle = document.createElement("div");
@@ -3473,7 +3479,7 @@ function excelGrid(root, o){
   }
 
   function go(c, r, extend){
-    const el = cellAt(clamp(c, cols.length-1), clamp(r, nR()-1));
+    const el = cellAt(clamp(c, cols().length-1), clamp(r, nR()-1));
     if(!el) return;
     if(extend && sel){ sel.c1 = idx(el).c; sel.r1 = idx(el).r; paint(); return; }
     el.focus(); el.select();
@@ -3484,12 +3490,12 @@ function excelGrid(root, o){
      row however many times you pressed it. */
   function grow(dc, dr){
     if(!sel) return;
-    sel.c1 = clamp(sel.c1 + dc, cols.length - 1);
+    sel.c1 = clamp(sel.c1 + dc, cols().length - 1);
     sel.r1 = clamp(sel.r1 + dr, nR() - 1);
     paint();
   }
 
-  function writeCol(c, r, v){ o.set(cols[c], r, v); }
+  function writeCol(c, r, v){ o.set(cols()[c], r, v); }
   function bounds(){
     if(!sel) return null;
     return {c0:Math.min(sel.c0,sel.c1), c1:Math.max(sel.c0,sel.c1),
@@ -3511,11 +3517,16 @@ function excelGrid(root, o){
     typing = null;
     paint();
   });
+  /* CAPTURE PHASE, so the snapshot is taken BEFORE the cell's own listener
+     writes the new value into the state. As a bubbling listener it ran after
+     that write, so every snapshot already held the edit and the first Ctrl+Z
+     restored the state to itself. The global undo (wire.js) used to mask
+     this by undoing the same edit from its own, correctly-timed snapshot. */
   root.addEventListener("input", e => {
-    const el = e.target; if(!el.matches("input[data-k]")) return;
+    const el = e.target; if(!el.matches || !el.matches("input[data-k]")) return;
     const key = el.dataset.k + ":" + el.dataset.i;
     if(typing !== key){ snap(); typing = key; }
-  });
+  }, true);
 
   root.addEventListener("keydown", e => {
     const el = e.target; if(!el.matches("input[data-k]")) return;
@@ -3532,7 +3543,7 @@ function excelGrid(root, o){
       const b = bounds(); if(!b) return;
       snap();
       for(let cc=b.c0;cc<=b.c1;cc++){
-        const v = o.get(cols[cc], b.r0);
+        const v = o.get(cols()[cc], b.r0);
         for(let rr=b.r0+1;rr<=b.r1;rr++) writeCol(cc, rr, v);
       }
       o.after(); paint(); return;
@@ -3542,7 +3553,7 @@ function excelGrid(root, o){
       const b = bounds(); if(!b) return;
       snap();
       for(let rr=b.r0;rr<=b.r1;rr++){
-        const v = o.get(cols[b.c0], rr);
+        const v = o.get(cols()[b.c0], rr);
         for(let cc=b.c0+1;cc<=b.c1;cc++) writeCol(cc, rr, v);
       }
       o.after(); paint(); return;
@@ -3555,7 +3566,7 @@ function excelGrid(root, o){
       const out = [];
       for(let rr=r0;rr<=r1;rr++){
         const line = [];
-        for(let cc=c0;cc<=c1;cc++) line.push(o.get(cols[cc], rr));
+        for(let cc=c0;cc<=c1;cc++) line.push(o.get(cols()[cc], rr));
         out.push(line.join("\t"));
       }
       navigator.clipboard && navigator.clipboard.writeText(out.join("\n"));
@@ -3585,8 +3596,8 @@ function excelGrid(root, o){
       case "Tab": {
         e.preventDefault();
         const n = e.shiftKey ? c-1 : c+1;
-        if(n < 0) go(cols.length-1, r-1);
-        else if(n >= cols.length) go(0, r+1);
+        if(n < 0) go(cols().length-1, r-1);
+        else if(n >= cols().length) go(0, r+1);
         else go(n, r);
         return;
       }
@@ -3618,7 +3629,7 @@ function excelGrid(root, o){
     let maxC = c, maxR = r, clipped = 0;
     lines.forEach((line, dr) => {
       line.split("\t").forEach((cell, dc) => {
-        if(c+dc < cols.length && r+dr < nR()){
+        if(c+dc < cols().length && r+dr < nR()){
           writeCol(c+dc, r+dr, num(cell));
           maxC = Math.max(maxC, c+dc); maxR = Math.max(maxR, r+dr);
         } else clipped++;
@@ -3697,12 +3708,12 @@ function excelGrid(root, o){
     snap();
     if(b.c1 > d.c1 || b.c0 < d.c0){          // filled sideways
       for(let rr=b.r0; rr<=b.r1; rr++){
-        const v = o.get(cols[d.c0], rr);
+        const v = o.get(cols()[d.c0], rr);
         for(let cc=b.c0; cc<=b.c1; cc++) if(cc !== d.c0) writeCol(cc, rr, v);
       }
     } else {                                  // filled up or down
       for(let cc=d.c0; cc<=d.c1; cc++){
-        const v = o.get(cols[cc], d.r0);
+        const v = o.get(cols()[cc], d.r0);
         for(let rr=b.r0; rr<=b.r1; rr++) if(rr !== d.r0) writeCol(cc, rr, v);
       }
     }
@@ -6379,7 +6390,7 @@ holds was acquired with borrowing taken for that purpose.
 
 Loans advanced total £${X.m(loans)}m, against which £${X.m(prov)}m is held in reserve against \
 the risk of loss. The income they generate is £${X.m(inc)}m a year${share != null
-  ? `, ${share.toFixed(1)}% of the net revenue stream` : ""}; the authority is satisfied that \
+  ? `, ${share.toFixed(1)}% of the General Fund's net revenue stream` : ""}; the authority is satisfied that \
 this dependence is proportionate and that services could continue were the income to cease, so \
 no reduction plan is required.
 
@@ -8208,9 +8219,14 @@ function perfPanel(){
   const line = r => {
     const cells = PERF_COLS.map(([c]) => {
       if(r.cells[c].na) return `<td class="nask" title="a budget is not set for this"></td>`;
+      /* A derived figure is shown as the placeholder of a box that can be
+         typed into, because the hint below says "type over it to state your
+         own" and a bare cell gave nowhere to type. */
       if((r.k === "ret" || r.k === "ratepaid") && r.cells[c].derived)
-        return `<td class="drv" title="income over average balance">${
-          r.cells[c].v.toFixed(2)}%</td>`;
+        return `<td><input type="text" inputmode="decimal" data-p="${r.k}" data-pc="${c}"
+          class="drvin" value="" placeholder="${r.cells[c].v.toFixed(2)}%"
+          title="${r.k === "ret" ? "income over average balance" : "interest over average debt"} — type to state your own"
+          aria-label="${esc(r.k)} ${esc(c)}, derived"></td>`;
       return box(r.k, c, r.pct, false);
     }).join("");
     const own = `<tr><td class="pl"><b>${esc(r.l)}</b><span>${
@@ -9288,7 +9304,19 @@ function cpDefault(sectorLabel, which){
   return b ? String(b.med) : "\u2014";
 }
 
+/* THE PANEL IS REDRAWN AROUND THE CARET. cpRender replaces the whole panel,
+   and it is called from the change handler — which fires as you leave a
+   field — so the field you were tabbing into was rebuilt out from under the
+   focus and the caret landed on the page body: every edited field cost a
+   click to carry on. keepFocus (ui.js) notes which control is focused, lets
+   the panel redraw, and puts the focus back on the control with the same
+   data attributes. */
 function cpRender(){
+  const host = $("cpbody");
+  if(!host) return;
+  if(typeof keepFocus === "function") keepFocus(host, cpRenderDraw); else cpRenderDraw();
+}
+function cpRenderDraw(){
   const host = $("cpbody");
   if(!host) return;
   const ix = $("cpindex");
@@ -9587,7 +9615,12 @@ function cpWire(){
     }
     else if(el.dataset.cps){ c[el.dataset.cps] = el.type === "checkbox" ? el.checked : el.value; }
     else return;
-    cpRender(); renderRail();
+    /* AFTER THE FOCUS HAS MOVED. "change" fires during the blur, before the
+       next field has focus, so a redraw here found nothing focused and the
+       field Tab was heading for was rebuilt out from under it — every Tab
+       through the grid dropped the caret on the floor. A tick later the next
+       field is focused, and keepFocus (inside cpRender) puts it back. */
+    setTimeout(() => { cpRender(); renderRail(); }, 0);
   });
 }
 
@@ -10329,7 +10362,12 @@ function docSections(){
         intra-group transfer and does not appear in the group figures; what the subsidiaries
         earn from third parties does, as does any third-party debt held by a subsidiary for
         which the authority is ultimately responsible.</p>`
-      + groupTable(d)
+      /* THE SINGLE ENTITY IS THE AUTHORITY, HRA INCLUDED. This was handed the
+         General Fund model, so a housing authority's "single entity" financing
+         costs and net revenue stream were the General Fund's alone — a ratio
+         two points away from the one the affordability section reports for
+         the same authority, a page earlier. */
+      + groupTable(whole)
       + (t("group_body") ? para(t("group_body"))
                          : gap("whether income from the subsidiaries is sustainable and "
                              + "based on their own operations", "group"))},
@@ -10528,10 +10566,15 @@ function affordBlock(){
   // The HRA's own ratio, said out loud. It is the number a housing authority
   // is actually asked about, and it is usually the higher of the two.
   const h = M.hra || [];
-  const hraLine = (hasHRA && h.length)
-    ? `<p>Split by fund, the ratio in ${fy(first.fy)} is
-        <b>${(M.gf[0] ? M.gf[0].afford.toFixed(1) : "–")}%</b> on the General Fund and
-        <b>${h[0].afford.toFixed(1)}%</b> on the Housing Revenue Account. The HRA's is
+  /* ONLY THE FUNDS THAT HAVE A RATIO. A General Fund with no revenue stream
+     entered for the first year has no ratio, and this printed "–%" for it. */
+  const gfR = M.gf && M.gf[0] && M.gf[0].fy === first.fy ? M.gf[0].afford : null;
+  const hR  = h[0] && h[0].fy === first.fy ? h[0].afford : null;
+  const parts = [];
+  if(gfR != null) parts.push(`<b>${gfR.toFixed(1)}%</b> on the General Fund`);
+  if(hR != null)  parts.push(`<b>${hR.toFixed(1)}%</b> on the Housing Revenue Account`);
+  const hraLine = (hasHRA && parts.length)
+    ? `<p>Split by fund, the ratio in ${fy(first.fy)} is ${parts.join(" and ")}. The HRA's is
         measured against its rental income, and an HRA carrying the debt on its stock will
         ordinarily show the higher of the two; what matters is the direction of travel and
         the headroom in the business plan.</p>` : "";
@@ -11945,8 +11988,14 @@ function piTable(){
                        : [["gf",""]];
   const cols = piYears(hasHRA ? "all" : "gf");
   if(!cols.length) return "";
+  /* ALIGNED BY YEAR, NOT BY POSITION. Where the General Fund has an actual
+     year-end entered and the HRA has not, the HRA's list is one shorter, and
+     laying it out by position printed the HRA's first projected year under
+     the "actual" heading with a dash in its last column. Each fund's row is
+     read off by the year the column names. */
   const rows = {};
-  bands.forEach(([f]) => { rows[f] = piYears(f); });
+  bands.forEach(([f]) => { const own = piYears(f);
+    rows[f] = cols.map(c => own.find(r => r.fy === c.fy) || null); });
 
   const cell = (r, x) => {
     if(!r) return "–";
@@ -13838,7 +13887,7 @@ function buildLedger(){
     box.dataset.xl = "1";
     box.style.position = "relative";
     excelGrid(box, {
-      cols: colsFor(S.fund, S.hra).map(c => c.k),
+      cols: () => colsFor(S.fund, S.hra).map(c => c.k),
       rows: () => S.years,
       get: (k,i) => i === A_IDX ? actualCell(k) : S.g[S.fund][k][i],
       set: (k,i,v) => {
@@ -13849,10 +13898,15 @@ function buildLedger(){
         const c = COLS.find(x => x.k === k);
         if(c && !colAsked(c, i)) return;      // not asked for, not written
         S.g[S.fund][k][i] = v;
+        // A pasted or filled inter-fund charge mirrors to the other fund
+        // exactly as a typed one does; only typing used to.
+        syncCross(k, i);
       },
       after: () => { syncLedger(true); render(); },
       snapshot: () => ({f:S.fund, g:JSON.parse(JSON.stringify(S.g[S.fund]))}),
-      restore: v => { S.g[v.f] = v.g; },
+      restore: v => { S.g[v.f] = v.g;
+        if(v.f === S.fund) COLS.filter(c => c.pair).forEach(c => {
+          for(let i = 0; i < S.years; i++) syncCross(c.k, i); }); },
       onClip: n => { const el = $("xhint"); if(el) el.textContent =
         `${n} pasted value${n===1?"":"s"} fell outside the grid and were dropped.`; }
     });
@@ -14396,9 +14450,18 @@ function fmtWhen(iso){
  * identity rather than its content; eight and nine are the draft and the
  * check, which hold nothing of their own to clear. */
 const STEP_CLEARS = {
+  /* EVERYTHING SHOWN ON THE STEP, not only what the step was first built
+     with. The maturity-structure limits, the rate-exposure split and limits
+     and the 364-day limit live on "What you hold"; the actual year-end row
+     and the minimum liquidity box live on "Your projections". Clearing a
+     step and finding half of it still filled reads as the button not
+     working. */
   portfolio: ["what you hold", () => { S.loans = S.loans.filter(l => l.pwlb);
-    S.portfolio = []; S.portfolioText = ""; S.portfolioNote = ""; S.mat = {d:{}, i:{}}; }],
-  figures:   ["the projection", () => { S.g = {gf:blank(), hra:blank()}; }],
+    S.portfolio = []; S.portfolioText = ""; S.portfolioNote = ""; S.mat = {d:{}, i:{}};
+    S.mstruct = {};
+    ["exp_var", "exp_var_max", "exp_fix_max", "inv364"].forEach(k => { if(S.limits) delete S.limits[k]; }); }],
+  figures:   ["the projection", () => { S.g = {gf:blank(), hra:blank()}; S.actual = {};
+    S.minliq = null; if($("minliq")) $("minliq").value = ""; }],
   choices:   ["the choices", () => { S.choices = {}; }],
   counterparty: ["the counterparty policy", () => { S.cp = null; }],
   wording:   ["the wording", () => { S.text = {}; }],
@@ -14798,6 +14861,12 @@ function setupSummary(){
        when its value CHANGES, so leaving "Demonstration ·  two pools" showing
        would make choosing it again do nothing — the failure this control had
        four times before it was one control. */
+    if(DEFER_PICK){
+      // Held until Continue (see applyNew); only the "another body" boxes follow the pick.
+      const on = e.target.value === "other";
+      $("otherbox").hidden = !on; $("otherregbox").hidden = !on;
+      return;
+    }
     if(String(e.target.value).startsWith("demo:")){
       fillDemo(e.target.value.slice(5), DEMO_REPORT);
       DEMO_REPORT = null;
@@ -14968,11 +15037,16 @@ function setupSummary(){
         // this handler never touches S.gss, so an "Another body" authority
         // stays exactly who it was — but resetReport wipes its typed name
         // and regime regardless, because those live on PRISTINE too.
-        const yr = S.fy0, hra = S.hra, on = S.otherName, nat = S.natOverride;
+        /* THE AS-AT DATE CHOSEN ON THE START SCREEN IS PART OF THE ASK, like
+           the year and the pooling. resetReport wiped it to the data date,
+           so a report dated by the reader on "Which report today?" opened
+           dated by us. A saved report restored below still carries its own. */
+        const yr = S.fy0, hra = S.hra, on = S.otherName, nat = S.natOverride, asAt = S.asAt;
         resetReport(PRISTINE);
         S.report=chosen;
-        S.fy0=yr; S.hra=hra; S.otherName=on; S.natOverride=nat;
+        S.fy0=yr; S.hra=hra; S.otherName=on; S.natOverride=nat; S.asAt = asAt;
         $("fy0").value = yr; $("hra").value = hra;
+        if($("asat")) $("asat").value = S.asAt || MKT.as_at || "";
         // applyVersion (inside resetReport) also writes S.otherName straight
         // through to LB.other.n while S.gss is still "other" — restoring S
         // alone would leave that copy pointing at the wiped value.
@@ -15131,7 +15205,9 @@ function setupSummary(){
       buildLedger(); loanRows(); applyLoans(); libFill(); render();
     }
   });
-  $("hra").addEventListener("change", e=>{ S.hra=e.target.value; fundTabs(); render(); });
+  $("hra").addEventListener("change", e=>{
+    if(DEFER_PICK) return;                       // applied on Continue
+    S.hra=e.target.value; fundTabs(); buildLedger(); loanRows(); applyLoans(); render(); });
   // The logo is read into a data URI and kept on S with the rest of the
   // report, so it travels inside the exported file rather than as a link
   // to somewhere that may not resolve.
@@ -16554,11 +16630,11 @@ function setupSummary(){
 
   const PVW = $("pv"), PVT = $("pvtog"), PVB = $("pvbig");
   function pvVeil(on){
-    const old = document.querySelector(".pvveil");
+    const old = document.querySelector(".pvveil.pvfull");
     if(old) old.remove();
     if(!on) return;
     const v = document.createElement("div");
-    v.className = "pvveil";
+    v.className = "pvveil pvfull";
     v.addEventListener("click", ()=>pvFull(false));
     document.body.appendChild(v);
   }
@@ -16630,7 +16706,9 @@ function setupSummary(){
     if((e.metaKey || e.ctrlKey) && !e.shiftKey && (e.key === "z" || e.key === "Z")){
       /* Not inside the figures grid: that has its own finer undo, and two
          stacks answering one shortcut would each give back half an answer. */
-      if(e.target && e.target.closest && e.target.closest(".xgrid")) return;
+      // Inside the ledger the grid has its own undo (excelGrid); running the
+      // global one as well undid an unrelated edit made elsewhere since.
+      if(e.target && e.target.closest && e.target.closest(".ledgerwrap")) return;
       if(undoOne()) e.preventDefault();
     }
   });
@@ -16729,13 +16807,41 @@ function setupSummary(){
   }
   let DEMO_KIND = null;
   let startView = "doors";
+  /* WHAT IS PICKED ON "START A NEW FILE" HAPPENS ON CONTINUE. The controls
+     there are the real ones, lent in, and their handlers used to run at
+     once: choosing an authority replaced the report that was open (kept in
+     the file's list, but the doors then offered no way back to it), and
+     changing the pooling repooled the open report and flushed it to the
+     list with the wrong pooling. While the view is open the choices are
+     held; Back puts the controls back to what is open, Continue applies
+     them. */
+  let DEFER_PICK = false;
+  function leaveNew(){
+    DEFER_PICK = false;
+    $("council").value = councilValue();
+    $("hra").value = S.hra;
+    if(typeof otherShown === "function") otherShown(true);
+  }
+  function applyNew(){
+    DEFER_PICK = false;
+    const gss = $("council").value, hra = $("hra").value;
+    if(gss === S.gss && hra === S.hra) return;
+    if(S.gss && S.report) markDirty(true);
+    if(gss !== S.gss) $("council").dispatchEvent(new Event("change", {bubbles:true}));
+    if(!String(gss).startsWith("demo:") && hra !== S.hra){
+      S.hra = hra; $("hra").value = hra;
+      fundTabs(); buildLedger(); loanRows(); applyLoans(); render();
+    }
+  }
   function startOpen(view){
+    if(view === "new") DEFER_PICK = true; else if(DEFER_PICK) leaveNew();
     startView = view || "doors";
     $(SV.veil).hidden = false;
     $(SV.box).hidden = false;
     startRender();
   }
   function startClose(){
+    if(DEFER_PICK) leaveNew();
     startReturn();
     $(SV.veil).hidden = true;
     $(SV.box).hidden = true;
@@ -16983,7 +17089,9 @@ function setupSummary(){
       saveHint("Picked up where you left off — still not saved to a file.");
       return;
     }
-    if(d === "open"){ $("libopen").click(); return; }
+    /* Through the picker where the browser has one, so Save can write back
+       to the file that was opened rather than asking where to put it. */
+    if(d === "open"){ if(FS_ACCESS) openViaFilePicker(); else $("libopen").click(); return; }
     if(d === "new"){ startOpen("new"); return; }
     if(d === "demo"){ startOpen("demo"); return; }
     if(d === "another"){ presetFrom(null); startOpen("report"); return; }
@@ -17012,6 +17120,7 @@ function setupSummary(){
          copy across; only somewhere to go next — with the sensible first
          report for a new file (this year's strategy) already lined up. */
       if(!$("council").value){ $("council").focus(); return; }
+      applyNew();
       presetFrom(suggestNext(S.gss));
       startOpen("report");
       return;
@@ -17132,6 +17241,18 @@ function setupSummary(){
     }
   });
   let DCHG_AT = null;
+  /* The rate-term picker under the PWLB charts is drawn in the draft as
+     well as on the wording step, and only the wording step's copy had a
+     handler — in the draft the buttons did nothing. One delegated handler
+     for wherever the picker is drawn outside the wording panel. */
+  document.addEventListener("click", e => {
+    const b = e.target.closest && e.target.closest('.pick[data-pick="rates"] button[data-r]');
+    if(!b || b.closest("#secbody")) return;
+    const k = b.dataset.r, i = RATE_ON ? RATE_ON.indexOf(k) : -1;
+    if(!RATE_ON) return;
+    if(i >= 0){ if(RATE_ON.length > 1) RATE_ON.splice(i, 1); } else RATE_ON.push(k);
+    renderSections(); render();
+  });
   $("draftbtn").addEventListener("click", () => {
     if(STEP === DRAFT_STEP) showStep(LAST_WORK_STEP || 1);
     else showStep(DRAFT_STEP);
