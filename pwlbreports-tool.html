@@ -225,29 +225,20 @@ select:focus,input:focus{outline:2px solid var(--accent);outline-offset:-1px}
   color:var(--on-accent);font-weight:600}
 .figtabs{flex-wrap:wrap;margin-bottom:16px}
 /* WHAT GOES IN EVERY BOX, ONE CLICK AWAY. The "?" is small and quiet; the
-   popover is the only one on the page. With Help on (html.help) the "?"s
-   light up and every hint on the step is listed in one panel under its
-   heading — printed in place they wrapped a word to a line inside the
-   ledger's headers — so a first-time author reads them all at once and
-   everyone else sees none of it. */
+   popover is the only one on the page. Help in the ribbon opens every hint
+   on the step in one box over the page (.helpbox, below the ask boxes it
+   shares a look with). Never printed into the step: in place it moved
+   everything the reader was looking at — a screen's worth on the figures
+   step — and had to be rebuilt as the page changed. Phil's call. */
 .hq{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;
   border-radius:50%;border:1px solid var(--line2);background:var(--paper);color:var(--ink2);
   font:600 10.5px/1 var(--sans);margin-left:5px;vertical-align:middle;cursor:pointer;padding:0}
 .hq:hover{border-color:var(--accent);color:var(--accent)}
 th .hq{font-weight:600}
-html.help .hq{border-color:var(--accent);color:var(--accent)}
-.helppanel{margin:12px 20px 0;padding:10px 14px;background:var(--sunken);border-radius:var(--r-sm);
-  font:400 12.5px/1.5 var(--sans);color:var(--ink2)}
-.helppanel > b{display:block;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:4px}
-.helppanel dl{display:grid;grid-template-columns:minmax(120px,max-content) 1fr;gap:3px 16px;margin:0}
-.helppanel dt{font-weight:600;color:var(--ink)}
-.helppanel dd{margin:0}
-#startbox .helppanel{margin:12px 0 0}
 #hpop{position:fixed;z-index:2147483000;max-width:320px;background:var(--card);border:1px solid var(--line);
   border-radius:var(--r-sm);box-shadow:0 6px 24px rgba(0,0,0,.14);padding:10px 12px;
   font:400 13px/1.5 var(--sans);color:var(--ink)}
 #hpop[hidden]{display:none}
-.ribbon-btn#helptog[aria-pressed=true]{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
 /* SHOW ME ROUND. The dimming is the spot's shadow, so the page under it is
    live; only the card takes the pointer. Above the start screen, below the
    "?" popover. */
@@ -1515,6 +1506,21 @@ svg.ctip .hits rect{cursor:crosshair}
   background:var(--card);border:1px solid var(--line2);border-radius:var(--r);
   padding:20px 24px;box-shadow:0 24px 60px rgba(0,0,0,.3)}
 .askbox h3{font-family:var(--sans);font-size:16px;font-weight:600;margin:0 0 10px}
+/* The help box sits in the middle of the window, not along the bottom like
+   a confirmation, and scrolls inside itself when a step has more hints than
+   the window has room for. The veil behind it blurs the page, which stays
+   exactly where it was. */
+.helpbox{inset:0;margin:auto;max-width:720px;height:fit-content;max-height:min(80vh,720px);
+  display:flex;flex-direction:column}
+.helpbox[hidden]{display:none}
+.helpbox .hb{overflow:auto;min-height:0;font:400 13px/1.5 var(--sans);color:var(--ink2);
+  padding-bottom:8px;border-bottom:1px solid var(--line)}
+.helpbox dl{display:grid;grid-template-columns:minmax(140px,1fr) 2fr;gap:6px 16px;margin:0}
+.helpbox dt{font-weight:600;color:var(--ink)}
+.helpbox dd{margin:0}
+.helpbox .lnk{background:none;border:0;padding:0;cursor:pointer;font:inherit;font-size:13px;
+  color:var(--accent);text-decoration:underline}
+.pvveil.helpveil{z-index:91;backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px)}
 .askbox p{font-family:var(--sans);font-size:13px;line-height:1.6;color:var(--ink2);margin:0 0 10px}
 .ltop{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px}
 .ltop .sp{flex:1;min-width:8px}
@@ -1825,8 +1831,8 @@ td.nask{background:repeating-linear-gradient(45deg,var(--hair),var(--hair) 4px,
             <path d="M14 3v5h5"/><path d="M9 13h6"/><path d="M9 17h6"/><path d="M9 9h2"/>
           </svg><span>My report</span>
         </button>
-        <button type="button" class="ribbon-btn" id="helptog" aria-pressed="false"
-          title="Show what goes in every box">
+        <button type="button" class="ribbon-btn" id="helpbtn"
+          title="What goes in every box on this step">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.4-1 .9-1 1.7"/><path d="M12 17h.01"/>
@@ -1970,6 +1976,17 @@ td.nask{background:repeating-linear-gradient(45deg,var(--hair),var(--hair) 4px,
     <div id="noticebody"></div>
     <div class="ltools" style="margin-top:14px">
       <button type="button" class="primary" id="noticeok">Got it</button>
+    </div>
+  </div>
+
+  <!-- Help: every hint on the step, in one box over the page. Filled by
+       helpOpen() in wire.js when the ribbon's Help is pressed. -->
+  <div class="askbox helpbox" id="helpbox" hidden role="dialog" aria-modal="true" aria-labelledby="helptitle">
+    <h3 id="helptitle">What goes in each box</h3>
+    <div class="hb" id="helpbody"></div>
+    <p class="helpwalk"><button type="button" class="lnk" data-tour-start>Show me round this report</button></p>
+    <div class="ltools" style="margin-top:14px">
+      <button type="button" class="primary" id="helpclose">Close</button>
     </div>
   </div>
 
@@ -13258,8 +13275,8 @@ const TOUR_STOPS = [
    text:"The whole paper as a Word file, charts included, ready for your own template."},
   {sel:"#libfile", title:"Save",
    text:"Everything you save goes into one file on your own computer: every report, every year. Nothing is uploaded anywhere."},
-  {sel:"#helptog", title:"Help, when you want it",
-   text:"Lists what goes in every box on the step you are on. The ? beside each box does the same for one."},
+  {sel:"#helpbtn", title:"Help, when you want it",
+   text:"Opens what goes in every box on the step you are on, in one list over the page. The ? beside each box does the same for one."},
   {sel:"[data-example]", title:"The example's figures", when: () => !S.demo,
    text:"On your own report this greys the worked example's figures into the empty boxes, so you can see what kind of number goes where. Nothing is copied."},
   {sel:"#startbtn", title:"Home",
@@ -14273,6 +14290,13 @@ function ask(title, bodyHTML, goLabel, onGo, onCancel){
 function closeAskBox(){
   $("askbox").hidden = true;
   document.querySelectorAll(".askveil").forEach(v=>v.remove());
+}
+/* The help box (see helpOpen, further down) closes the same way; top level
+   because the walkthrough's start button inside it closes it from another
+   listener. */
+function helpClose(){
+  const b = $("helpbox"); if(b) b.hidden = true;
+  document.querySelectorAll(".helpveil").forEach(v=>v.remove());
 }
 /* THE SAME SHAPE AS ask(), FOR A MESSAGE WITH NOTHING TO DECIDE.
  *
@@ -16978,7 +17002,7 @@ function setupSummary(){
     exampleOverlay();
   });
   document.addEventListener("click", e => {
-    if(e.target.closest("[data-tour-start]") && typeof tourStart === "function") tourStart();
+    if(e.target.closest("[data-tour-start]") && typeof tourStart === "function"){ helpClose(); tourStart(); }
   });
   /* Re-applied after any redraw while it is on — every step rebuilds its
      boxes on a keystroke, and a rebuilt box has lost its grey figure. */
@@ -16991,11 +17015,8 @@ function setupSummary(){
     }).observe(document.getElementById("stepwrap") || document.body, {childList: true, subtree: true});
   }
 
-  /* WHAT GOES HERE. One popover for every "?" on the page, and a switch in
-     the ribbon that prints all the hints in place instead. Off by default and
-     remembered in this browser only: a first-time author turns it on once,
-     an experienced officer never sees it. */
-  {
+  /* WHAT GOES HERE. One popover for every "?" on the page, and Help in the
+     ribbon, which opens every hint on the step in one box over the page. */  {
     const pop = $("hpop");
     let openedAt = 0;
     const shut = () => { if(pop) pop.hidden = true; };
@@ -17025,10 +17046,13 @@ function setupSummary(){
     document.addEventListener("keydown", e => { if(e.key === "Escape") shut(); });
     window.addEventListener("scroll", shutOnScroll, {passive: true, capture: true});
     window.addEventListener("resize", shut);
-    /* Every hint on what is on screen, in one panel: the step's, under its
-       header, and the start screen's while it is open. Labels are read off
-       the page beside each "?", so the panel names the box as the reader
-       sees it. Rebuilt on any change to the page while Help is on. */
+    /* Every hint on what is on screen, in one box over the page: the step's,
+       or the start screen's while it is open. Labels are read off the page
+       beside each "?", so the box names things as the reader sees them.
+       Built when opened and thrown away when closed, so nothing watches the
+       page and nothing is printed into the step: the page stays exactly
+       where it was, which is the point of a box. Not remembered: it is a
+       thing you open, not a mode you are in. */
     const labelOf = b => {
       if(b.dataset.label) return b.dataset.label;
       const host = b.closest("label, th, h3, h4, .cphead > span, .cplbl, .cpmini, td.pl") || b.parentElement;
@@ -17039,44 +17063,33 @@ function setupSummary(){
       if(!host.classList.contains("yr")) c.querySelectorAll("small").forEach(x => x.remove());
       return c.textContent.replace(/\s+/g, " ").replace(/\s*[·:]\s*$/, "").trim();
     };
-    const helpPanel = () => {
-      document.querySelectorAll(".helppanel").forEach(x => x.remove());
-      if(!document.documentElement.classList.contains("help")) return;
-      const hosts = [];
-      const sb = $("startbox"); if(sb && !sb.hidden) hosts.push({root: sb, at: sb.querySelector(".startbody") || sb});
-      const panel = document.querySelector(`section.panel[data-step="${STEP}"]:not(.doc):not([hidden])`);
-      if(panel && !(sb && !sb.hidden)) hosts.push({root: panel, at: panel.querySelector(".pbody") || panel});
-      hosts.forEach(({root, at}) => {
-        const seen = new Set(), rows = [];
-        root.querySelectorAll(".hq").forEach(b => {
-          if(b.closest("[hidden]") || seen.has(b.dataset.help)) return;
-          seen.add(b.dataset.help);
-          rows.push(`<dt>${esc(labelOf(b) || b.dataset.help)}</dt><dd>${esc(helpText(b))}</dd>`);
-        });
-        if(!rows.length) return;
-        const d = document.createElement("div"); d.className = "helppanel";
-        d.innerHTML = `<b>What goes in each box</b><dl>${rows.join("")}</dl>
-          <p class="helpwalk"><button type="button" class="lnk" data-tour-start>Show me round this report</button></p>`;
-        at.insertBefore(d, at.firstChild);
+    const helpOpen = () => {
+      closeAskBox(); closeNoticeBox(); shut();
+      const sb = $("startbox");
+      const root = (sb && !sb.hidden) ? sb
+        : document.querySelector(`section.panel[data-step="${STEP}"]:not(.doc):not([hidden])`);
+      const seen = new Set(), rows = [];
+      if(root) root.querySelectorAll(".hq").forEach(b => {
+        if(b.closest("[hidden]") || seen.has(b.dataset.help)) return;
+        seen.add(b.dataset.help);
+        rows.push(`<dt>${esc(labelOf(b) || b.dataset.help)}</dt><dd>${esc(helpText(b))}</dd>`);
       });
+      const st = typeof STEPS !== "undefined" && STEPS.find(x => x.n === STEP);
+      $("helptitle").textContent = (sb && !sb.hidden) || !st ? "What goes in each box"
+        : `What goes in each box — ${st.t}`;
+      $("helpbody").innerHTML = rows.length ? `<dl>${rows.join("")}</dl>`
+        : `<p>Nothing on this step needs explaining. On the steps with boxes, the ? beside each one says what goes in it, and Help lists them all.</p>`;
+      $("helpbox").hidden = false;
+      const veil = document.createElement("div");
+      veil.className = "pvveil helpveil";
+      veil.onclick = helpClose;
+      document.body.appendChild(veil);
+      $("helpclose").focus();
     };
-    let helpTimer = null;
-    new MutationObserver(muts => {
-      if(!document.documentElement.classList.contains("help")) return;
-      if(muts.every(m => [...m.addedNodes, ...m.removedNodes].every(n => n.nodeType === 1 && n.classList && n.classList.contains("helppanel")))) return;
-      clearTimeout(helpTimer); helpTimer = setTimeout(helpPanel, 120);
-    }).observe(document.body, {childList: true, subtree: true, attributes: true, attributeFilter: ["hidden"]});
-    const setHelp = on => {
-      document.documentElement.classList.toggle("help", !!on);
-      const t = $("helptog"); if(t) t.setAttribute("aria-pressed", String(!!on));
-      shut();
-      try{ localStorage.setItem("lb:help", on ? "1" : "0"); }catch(_){}
-      helpPanel();
-    };
-    let saved = false; try{ saved = localStorage.getItem("lb:help") === "1"; }catch(_){}
-    if(saved) setHelp(true);
-    const t = $("helptog");
-    if(t) t.addEventListener("click", () => setHelp(!document.documentElement.classList.contains("help")));
+    const hb = $("helpbtn");
+    if(hb) hb.addEventListener("click", () => { if($("helpbox").hidden) helpOpen(); else helpClose(); });
+    $("helpclose").addEventListener("click", helpClose);
+    document.addEventListener("keydown", e => { if(e.key === "Escape" && !$("helpbox").hidden) helpClose(); });
   }
   /* THE DRAFT, FROM ANYWHERE, AND BACK. One button: to the draft from a
      working step, back to that step from the draft. */
