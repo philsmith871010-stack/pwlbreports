@@ -248,9 +248,9 @@ th .hq{font-weight:600}
    row fought. While the walkthrough is up, scrolls are instant; the spot's
    glide is the motion. The reader's own scrolling is unaffected either way. */
 html.touring{scroll-behavior:auto}
-#tour{position:fixed;inset:0;z-index:2147482000;pointer-events:none;opacity:0;transition:opacity .22s ease}
+#tour{position:fixed;inset:0;z-index:2147482000;pointer-events:none;opacity:0;transition:opacity .35s ease}
 #tour.on{opacity:1}
-#tour.on.jump{opacity:0;transition-duration:.12s}
+#tour.on.jump{opacity:0;transition-duration:.28s}
 #tour[hidden]{display:none}
 /* The spot glides from one control to the next and rings once on arrival;
    the card rises in on each stop; a step the walkthrough moves to slides
@@ -263,14 +263,16 @@ html.touring{scroll-behavior:auto}
 @keyframes tourPing{0%{box-shadow:0 0 0 0 rgba(15,23,32,.45)}100%{box-shadow:0 0 0 18px rgba(15,23,32,0)}}
 .tour-card{position:fixed;pointer-events:auto;background:var(--card);border:1px solid var(--line);
   border-radius:var(--r);box-shadow:0 10px 30px rgba(0,0,0,.22);padding:14px 16px 12px;font-family:var(--sans);overflow:hidden}
-.tour-card.in{animation:tourCardIn .3s cubic-bezier(.2,.8,.2,1)}
+.tour-card.wait{opacity:0;animation:none;pointer-events:none}
+.tour-card.in{animation:tourCardIn .34s cubic-bezier(.2,.8,.2,1)}
 @keyframes tourCardIn{from{opacity:0;transform:translateY(10px) scale(.98)}to{opacity:1;transform:none}}
 .tour-bar{height:3px;background:var(--line);margin:-14px -16px 12px}
 .tour-bar i{display:block;height:100%;width:0;background:var(--accent);transition:width .4s cubic-bezier(.2,.8,.2,1)}
-html.touring section.panel.tour-reveal{animation:tourReveal .42s cubic-bezier(.2,.8,.2,1)}
-@keyframes tourReveal{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+html.touring section.panel.tour-out{opacity:0;transition:opacity .28s ease}
+html.touring section.panel.tour-reveal{animation:tourReveal .5s cubic-bezier(.2,.8,.2,1)}
+@keyframes tourReveal{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
 @media (prefers-reduced-motion:reduce){
-  #tour,.tour-spot,.tour-bar i{transition:none}
+  #tour,.tour-spot,.tour-bar i,html.touring section.panel.tour-out{transition:none}
   .tour-spot.ping::after,.tour-card.in,html.touring section.panel.tour-reveal{animation:none}
 }
 .tour-card .tour-n{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:4px}
@@ -13447,25 +13449,43 @@ function tourGo(i, dir){
   /* On a change of step, and on the first stop, the overlay goes while the
      page is drawing and comes back only once the page has stopped moving —
      placed on a page still settling, the spot landed on the wrong band and
-     then slid after it. On the same step the spot glides instead. */
+     then slid after it. On the same step the spot glides instead.
+
+     A CHANGE OF STEP IS THREE BEATS, NOT ONE. Phil: switching the step the
+     instant Next was pressed, with the card vanishing at the same moment,
+     read as a jerk. So: the card and the spot fade out and the step you
+     were on fades with them; then the next step is shown and slides in;
+     then, once it has stopped moving, the card and spot fade back in on
+     the first control there. About a second, end to end. */
   if(jump) tourEl().classList.add("jump");
-  if(moving){
-    showStep(stop.step);
-    const panel = document.querySelector(`section.panel[data-step="${stop.step}"]:not([hidden])`);
-    if(panel){
-      tourReplay(panel, "tour-reveal");
-      setTimeout(() => panel.classList.remove("tour-reveal"), 600);
+  /* The card waits: the spot lands first, the card follows a beat later
+     (Phil: highlight first, then the text). Hidden from here so it does not
+     travel with its old words. */
+  tourEl().querySelector(".tour-card").classList.add("wait");
+  const leaving = moving && typeof STEP !== "undefined"
+    ? document.querySelector(`section.panel[data-step="${STEP}"]:not([hidden])`) : null;
+  if(leaving) leaving.classList.add("tour-out");
+  const go = () => {
+    if(!TOUR || TOUR.i !== i) return;
+    if(moving){
+      showStep(stop.step);
+      if(leaving) leaving.classList.remove("tour-out");
+      const panel = document.querySelector(`section.panel[data-step="${stop.step}"]:not([hidden])`);
+      if(panel){
+        tourReplay(panel, "tour-reveal");
+        setTimeout(() => panel.classList.remove("tour-reveal"), 700);
+      }
     }
-  }
-  /* pre runs once the step is on screen and the skin has seen it open —
-     the skin puts the counterparty tabs back to the first as a step opens,
-     which undid a tab pressed in the same tick. */
-  if(stop.pre) setTimeout(() => { if(TOUR && TOUR.i === i) try{ stop.pre(); }catch(_){} }, moving ? 150 : 0);
-  /* A new step needs a moment to draw; a tab the skin opens needs less;
-     a control already on screen needs none. Skipping a run of controls
-     that are not on the page is then quick rather than a pause each. */
-  const wait = moving ? 420 : stop.pre ? 200 : 20;
-  setTimeout(() => {
+    /* pre runs once the step is on screen and the skin has seen it open —
+       the skin puts the counterparty tabs back to the first as a step opens,
+       which undid a tab pressed in the same tick. */
+    if(stop.pre) setTimeout(() => { if(TOUR && TOUR.i === i) try{ stop.pre(); }catch(_){} }, moving ? 150 : 0);
+    /* A new step needs a moment to draw; a tab the skin opens needs less;
+       a control already on screen needs none. Skipping a run of controls
+       that are not on the page is then quick rather than a pause each. */
+    setTimeout(arrive, moving ? 420 : stop.pre ? 200 : 20);
+  };
+  const arrive = () => {
     if(!TOUR || TOUR.i !== i) return;
     const el = tourFind(stop);
     if(!el){
@@ -13491,10 +13511,18 @@ function tourGo(i, dir){
       t.querySelector('[data-tour="next"]').textContent = i === stops.length - 1 ? "Finish" : "Next";
       tourPlace();
       t.classList.remove("jump");
-      tourReplay(t.querySelector(".tour-card"), "in");
       tourReplay(t.querySelector(".tour-spot"), "ping");
+      setTimeout(() => {
+        if(!TOUR || TOUR.i !== i) return;
+        const card = t.querySelector(".tour-card");
+        card.classList.remove("wait");
+        tourReplay(card, "in");
+      }, 340);
     });
-  }, wait);
+  };
+  /* The first beat: let the card and the step fade before anything moves.
+     Leaving the walkthrough's own stop for the same step skips it. */
+  if(moving) setTimeout(go, 300); else go();
 }
 
 /* Wait for the page to stop moving around a control: the same box twice,
