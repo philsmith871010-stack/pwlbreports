@@ -225,6 +225,7 @@ select:focus,input:focus{outline:2px solid var(--accent);outline-offset:-1px}
   border-radius:var(--r-sm);cursor:pointer;font-size:12.5px}
 .fundtabs button[aria-pressed=true]{background:var(--accent);border-color:var(--accent);
   color:var(--on-accent);font-weight:600}
+.figtabs{flex-wrap:wrap;margin-bottom:16px}
 .ledgerwrap{max-height:520px;overflow:auto;border:1px solid var(--line);border-radius:var(--r-sm)}
 table.ledger{border-collapse:separate;border-spacing:0;font-family:var(--mono);font-size:12px;
   font-variant-numeric:tabular-nums;width:100%}
@@ -850,8 +851,13 @@ table.dtab td.wrap{white-space:normal;line-height:1.5}
 .ribbon-filename:empty{display:none}
 .ribbon-rep:not(:empty) ~ .ribbon-filename:not(:empty)::before{content:"\00b7";
   color:var(--faint);margin-right:9px;font-family:var(--sans)}
-.ribbon-status{font-family:var(--sans);font-size:11.5px;font-weight:600;color:var(--muted);white-space:nowrap;
-  padding:2px 9px;border-radius:999px;background:var(--sunken)}
+/* WRAPS, DOES NOT RUN UNDER THE BUTTONS. "Saved 1 report as <name> in your
+   downloads — the newest copy is the one to open next time" is a long line,
+   and as nowrap it overflowed the file block and sat under Home / My report /
+   Save. It wraps within the space to the left of them now. */
+.ribbon-status{font-family:var(--sans);font-size:11.5px;font-weight:600;color:var(--muted);
+  white-space:normal;max-width:100%;line-height:1.45;
+  padding:2px 9px;border-radius:12px;background:var(--sunken)}
 .ribbon-status:empty{display:none}
 .ribbon-status.dirty{color:#fff;background:var(--orange)}
 .ribbon-acts{display:flex;align-items:center;gap:6px;flex:none;flex-wrap:wrap;margin-left:auto}
@@ -2541,7 +2547,7 @@ let S = {gss:"", report:"", fy0:currentFY(), asAt:null, natOverride:null,
             carrying an MRP clause for a method they had never chosen. Step 0 says
             the tool assumes nothing, and it has to be true here first. */
          choices:{}, rates:[], limits:{}, portfolio:[], portfolioText:"", portfolioNote:"", logo:null,
-         mat:{d:{}, i:{}}, hold:"d",
+         mat:{d:{}, i:{}}, hold:"d", figtab:null,
          /* Locking, overrides and the issued tick are gone — every report is
             open (Phil's call: nice to have, complex for users). The fields
             stay in the payload so files written by earlier builds still
@@ -3775,8 +3781,13 @@ function keepFocus(host, rebuild){
     /* Identified by what it is FOR — its id or its data attributes — because
        the element itself does not survive the rebuild and its position can
        move when a row is added above it. */
+    /* NOT data-need. markNeeds() (check.js) stamps it on the box after every
+       render, so the rebuilt box does not carry it yet when we look for it —
+       and a key that included it found nothing, dropped the focus on <body>,
+       and lost the caret after every pause in typing on the period's figures.
+       The key is what the box is FOR, which that attribute is not. */
     key = [...a.attributes]
-      .filter(x => x.name === "id" || x.name.indexOf("data-") === 0)
+      .filter(x => x.name === "id" || (x.name.indexOf("data-") === 0 && x.name !== "data-need"))
       .map(x => `[${x.name}="${String(x.value).replace(/"/g, '\\"')}"]`).join("");
     tag = a.tagName.toLowerCase();
     val = a.value;
@@ -8137,11 +8148,12 @@ function figFilled(){
 
 /* WHAT IS ANSWERED, AND A WAY STRAIGHT TO IT.
  *
- * Four sections and about fifty-five boxes, which is what the counterparty
- * step weighed when it was given a block index — and this one had none, so
- * the only way to find the group question was to scroll past the whole
- * performance grid. Same control, same behaviour: it reports what is IN THE
- * STATE, never what has been visited. */
+ * Four sections and about fifty-five boxes. They were stacked down one page
+ * with a row of buttons that scrolled to each — which meant the grid you
+ * were typing in and the one you wanted to compare it with were never on
+ * screen together, and a jump that a re-render interrupted landed nowhere.
+ * They are tabs now, the same control as Debt / Investments on step 2: one
+ * grid at a time, in the same place. */
 function figBlocks(){
   const parts = figApplies();
   const L = S.limits || {}, P = S.perf || {}, M = S.mon || {};
@@ -8157,11 +8169,20 @@ function figBlocks(){
   return all.filter(x => parts.indexOf(x.k) >= 0);
 }
 
-function figIndexHTML(){
+/* The tab that is open: the one chosen, or the first that applies. The choice
+   is not saved with the report — it is where the reader was looking, not
+   something they entered. */
+function figTab(){
+  const b = figBlocks();
+  if(!b.length) return null;
+  return b.some(x => x.k === S.figtab) ? S.figtab : b[0].k;
+}
+function figTabsHTML(){
   const b = figBlocks();
   if(b.length < 2) return "";
-  return `<div class="cpix-row">${b.map((x,i) => `<button type="button"
-      class="cpix${x.on?" on":""}" data-figix="${i+1}"><i>${x.on ? "✓" : i+1}</i>${
+  const on = figTab();
+  return `<div class="fundtabs figtabs" role="group" aria-label="The period's figures">${
+    b.map(x => `<button type="button" data-figtab="${x.k}" aria-pressed="${x.k === on}">${
       esc(x.t)}</button>`).join("")}</div>`;
 }
 
@@ -8169,22 +8190,24 @@ function renderFigures(){
   const host = $("figbody");
   if(!host) return;
   const parts = figApplies();
-  const sec = (t, why, body) => `<section class="figsec"><h3>${esc(t)}</h3>${
+  const tabbed = figBlocks().length > 1, open = figTab();
+  const sec = (k, t, why, body) => `<section class="figsec" data-figk="${k}"${
+    tabbed && k !== open ? " hidden" : ""}><h3>${esc(t)}</h3>${
     why ? `<p class="figwhy">${esc(why)}</p>` : ""}${body}</section>`;
-  let html = figIndexHTML();
+  let html = figTabsHTML();
   if(parts.indexOf("limits") >= 0)
-    html += sec("Limits as approved, and what actually happened",
+    html += sec("limits", "Limits as approved, and what actually happened",
       "A strategy sets these. A report on a period says whether the authority stayed inside "
       + "them.", limitsPanel());
   if(parts.indexOf("indmon") >= 0)
-    html += sec("The year against the approved strategy",
+    html += sec("indmon", "The year against the approved strategy",
       "The indicators members approved for " + fy(S.fy0) + ", against where the year is "
       + "heading.", monPanel());
   if(parts.indexOf("perf") >= 0)
-    html += sec("What the period cost and earned",
+    html += sec("perf", "What the period cost and earned",
       "Against the budget set for it, and against the year before.", perfPanel());
   if(parts.indexOf("group") >= 0)
-    html += sec("Group undertakings",
+    html += sec("group", "Group undertakings",
       "Only where there are significant ones. A subsidiary that stops performing disappears "
       + "from single-entity reporting.", groupPanel());
   if(!html)
@@ -13747,7 +13770,9 @@ function renderNav(){
     const on = document.createElement("button");
     on.type = "button"; on.className = "navbtn primary";
     on.dataset.go = String(next.n);
-    on.innerHTML = next.k === "draft" ? "See my report &rarr;" : `${esc(stepTitle(next).t)} &rarr;`;
+    /* "Next step – Holdings", not "Holdings": a bare title in the header read
+       as the name of the step you were on, not the one the button goes to. */
+    on.innerHTML = `Next step &ndash; ${next.k === "draft" ? "see my report" : esc(stepTitle(next).t)} &rarr;`;
     head.appendChild(on);
   }
   // The draft step carries the document itself, so the nav goes above it
@@ -16597,9 +16622,16 @@ function setupSummary(){
       jumpTo($("cpbody").querySelectorAll(".cph")[+j.dataset.cpix - 1]);
       return;
     }
-    const fj = e.target.closest("[data-figix]");
-    if(fj){
-      jumpTo($("figbody").querySelectorAll(".figsec > h3")[+fj.dataset.figix - 1]);
+    /* The period's figures: one grid at a time, like Debt / Investments on
+       step 2. Flipped in place rather than through render(), which would
+       rebuild sixty boxes to change one attribute. */
+    const ft = e.target.closest("[data-figtab]");
+    if(ft){
+      S.figtab = ft.dataset.figtab;
+      const host = $("figbody");
+      host.querySelectorAll("[data-figtab]").forEach(b =>
+        b.setAttribute("aria-pressed", String(b.dataset.figtab === S.figtab)));
+      host.querySelectorAll(".figsec").forEach(s => { s.hidden = s.dataset.figk !== S.figtab; });
       return;
     }
     if(e.target.closest("#cpsurvopen")) cpSurvey(true);
