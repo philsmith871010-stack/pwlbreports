@@ -250,6 +250,7 @@ th .hq{font-weight:600}
 html.touring{scroll-behavior:auto}
 #tour{position:fixed;inset:0;z-index:2147482000;pointer-events:none;opacity:0;transition:opacity .22s ease}
 #tour.on{opacity:1}
+#tour.on.jump{opacity:0;transition-duration:.12s}
 #tour[hidden]{display:none}
 /* The spot glides from one control to the next and rings once on arrival;
    the card rises in on each stop; a step the walkthrough moves to slides
@@ -13403,7 +13404,7 @@ function tourReplay(el, cls){
 function tourStart(){
   const stops = tourStops();
   if(!stops.length) return;
-  TOUR = {i: 0, stops, target: null};
+  TOUR = {i: 0, stops, target: null, first: true};
   document.documentElement.classList.add("touring");
   const t = tourEl();
   t.hidden = false;
@@ -13442,6 +13443,12 @@ function tourGo(i, dir){
   TOUR.i = i;
   const stop = stops[i];
   const moving = !!(stop.step && typeof STEP !== "undefined" && STEP !== stop.step && typeof showStep === "function");
+  const jump = moving || TOUR.first;
+  /* On a change of step, and on the first stop, the overlay goes while the
+     page is drawing and comes back only once the page has stopped moving —
+     placed on a page still settling, the spot landed on the wrong band and
+     then slid after it. On the same step the spot glides instead. */
+  if(jump) tourEl().classList.add("jump");
   if(moving){
     showStep(stop.step);
     const panel = document.querySelector(`section.panel[data-step="${stop.step}"]:not([hidden])`);
@@ -13473,17 +13480,45 @@ function tourGo(i, dir){
        the watcher below brings the control back into view if that happens;
        after that the reader's own scrolling is left alone. */
     TOUR.settle = Date.now() + 1500;
-    const t = tourEl();
-    t.querySelector(".tour-n").textContent = `${i + 1} of ${stops.length}`;
-    t.querySelector(".tour-bar i").style.width = ((i + 1) / stops.length * 100).toFixed(1) + "%";
-    t.querySelector("h4").textContent = stop.title;
-    t.querySelector("p").textContent = stop.text;
-    t.querySelector('[data-tour="back"]').disabled = i === 0;
-    t.querySelector('[data-tour="next"]').textContent = i === stops.length - 1 ? "Finish" : "Next";
-    tourReplay(t.querySelector(".tour-card"), "in");
-    tourReplay(t.querySelector(".tour-spot"), "ping");
-    setTimeout(tourPlace, 40);
+    tourStill(el, i, TOUR.first ? 700 : moving ? 250 : 0, () => {
+      TOUR.first = false;
+      const t = tourEl();
+      t.querySelector(".tour-n").textContent = `${i + 1} of ${stops.length}`;
+      t.querySelector(".tour-bar i").style.width = ((i + 1) / stops.length * 100).toFixed(1) + "%";
+      t.querySelector("h4").textContent = stop.title;
+      t.querySelector("p").textContent = stop.text;
+      t.querySelector('[data-tour="back"]').disabled = i === 0;
+      t.querySelector('[data-tour="next"]').textContent = i === stops.length - 1 ? "Finish" : "Next";
+      tourPlace();
+      t.classList.remove("jump");
+      tourReplay(t.querySelector(".tour-card"), "in");
+      tourReplay(t.querySelector(".tour-spot"), "ping");
+    });
   }, wait);
+}
+
+/* Wait for the page to stop moving around a control: the same box twice,
+   150ms apart, and at least `min` ms since asked (the first stop gives the
+   example's own ribbon line time to clear). Two and a half seconds is the
+   most it waits. A control that the settling pushed out of view is brought
+   back before the overlay shows. */
+function tourStill(el, i, min, done){
+  const t0 = Date.now();
+  let last = "";
+  const tick = () => {
+    if(!TOUR || TOUR.i !== i) return;
+    const r = tourRect(el);
+    const now = [r.top, r.left, r.width, r.height].map(Math.round).join(",");
+    const still = now === last && Date.now() - t0 >= min;
+    last = now;
+    if(still || Date.now() - t0 > 2500){
+      if(r.top >= window.innerHeight || r.bottom <= tourRailBottom()) tourScroll(el);
+      done();
+      return;
+    }
+    setTimeout(tick, 150);
+  };
+  tick();
 }
 
 /* Bring a control into view. Centred, a grid taller than the window shows
