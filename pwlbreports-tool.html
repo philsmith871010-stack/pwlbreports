@@ -243,7 +243,7 @@ html.help .hq{border-color:var(--accent);color:var(--accent)}
 .helppanel dt{font-weight:600;color:var(--ink)}
 .helppanel dd{margin:0}
 #startbox .helppanel{margin:12px 0 0}
-#hpop{position:absolute;z-index:60;max-width:320px;background:var(--card);border:1px solid var(--line);
+#hpop{position:fixed;z-index:2147483000;max-width:320px;background:var(--card);border:1px solid var(--line);
   border-radius:var(--r-sm);box-shadow:0 6px 24px rgba(0,0,0,.14);padding:10px 12px;
   font:400 13px/1.5 var(--sans);color:var(--ink)}
 #hpop[hidden]{display:none}
@@ -3832,8 +3832,8 @@ const HELP = {
   "inv:name":   "Where the money is placed: a bank, a money market fund, another council, a property fund.",
   "inv:amt":    "The amount invested, in £ millions, from the investments register.",
   "inv:rate":   "The rate earned, as a percentage. For a fund, its latest yield.",
-  "ladder:d":   "How much of the debt falls due in each period, in £ millions. Optional: left blank, it is worked out from the loans above and their dates.",
-  "ladder:i":   "How much of the money invested comes back in each period, in £ millions. Optional: left blank, it is worked out from the investments above and their dates.",
+  "ladder:d":   "How much of the debt falls due in each period, in £ millions. Optional.",
+  "ladder:i":   "How much of the money invested comes back in each period, in £ millions. Optional.",
   "ms:lo":      "The smallest share of the debt members allow to fall due in this period, as a percentage. Optional; most strategies set 0% here.",
   "ms:hi":      "The largest share of the debt members allow to fall due in this period, as a percentage. Optional; leave the table blank and it is not reported.",
   "lim:exp_var":     "Debt whose rate can change within the year: short-term or temporary loans, variable-rate market loans, and a LOBO if you treat it as variable. In £ millions.",
@@ -3845,7 +3845,7 @@ const HELP = {
   "col:mrp":     "The minimum revenue provision: the amount charged to revenue each year to repay borrowing (in Scotland, the loans fund repayment). From the MRP statement in the budget report.",
   "col:rec":     "Capital receipts set aside to repay debt, in the year. From the capital programme; often nil.",
   "col:obs":     "Reserves, provisions and working capital the council can use instead of borrowing: its internal borrowing. From the balance sheet forecast: usable reserves and provisions, with working capital netted in.",
-  "col:loans":   "Loans already taken, as they run off year by year. Left blank, the loans on step 2 fill it in from their dates. Type a figure to state your own.",
+  "col:loans":   "Loans already taken, as they run off year by year. Left blank, the loans on step 2 fill it in. Type a figure to state your own.",
   "col:inv":     "Investments already placed, as they mature. Left blank, the investments on step 2 fill it in. Type a figure to state your own.",
   "col:liq":     "The minimum cash the council keeps to pay its bills: the liquidity allowance. Set once, in the box below the grid.",
   "col:capex":   "Capital spending in the year that will be paid for by borrowing, in £ millions. From the capital programme, for the years of the medium-term plan.",
@@ -16804,22 +16804,34 @@ function setupSummary(){
      an experienced officer never sees it. */
   {
     const pop = $("hpop");
+    let openedAt = 0;
     const shut = () => { if(pop) pop.hidden = true; };
+    // A click that brings the "?" into view scrolls first; that scroll must not shut what it opened.
+    const shutOnScroll = () => { if(Date.now() - openedAt > 400) shut(); };
     document.addEventListener("click", e => {
       const b = e.target.closest(".hq");
       if(b && pop){
+        /* FIXED TO THE VIEWPORT, so no scrolling box, sticky header or
+           skin's own layout can hide it: measured after it is shown, placed
+           under the "?" where there is room and above it where there is
+           not, and kept inside the window on the right. Closed by a scroll,
+           because a fixed box does not move with the button it points at. */
         const r = b.getBoundingClientRect();
         pop.textContent = helpText(b);
-        pop.hidden = false;
+        pop.hidden = false; openedAt = Date.now();
         const w = Math.min(320, window.innerWidth - 24);
         pop.style.maxWidth = w + "px";
-        pop.style.left = Math.max(8, Math.min(r.left + window.scrollX, window.innerWidth - w - 12)) + "px";
-        pop.style.top = (r.bottom + window.scrollY + 6) + "px";
+        const h = pop.offsetHeight;
+        const below = r.bottom + 6 + h <= window.innerHeight - 8;
+        pop.style.left = Math.max(8, Math.min(r.left, window.innerWidth - w - 12)) + "px";
+        pop.style.top = Math.max(8, below ? r.bottom + 6 : r.top - h - 6) + "px";
         return;
       }
       if(!e.target.closest("#hpop")) shut();
     });
     document.addEventListener("keydown", e => { if(e.key === "Escape") shut(); });
+    window.addEventListener("scroll", shutOnScroll, {passive: true, capture: true});
+    window.addEventListener("resize", shut);
     /* Every hint on what is on screen, in one panel: the step's, under its
        header, and the start screen's while it is open. Labels are read off
        the page beside each "?", so the panel names the box as the reader
