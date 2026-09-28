@@ -242,6 +242,12 @@ th .hq{font-weight:600}
 /* SHOW ME ROUND. The dimming is the spot's shadow, so the page under it is
    live; only the card takes the pointer. Above the start screen, below the
    "?" popover. */
+/* The page scrolls smoothly (html{scroll-behavior:smooth}, further down),
+   which made the walkthrough's own scrolls animate: the control's position
+   read straight after one was still the old position, and two scrolls in a
+   row fought. While the walkthrough is up, scrolls are instant; the spot's
+   glide is the motion. The reader's own scrolling is unaffected either way. */
+html.touring{scroll-behavior:auto}
 #tour{position:fixed;inset:0;z-index:2147482000;pointer-events:none;opacity:0;transition:opacity .22s ease}
 #tour.on{opacity:1}
 #tour[hidden]{display:none}
@@ -448,6 +454,10 @@ html.demo p:has(.ph-inline){display:none !important}
    years of figures across, in a monospaced column each. */
 .doc > *{max-width:none;margin-left:0;margin-right:0}
 @media(max-width:760px){.doc{padding:26px 20px}}
+/* On a phone the draft's tables are wider than the screen; left to overflow
+   they widened the whole page and the phone zoomed out to fit. Each table
+   scrolls sideways inside the paper instead, and the page keeps its width. */
+@media(max-width:640px){#doc .otable{display:block;max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}}
 .doclogo{max-height:56px;max-width:260px;margin:0 auto 14px 0;display:block}
 /* The logo picker itself (#logorow, #logoshow, #logoclear) is on Set up —
    see .logobtn/.logo-x above the library styles. This is only the logo as
@@ -983,6 +993,14 @@ button.rm:hover{color:var(--alert)}
 .barrow.inv .bt i{background:var(--l-inv)}
 .barrow .bv{font-family:var(--mono);font-size:12.5px;color:var(--ink);
   font-variant-numeric:tabular-nums}
+/* The ladder charts in the draft: a 246px label, a rating, the bar and an
+   84px figure do not fit a phone side by side, so the label takes a line of
+   its own and the bar and figure sit under it. After the desktop rules
+   above, which it has to outrank at the same specificity. */
+@media(max-width:640px){
+  .doc .barrow,.doc .barrow:not(.rated){grid-template-columns:minmax(0,1fr) 84px}
+  .doc .barrow.rated{grid-template-columns:58px minmax(0,1fr) 84px}
+  .doc .barrow .bn{grid-column:1/-1}}
 /* The typed maturity grids. Compact by design — seven periods by five kinds
    of debt is 35 boxes, and at the row height of a reading table that is a
    screenful of scrolling for a table you fill in once. Figures right-aligned
@@ -1528,7 +1546,7 @@ svg.ctip .hits rect{cursor:crosshair}
    a confirmation, and scrolls inside itself when a step has more hints than
    the window has room for. The veil behind it blurs the page, which stays
    exactly where it was. */
-.helpbox{inset:0;margin:auto;max-width:720px;height:fit-content;max-height:min(80vh,720px);
+.helpbox{inset:12px;margin:auto;max-width:720px;height:fit-content;max-height:min(80vh,720px);
   display:flex;flex-direction:column}
 .helpbox[hidden]{display:none}
 .helpbox .hb{overflow:auto;min-height:0;font:400 13px/1.5 var(--sans);color:var(--ink2);
@@ -1539,6 +1557,10 @@ svg.ctip .hits rect{cursor:crosshair}
 .helpbox .lnk{background:none;border:0;padding:0;cursor:pointer;font:inherit;font-size:13px;
   color:var(--accent);text-decoration:underline}
 .pvveil.helpveil{z-index:91;backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px)}
+/* On a phone the two columns were each too narrow to read: one column,
+   the box's name above its line. */
+@media (max-width:520px){.helpbox dl{grid-template-columns:minmax(0,1fr);gap:0}
+  .helpbox dt{margin-top:10px}.helpbox dt:first-child{margin-top:0}}
 .askbox p{font-family:var(--sans);font-size:13px;line-height:1.6;color:var(--ink2);margin:0 0 10px}
 .ltop{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px}
 .ltop .sp{flex:1;min-width:8px}
@@ -13445,27 +13467,12 @@ function tourGo(i, dir){
       return;
     }
     TOUR.target = el;
-    const box = () => tourRect(el);
-    try{ el.scrollIntoView({block: "center", behavior: "auto"}); }catch(_){ el.scrollIntoView(); }
-    /* Centred, a grid taller than the window shows its middle years and
-       hides its headings; and anything centred close to the top can sit
-       under the sticky rail. Either way, bring the top of the control to
-       just under the rail instead. */
-    {
-      /* A control inside its own scrolling box (the figures grid) was
-         centred in that box too, so the first years were out of sight.
-         Bring its top into every scrolling box it sits in first. */
-      for(let a = el.parentElement; a && a !== document.body; a = a.parentElement){
-        const cs = getComputedStyle(a);
-        if(!/auto|scroll/.test(cs.overflowY)) continue;
-        const d = box().top - a.getBoundingClientRect().top;
-        if(d < 0) a.scrollTop += d;
-      }
-      const rail = document.querySelector(".railwrap");
-      const hb = rail ? rail.getBoundingClientRect().bottom : 0;
-      const rr = box();
-      if(rr.height > window.innerHeight - hb - 60 || rr.top < hb + 8) window.scrollBy(0, rr.top - hb - 12);
-    }
+    tourScroll(el);
+    /* The page can move again after this — the skin lays its rail out a
+       moment later on a phone and pushes everything down. For a short while
+       the watcher below brings the control back into view if that happens;
+       after that the reader's own scrolling is left alone. */
+    TOUR.settle = Date.now() + 1500;
     const t = tourEl();
     t.querySelector(".tour-n").textContent = `${i + 1} of ${stops.length}`;
     t.querySelector(".tour-bar i").style.width = ((i + 1) / stops.length * 100).toFixed(1) + "%";
@@ -13477,6 +13484,35 @@ function tourGo(i, dir){
     tourReplay(t.querySelector(".tour-spot"), "ping");
     setTimeout(tourPlace, 40);
   }, wait);
+}
+
+/* Bring a control into view. Centred, a grid taller than the window shows
+   its middle years and hides its headings, and anything centred close to
+   the top can sit under the sticky rail; either way the top of the control
+   goes just under the rail instead. A control inside its own scrolling box
+   (the figures grid) was centred in that box too, so the first years were
+   out of sight: its top is brought into every scrolling box it sits in. */
+function tourScroll(el){
+  const box = () => tourRect(el);
+  try{ el.scrollIntoView({block: "center", behavior: "instant"}); }catch(_){ el.scrollIntoView(); }
+  for(let a = el.parentElement; a && a !== document.body; a = a.parentElement){
+    const cs = getComputedStyle(a);
+    if(!/auto|scroll/.test(cs.overflowY)) continue;
+    const d = box().top - a.getBoundingClientRect().top;
+    if(d < 0) a.scrollTop += d;
+  }
+  const hb = tourRailBottom();
+  const rr = box();
+  if(rr.height > window.innerHeight - hb - 60 || rr.top < hb + 8){
+    const by = rr.top - hb - 12;
+    try{ window.scrollBy({top: by, behavior: "instant"}); }catch(_){ window.scrollBy(0, by); }
+  }
+}
+function tourRailBottom(){
+  const rail = document.querySelector(".railwrap");
+  if(!rail) return 0;
+  const r = rail.getBoundingClientRect();
+  return getComputedStyle(rail).position === "sticky" || r.top <= 0 ? Math.max(0, r.bottom) : 0;
 }
 
 /* The dimming is a box-shadow around the spot, so the page underneath stays
@@ -13493,15 +13529,19 @@ function tourPlace(){
   const below = top + h + 12 + ch <= window.innerHeight - 8;
   const above = top - ch - 12 >= 8;
   card.style.width = cw + "px";
+  let cl, ct;
   if(below || above){
-    card.style.left = Math.max(12, Math.min(left, window.innerWidth - cw - 12)) + "px";
-    card.style.top = (below ? top + h + 12 : top - ch - 12) + "px";
+    cl = Math.min(left, window.innerWidth - cw - 12);
+    ct = below ? top + h + 12 : top - ch - 12;
   }else{
     /* No room above or below (a grid that fills the window): bottom right,
        over the least of it. */
-    card.style.left = (window.innerWidth - cw - 12) + "px";
-    card.style.top = Math.max(8, window.innerHeight - ch - 12) + "px";
+    cl = window.innerWidth - cw - 12;
+    ct = window.innerHeight - ch - 12;
   }
+  /* And always inside the window, whatever the control is doing. */
+  card.style.left = Math.max(12, cl) + "px";
+  card.style.top = Math.max(8, Math.min(ct, window.innerHeight - ch - 8)) + "px";
 }
 
 document.addEventListener("keydown", e => {
@@ -13524,7 +13564,11 @@ document.addEventListener("keydown", e => {
     if(TOUR.target){
       const r = tourRect(TOUR.target);
       const now = [r.top, r.left, r.width, r.height, window.innerWidth, window.innerHeight].map(Math.round).join(",");
-      if(now !== last){ last = now; tourPlace(); }
+      if(now !== last){
+        last = now;
+        if(TOUR.settle && Date.now() < TOUR.settle && (r.top >= window.innerHeight || r.bottom <= tourRailBottom())) tourScroll(TOUR.target);
+        tourPlace();
+      }
     }
     requestAnimationFrame(watch);
   };
