@@ -1825,17 +1825,17 @@ td.nask{background:repeating-linear-gradient(45deg,var(--hair),var(--hair) 4px,
         <input type="text" id="othername" placeholder="e.g. North London Waste Authority">
       </div>
       <div class="otherbox" id="otherregbox" hidden>
-        <label for="otherreg">Which regime</label>
+        <label for="otherreg">Country, or combined authority</label>
         <select id="otherreg">
-          <option value="">Choose a regime…</option>
-          <option value="england">England — section 151, MRP</option>
-          <option value="wales">Wales — section 151, MRP</option>
-          <option value="scotland">Scotland — section 95, loans fund</option>
-          <option value="combined">Combined authority — section 73</option>
+          <option value="">Choose…</option>
+          <option value="england">England</option>
+          <option value="wales">Wales</option>
+          <option value="scotland">Scotland</option>
+          <option value="combined">Combined authority (England)</option>
         </select>
       </div>
       <div><label for="rtype">Report</label><select id="rtype"></select></div>
-      <div><label for="fy0">First year</label>
+      <div><label for="fy0">Financial year</label>
         <select id="fy0"></select></div>
       <!-- WHERE THE AWARENESS LIVES NOW. It used to be four clauses naming our
            own services inside the authority's strategy, which is their
@@ -1843,11 +1843,11 @@ td.nask{background:repeating-linear-gradient(45deg,var(--hair),var(--hair) 4px,
            where the data THIS TOOL ships comes from, in the tool, next to the
            date it is as at — a fact about our own product, said in our own
            product, which the reader can act on or ignore. -->
-      <div><label for="asat">Report as at</label>
+      <div><label for="asat">Report date</label>
         <input type="date" id="asat"></div>
-      <div><label for="hra">HRA</label>
-        <select id="hra"><option value="no">No HRA</option><option value="one">One pool</option>
-        <option value="two">Two pool</option></select></div>
+      <div><label for="hra">Council housing (HRA)</label>
+        <select id="hra"><option value="no">None: no Housing Revenue Account</option><option value="one">One pool: housing shares the council's debt</option>
+        <option value="two">Two pools: housing has its own loans</option></select></div>
       <!-- HORIZON WAS A QUESTION, AND IS NOW AN ANSWER. It offered 10, 20, 30,
            40 or 50 years and everybody took 50, because the Code wants "at
            least the entirety of any existing borrowing commitments" and PWLB
@@ -1857,7 +1857,7 @@ td.nask{background:repeating-linear-gradient(45deg,var(--hair),var(--hair) 4px,
            year plus fifty forward — and the control is gone. A file saved
            with a shorter horizon still opens: applyVersion pads it out, and
            a year left blank is nil, so nothing is lost or invented. -->
-      <div><label for="whoami">Saved by</label>
+      <div><label for="whoami">Your name</label>
         <input type="text" id="whoami" placeholder="your name" maxlength="60"></div>
       </div><!-- /#setupstash -->
       <div class="setup">
@@ -1931,7 +1931,7 @@ td.nask{background:repeating-linear-gradient(45deg,var(--hair),var(--hair) 4px,
 
       <div id="holdd">
         <table class="loans"><thead><tr>
-          <th style="width:46%">Source</th><th style="width:22%" class="num">Amount £m</th>
+          <th style="width:46%">Lender</th><th style="width:22%" class="num">Amount £m</th>
           <th style="width:18%" class="num">Rate %</th><th></th>
         </tr></thead><tbody id="loanrows"></tbody></table>
         <div class="ltools"><button type="button" id="addloan">Add a source</button>
@@ -1944,7 +1944,7 @@ td.nask{background:repeating-linear-gradient(45deg,var(--hair),var(--hair) 4px,
 
       <div id="holdi" hidden>
         <table class="loans"><thead><tr>
-          <th style="width:46%">Source</th><th style="width:22%" class="num">Amount £m</th>
+          <th style="width:46%">Held with</th><th style="width:22%" class="num">Amount £m</th>
           <th style="width:18%" class="num">Rate %</th><th></th>
         </tr></thead><tbody id="invrows"></tbody></table>
         <div class="ltools"><button type="button" id="addinv">Add a source</button>
@@ -1985,7 +1985,7 @@ td.nask{background:repeating-linear-gradient(45deg,var(--hair),var(--hair) 4px,
         <span><i style="border-left:3px solid var(--accent);border-radius:0"></i>your MTFP years</span>
       </div>
       <div class="ltools">
-        <label class="minliq" for="minliq">Minimum liquidity balance £m
+        <label class="minliq" for="minliq">Minimum cash to keep (liquidity allowance) £m
           <input type="text" inputmode="decimal" id="minliq" value="" placeholder="e.g. 15">
         </label>
       </div>
@@ -2258,19 +2258,19 @@ const REPORTS = [{k:"tmss",t:"Annual treasury strategy"},{k:"mid",t:"Mid-year re
      gf      the General Fund has it and the HRA does not
      mtfp    forecast across the MTFP and not beyond it */
 const COLS = [
-  {k:"cfr",   l:"Capital financing<br>requirement", s:"LB1 (a)"},
-  {k:"mrp",   l:"MRP",                          s:"charged in year"},
-  {k:"rec",   l:"Capital receipts<br>applied",  s:"set aside"},
-  {k:"obs",   l:"Other balance<br>sheet items", s:"LB1 (b)"},
+  {k:"cfr",   l:"Capital financing<br>requirement", s:"the borrowing need for past capital spending"},
+  {k:"mrp",   l:"MRP",                          s:"minimum revenue provision, charged in the year"},
+  {k:"rec",   l:"Capital receipts<br>applied",  s:"receipts set aside to repay debt"},
+  {k:"obs",   l:"Other balance<br>sheet items", s:"reserves, provisions and working capital"},
   /* No tint. It marked a figure seeded from the PWLB book, and nothing seeds
      this row from the book any more — the seeding button went when the debt
      table became categories you type. A colour that once meant something and
      now means nothing is worse than no colour: it invites the question and
      has no answer. */
-  {k:"loans", l:"Existing loan<br>commitments", s:"LB3 (d)", pooled:true},
-  {k:"inv",   l:"Existing investment<br>commitments", s:"LB3 (e)", gf:true},
-  {k:"liq",   l:"Liquidity<br>allowance", s:"sets the benchmark", gf:true, scalar:true},
-  {k:"capex", l:"Capital expenditure<br>financed by borrowing", mtfp:true},
+  {k:"loans", l:"Existing loan<br>commitments", s:"loans already taken, as they run off", pooled:true},
+  {k:"inv",   l:"Existing investment<br>commitments", s:"investments already committed", gf:true},
+  {k:"liq",   l:"Liquidity<br>allowance", s:"the minimum cash kept", gf:true, scalar:true},
+  {k:"capex", l:"Capital expenditure<br>financed by borrowing", s:"new borrowing need in the year", mtfp:true},
   // Affordability. The Prudential Code's own indicator, and the one the tool
   // produced no figure for at all: it computed six debt and investment limits
   // and left the question members actually ask — what does this cost us as a
@@ -2296,7 +2296,7 @@ const COLS = [
      so each says so. `pair` names the column that holds the mirror of this
      one — what one fund pays, the other receives — and syncCross keeps the
      two in step so a figure is entered once. */
-  {k:"intfund",  l:"Interest paid to<br>the {{other}}", s:"item 8 or an internal loan",
+  {k:"intfund",  l:"Interest paid to<br>the {{other}}", s:"the charge between the two funds",
    cross:true, mtfp:true, pair:"intfundr"},
   /* The break sits after "from", deliberately. matchCol takes the text before
      the <br> as a name the column answers to exactly, and "Interest received"
@@ -2305,10 +2305,18 @@ const COLS = [
      received" landed it in the inter-fund column instead of intinc. */
   {k:"intfundr", l:"Interest received from<br>the {{other}}", s:"the other side of it",
    cross:true, mtfp:true, pair:"intfund"},
-  {k:"intinc",  l:"Investment<br>income", s:"not netted off", gf:true, mtfp:true},
-  {k:"nrs",     l:"Net revenue<br>stream", s:"grants and local taxpayers", mtfp:true},
-  {k:"comminc", l:"Non-treasury<br>investment income", s:"net, if any", gf:true, mtfp:true}
+  {k:"intinc",  l:"Investment<br>income", s:"interest earned on cash balances", gf:true, mtfp:true},
+  {k:"nrs",     l:"Net revenue<br>stream", s:"the net revenue budget: grants and local taxpayers", mtfp:true},
+  {k:"comminc", l:"Non-treasury<br>investment income", s:"commercial property and loans to others, net", gf:true, mtfp:true}
 ];
+/* A column's name in one line, as a screen reader should hear it — the same
+   words the header shows, with "the other fund" resolved. The aria-label used
+   to carry the raw template, so the HRA's interest column was read out as
+   "Interest paid to the {{other}}". */
+function colName(c){
+  const other = S.fund === "hra" ? "General Fund" : "HRA";
+  return String(c.l).replace(/<br>/g, " ").replace(/\{\{other\}\}/g, other);
+}
 /* A column whose name changes with the country — Scotland charges loans fund
    repayments where England and Wales make MRP. */
 /* A figure, and nothing else. Keeps one leading minus and one decimal point,
@@ -3838,15 +3846,93 @@ function combinedGrid(S){
   return out;
 }
 
+/* ===========================================================================
+ * WHAT HAS BEEN ENTERED, AS DISTINCT FROM WHAT IS NOUGHT.
+ *
+ * The ledger stores a blank as 0, so nothing downstream could tell "not yet
+ * typed" from "typed, and nil" — and a report built on an untouched ledger
+ * printed "the authorised limit is £0.0m" and "the council expects to hold
+ * about £0.0m of cash" as if they were facts. These say whether a column
+ * holds any figure at all, across the funds in play. A column of true zeros
+ * reads as not entered, which errs the safe way: the document shows a gap
+ * rather than a figure nobody typed.
+ * ======================================================================== */
+function colEnteredFor(S, f, k){
+  return !!(S.g && S.g[f] && (S.g[f][k] || []).some(v => v));
+}
+function colEntered(S, k){
+  const fs = S.hra === "no" ? ["gf"] : ["gf", "hra"];
+  return fs.some(f => colEnteredFor(S, f, k));
+}
+/* The capital financing requirement is the backbone: without it no benchmark,
+   limit or position means anything. */
+function figuresEntered(S){ return colEntered(S, "cfr"); }
+/* The last year with a capital financing requirement in any fund, as an
+   index; -1 when none. A first year typed and the rest left blank is the
+   commonest way a ledger is half done, and "falls to £0.0m by 2076/77 as MRP
+   is charged" is what it produced. */
+function projectedTo(S){
+  const fs = S.hra === "no" ? ["gf"] : ["gf", "hra"];
+  let last = -1;
+  fs.forEach(f => { const c = (S.g && S.g[f] && S.g[f].cfr) || [];
+    c.forEach((v, i) => { if(v) last = Math.max(last, i); }); });
+  return last;
+}
+/* Loans or investments are "entered" when they are on step 2 or typed into
+   their column on step 3. Neither is a true nil until the author says so. */
+function loansEntered(S){ return colEntered(S, "loans") || (S.loans || []).some(L => L && L.amt > 0); }
+function invEntered(S){ return colEntered(S, "inv") || (S.portfolio || []).some(L => L && L.amt > 0); }
+/* A liquidity allowance of nil is a figure; an allowance never set is not. */
+function liqSet(S){
+  return (S.minliq != null && S.minliq !== "") || colEntered(S, "liq");
+}
+/* THE LOAN BOOK FILLS THE LOANS COLUMN UNTIL THE AUTHOR DOES.
+ *
+ * "Existing loan commitments" is the run-off of the loans held, and the loans
+ * held are typed on step 2 — with the PWLB book's own dates behind them. The
+ * column on step 3 asked for the same fact again, year by year, and until it
+ * was typed the report said "existing loan commitments are £0.0m" over a
+ * chart of £68m of debt. So while the column is untouched, the book's run-off
+ * is used, and the grid shows it greyed. Typing any figure in the column
+ * takes over. Not under two pools, where the book is not split by fund and
+ * each fund's own loans are the author's to state. */
+function loansDerived(S, fund){
+  if(fund === "hra" || S.hra === "two") return null;
+  if(colEntered(S, "loans")) return null;
+  if(!(S.loans || []).some(L => L && L.amt > 0)) return null;
+  if(typeof LB === "undefined" || !LB) return null;
+  return loanProfile(S, LB);
+}
+
+/* THE INVESTMENTS HELD FILL THE INVESTMENTS COLUMN UNTIL THE AUTHOR DOES.
+ *
+ * The same rule as the loans: what is held is typed on step 2, and the
+ * column on step 3 asked for its run-off again. While it is untouched, the
+ * holdings stand in — everything held at the first year end, and after that
+ * only the fixed-term deals that have not yet matured, since money on call is
+ * not a commitment. Investments are the General Fund's under every pooling
+ * approach, so there is no fund to split. */
+function invDerived(S, fund){
+  if(fund === "hra") return null;
+  if(colEntered(S, "inv")) return null;
+  const P = (S.portfolio || []).filter(L => L && L.amt > 0);
+  if(!P.length) return null;
+  const out = new Array(S.years).fill(0);
+  for(let i = 0; i < S.years; i++)
+    P.forEach(L => { if(i === 0 || (L.mat && (+L.mat - S.fy0) > i)) out[i] += +L.amt; });
+  return out.map(v => Math.round(v * 10) / 10);
+}
+
 function buildModel(S, fund){
   const g = fund === "all" ? combinedGrid(S) : S.g[fund || "gf"];
+  const derived = loansDerived(S, fund), derivedInv = invDerived(S, fund);
   const rows = [];
   for (let i = 0; i < S.years; i++){
     const cfr = g.cfr[i] || 0;
     const obs = g.obs[i] || 0;
     const liq = g.liq[i] || 0;
-    const el  = g.loans[i] || 0;
-    const ei  = g.inv[i] || 0;
+    const el  = derived ? (derived[i] || 0) : (g.loans[i] || 0);
+    const ei  = derivedInv ? (derivedInv[i] || 0) : (g.inv[i] || 0);
 
     const ntp = cfr - obs;
     // The HRA has no liquidity allowance of its own under a two-pool
@@ -5013,14 +5099,18 @@ const norm = t => String(t).toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
  *
  * A pasted column we cannot name is REPORTED, never guessed at. A figure in
  * the wrong column of this grid is a wrong benchmark that draws perfectly. */
+/* The Code's own references are aliases now rather than the columns'
+   sub-lines: the header under each column says what the figure is in plain
+   words, and a sheet headed "LB1 (a)" still lands where it should. Written
+   as norm() spells them, without the brackets. */
 const COL_ALIAS = {
-  cfr:     ["cfr", "capital financing requirement"],
+  cfr:     ["cfr", "capital financing requirement", "lb1 a"],
   mrp:     ["mrp", "minimum revenue provision", "mrp vrp", "mrp and vrp"],
   rec:     ["capital receipts", "usable capital receipts", "receipts applied"],
-  obs:     ["obs", "other balance sheet", "balance sheet resources", "internal borrowing"],
+  obs:     ["obs", "other balance sheet", "balance sheet resources", "internal borrowing", "lb1 b"],
   loans:   ["external debt", "external borrowing", "existing loans", "loans outstanding",
-            "gross debt", "borrowing"],
-  inv:     ["existing investments", "investments", "treasury investments"],
+            "gross debt", "borrowing", "lb3 d"],
+  inv:     ["existing investments", "investments", "treasury investments", "lb3 e"],
   liq:     ["liquidity", "minimum liquidity", "liquidity allowance", "minimum cash"],
   capex:   ["capital expenditure", "unfinanced capital expenditure", "borrowing need",
             "capital spend"],
@@ -5612,13 +5702,13 @@ function expoStarted(){ return EXPO_KEYS.some(expoSet); }
 /* The limits, entered under the ladder they constrain. */
 function inv364Panel(){
   const x = inv364();
-  return `<h4 class="ladh">Principal sums invested for more than 364 days</h4>
+  return `<h4 class="ladh">Investments for longer than a year (principal sums over 364 days)</h4>
     <div class="setup"><div>
-      <label for="L_inv364">Upper limit<span class="hint">£m</span></label>
+      <label for="L_inv364">Most allowed beyond a year<span class="hint">£m</span></label>
       <input type="text" inputmode="decimal" id="L_inv364" data-lim="inv364"
         value="${(S.limits||{}).inv364 == null ? "" : m1(S.limits.inv364)}">
     </div><div>
-      <label>Committed beyond a year<span class="hint">£m</span></label>
+      <label>Invested beyond a year now<span class="hint">£m</span></label>
       <input type="text" id="inv364_amt" value="${m1(x.amt)}" disabled
         aria-label="committed beyond a year">
     </div></div>`;
@@ -5627,15 +5717,15 @@ function inv364Panel(){
 function mstructPanel(){
   S.mstruct = S.mstruct || {};
   const rows = mstructRows();
-  const box = (k, f) =>
-    `<input type="text" inputmode="decimal" data-ms="${k}" data-msf="${f}"
-    value="${((S.mstruct[k]||{})[f] ?? "")}" placeholder="%" aria-label="${esc(k)} ${f}">`;
-  return `<h4 class="ladh">Maturity structure of borrowing</h4>
+  const box = (r, f) =>
+    `<input type="text" inputmode="decimal" data-ms="${r.k}" data-msf="${f}"
+    value="${((S.mstruct[r.k]||{})[f] ?? "")}" placeholder="%" aria-label="${esc(r.l)}, ${f === "lo" ? "lower" : "upper"} limit">`;
+  return `<h4 class="ladh">Limits on when debt may fall due (maturity structure)</h4>
     <div style="overflow-x:auto"><table class="otable mgrid">
-      <thead><tr><th>Maturing in</th><th class="num">Lower %</th><th class="num">Upper %</th>
+      <thead><tr><th>Maturing in</th><th class="num">Lower limit %</th><th class="num">Upper limit %</th>
         <th class="num">Actual %</th></tr></thead>
       <tbody>${rows.map(r => `<tr><td>${esc(r.l)}</td>
-        <td class="num">${box(r.k,"lo")}</td><td class="num">${box(r.k,"hi")}</td>
+        <td class="num">${box(r,"lo")}</td><td class="num">${box(r,"hi")}</td>
         <td class="num msact" data-msk="${r.k}">${r.pct == null ? "–" : r.pct.toFixed(1) + "%"}</td></tr>`).join("")}
       </tbody></table></div>`;
 }
@@ -5741,7 +5831,8 @@ function expoTable(){
  * already in the ledger — so it is drawn wherever there is a projection. */
 function grossDebtTable(d){
   const yrs = d.slice(0, 3);
-  if(!yrs.length || !yrs.some(r => r.cfr || r.el)) return "";
+  // Debt held against a requirement nobody has typed is not a breach.
+  if(!yrs.length || !yrs.some(r => r.cfr || r.el) || !figuresEntered(S)) return "";
   const over = yrs.filter(r => r.el > r.cfr + 0.05);
   return `<h4 style="margin-top:22px">Gross debt and the capital financing requirement</h4>
     <p>The Prudential Code asks that gross external debt does not exceed the capital
@@ -5845,12 +5936,12 @@ function expoPanel(){
   const box = (k, lab, hint) => `<div><label for="L_${k}">${esc(lab)}<span class="hint"${
     hint ? ` id="expo_tot"` : ""}>${hint || "£m"}</span></label><input type="text" inputmode="decimal"
     id="L_${k}" data-lim="${k}" value="${(S.limits||{})[k] == null ? "" : (S.limits||{})[k]}"></div>`;
-  return `<h4 class="ladh">Interest rate exposure</h4>
+  return `<h4 class="ladh">Fixed and variable rate debt (interest rate exposure)</h4>
     <div class="setup">
       ${box("exp_var", "Debt at variable rates", "£m of £" + m1(x.tot) + "m held")}
-      ${box("exp_var_max", "Upper limit, variable")}
-      ${box("exp_fix_max", "Upper limit, fixed")}
-      <div><label>At fixed rates<span class="hint">£m</span></label>
+      ${box("exp_var_max", "Most allowed at variable rates")}
+      ${box("exp_fix_max", "Most allowed at fixed rates")}
+      <div><label>Debt at fixed rates<span class="hint">£m</span></label>
         <input type="text" id="expo_fixed" value="${x.fixed == null ? "" : m1(x.fixed)}" disabled
           aria-label="debt at fixed rates"></div>
     </div>`;
@@ -6653,17 +6744,36 @@ const R = {
   allZero:(d,k) => d.every(r=>Math.abs(r[k]) < 0.05)
 };
 
+/* A PROJECTION ENTERED FOR SOME YEARS IS READ FOR THOSE YEARS. The years
+   beyond the last figure hold nil, and a readout that ran across them said
+   "falls to £0.0m by 2027/28" over a ledger somebody had typed one year of.
+   The readouts read the years that exist and say so once. */
+function enteredSpan(d){
+  const upto = (typeof projectedTo === "function") ? projectedTo(S) : d.length - 1;
+  const partial = upto >= 0 && upto < d.length - 1;
+  return {upto, partial, d: partial ? d.slice(0, upto + 1) : d};
+}
 function readout(tag, d, fundLabel){
   const F = fundLabel ? ` for the ${fundLabel}` : "";
+  const span = enteredSpan(d); d = span.d;
   const a = R.first(d), z = R.last(d);
   const bits = [];
 
   if(tag === "LB1"){
-    bits.push(`The capital financing requirement${F} stands at ${R.m(a.cfr)} at ${R.fyOf(a)} `
-      + `and ${a.cfr > z.cfr ? "falls" : a.cfr < z.cfr ? "rises" : "is unchanged"} to `
-      + `${R.m(z.cfr)} by ${R.fyOf(z)}.`);
-    bits.push(`Other balance sheet items — reserves, provisions and working capital not `
-      + `required in cash — are ${R.m(a.obs)}, offsetting that requirement.`);
+    bits.push(R.allZero(d, "cfr")
+      ? `The capital financing requirement${F} has not been entered on step 3, so the `
+        + `position shown is nil until it is.`
+      : d.length === 1
+      ? `The capital financing requirement${F} stands at ${R.m(a.cfr)} at ${R.fyOf(a)}.`
+      : `The capital financing requirement${F} stands at ${R.m(a.cfr)} at ${R.fyOf(a)} `
+        + `and ${a.cfr > z.cfr ? "falls" : a.cfr < z.cfr ? "rises" : "is unchanged"} to `
+        + `${R.m(z.cfr)} by ${R.fyOf(z)}.`);
+    bits.push((typeof colEntered !== "function" || colEntered(S, "obs"))
+      ? `Other balance sheet items — reserves, provisions and working capital not `
+        + `required in cash — are ${R.m(a.obs)}, offsetting that requirement.`
+      : `Other balance sheet items — reserves, provisions and working capital not `
+        + `required in cash — have not been entered, so the net treasury position shown is `
+        + `the capital financing requirement itself.`);
     if(a.ntp >= 0 && !R.anyNeg(d,"ntp"))
       bits.push(`The net treasury position is positive throughout, so the authority is net `
         + `indebted across the projection, beginning at ${R.m(a.ntp)}.`);
@@ -6707,8 +6817,11 @@ function readout(tag, d, fundLabel){
         + `the General Fund manages liquidity for the authority — so the HRA's liability `
         + `benchmark is its net treasury position.`);
     else if(a.ntp >= 0)
-      bits.push(`The authority is net indebted, so the treasury investment benchmark equals `
-        + `the liquidity allowance of ${R.m(a.liq)}.`);
+      bits.push((typeof liqSet !== "function" || liqSet(S))
+        ? `The authority is net indebted, so the treasury investment benchmark equals `
+          + `the liquidity allowance of ${R.m(a.liq)}.`
+        : `The authority is net indebted, so the treasury investment benchmark equals `
+          + `the liquidity allowance — which has not yet been set, so it is shown as nil.`);
     else
       bits.push(`The authority is in net surplus, so the treasury investment benchmark is the `
         + `surplus itself, ${R.m(a.tib)}, rather than the liquidity allowance.`);
@@ -6778,7 +6891,14 @@ function readout(tag, d, fundLabel){
 
   if(tag === "LB5"){
     const pk = R.peakOf(d,"inv"), tr = R.troughOf(d,"inv");
-    bits.push(`Treasury investments implied by these figures are ${R.m(a.inv)} at `
+    const LQ = (typeof liqSet !== "function" || liqSet(S));
+    /* Without an allowance a net borrower holds no cash on these figures, and
+       "implied treasury investments are £0.0m" states the absence of an
+       answer as if it were one. */
+    if(!LQ && a.inv < 0.05 && !R.rises(d,"inv",a))
+      bits.push(`No minimum cash balance (the liquidity allowance) has been set on step 3, so `
+        + `the investment position shown is only what the balance sheet itself implies.`);
+    else bits.push(`Treasury investments implied by these figures are ${R.m(a.inv)} at `
       + `${R.fyOf(a)}`
       + (R.rises(d,"inv",a)
          ? `, peaking at ${R.m(pk.inv)} in ${R.fyOf(pk)}.`
@@ -6791,7 +6911,9 @@ function readout(tag, d, fundLabel){
        the peaks and troughs of operational cash flow". Defining it again here
        was the same sentence twice in one paper. What this chart needs is the
        figure and what it does to the chart. */
-    bits.push(`The liquidity allowance of ${R.m(a.liq)} is the floor beneath the projection.`);
+    if(LQ) bits.push(`The liquidity allowance of ${R.m(a.liq)} is the floor beneath the projection.`);
+    else if(a.inv >= 0.05 || R.rises(d,"inv",a))
+      bits.push(`No liquidity allowance has been set, so the projection has no floor beneath it yet.`);
     /* WHAT THE SERIES ARE, WHETHER OR NOT THEY ARISE.
      *
      * These were explained only when they had a figure, so on the common case
@@ -6870,6 +6992,7 @@ function readout(tag, d, fundLabel){
  * ------------------------------------------------------------------------ */
 function plainly(tag, d){
   if(!d || !d.length) return "";
+  d = enteredSpan(d).d;
   const a = d[0], yrs = y => fy(y);
   const peakLb = d.reduce((m,r)=> r.lb > m.lb ? r : m, a);
   const peakNeed = d.reduce((m,r)=> r.need > m.need ? r : m, a);
@@ -6931,20 +7054,29 @@ function plainly(tag, d){
        the same shape: "about £11.1m, at most £11.1m". The clause is only
        written when the balance actually moves. */
     const rises = pk.inv > a.inv + 0.05;
+    if((typeof liqSet === "function" && !liqSet(S)) && a.inv < 0.05 && !rises)
+      return `In plain terms: no minimum cash balance has been set yet, so on these figures the
+        council holds no cash beyond what its balance sheet implies. Set the minimum cash to
+        keep on step 3 and this fills itself.`;
     if(ex.excess > 0.05)
       return `In plain terms: the council expects to be holding about <b>£${m1(a.inv)}m</b> of
         cash${rises ? `, rising to <b>£${m1(pk.inv)}m</b>` : ""}. Some of that — up to
         <b>£${m1(ex.excess)}m</b> — is money it borrowed before it needed it, and holding it
         costs more than it earns.`;
     return `In plain terms: the council expects to hold about <b>£${m1(a.inv)}m</b> of
-      cash${rises ? `, and at most <b>£${m1(pk.inv)}m</b>` : ""}. The floor of
-      <b>£${m1(a.liq)}m</b> is what it keeps back simply to pay its bills on time.`;
+      cash${rises ? `, and at most <b>£${m1(pk.inv)}m</b>` : ""}.${(typeof liqSet !== "function" || liqSet(S))
+        ? ` The floor of <b>£${m1(a.liq)}m</b> is what it keeps back simply to pay its bills on time.`
+        : ""}`;
   }
   return "";
 }
 
 function readoutHTML(tag, d, fundLabel){
   const bits = readout(tag, d, fundLabel);
+  const span = enteredSpan(d);
+  if(span.partial && !R.allZero(span.d, "cfr"))
+    bits.push(`The projection has been entered to ${R.fyOf(d[span.upto])} only; the years beyond `
+      + `read as nil until they are entered on step 3.`);
   if(!bits.length) return "";
   const plain = plainly(tag, d);
   return (plain ? `<div class="plain"><span class="pt">In plain terms</span>
@@ -7616,7 +7748,7 @@ const PERF = [
   {grp:"Borrowing"},
   {k:"intpay",  l:"Interest payable",           u:"£m", s:"on borrowing and leases",
    fund:"both"},
-  {k:"avgdebt", l:"Average debt outstanding",   u:"£m", s:"the denominator of a rate paid",
+  {k:"avgdebt", l:"Average debt outstanding",   u:"£m", s:"average over the period",
    noBudget:true, fund:"both"},
   {k:"newborr", l:"New borrowing taken",        u:"£m", s:"leave blank if none",
    noBudget:true, fund:"two"},
@@ -7633,7 +7765,7 @@ const PERF = [
    pct:true, noBudget:true},
   {grp:"Investments"},
   {k:"intinc",  l:"Investment income",          u:"£m", s:"earned in the period"},
-  {k:"avginv",  l:"Average investments held",   u:"£m", s:"the denominator of a return",
+  {k:"avginv",  l:"Average investments held",   u:"£m", s:"average over the period",
    noBudget:true},
   {k:"ret",     l:"Rate of return achieved",    u:"%",  s:"income over average balance, unless you type your own",
    pct:true},
@@ -7783,7 +7915,9 @@ function monRows(){
                          return (v == null || v === "") ? null : +v; };
     const approved = typed("approved") != null ? {v:typed("approved"), seeded:false}
       : (P[x.k] == null ? {v:null, seeded:false} : {v:P[x.k], seeded:true});
-    const raw = x.from(now);
+    // The ledger's latest expectation is only an expectation once the ledger
+    // holds figures; before that, the column is simply not filled.
+    const raw = (typeof figuresEntered !== "function" || figuresEntered(S)) ? x.from(now) : null;
     const latest = typed("latest") != null ? {v:typed("latest"), derived:false}
       : {v:(raw == null || !isFinite(raw)) ? null : raw, derived:true};
     const varc = (approved.v == null || latest.v == null) ? null : latest.v - approved.v;
@@ -8591,10 +8725,15 @@ function renderSections(){
 function autoNote(k){
   const d = buildModel(S,"gf"), c = LB[S.gss];
   const box = (t,b) => `<div class="autobox"><span class="t">${t}</span>${b}</div>`;
+  /* Nothing typed on step 3 is nothing to report, not a row of £0.0m. */
+  if(!figuresEntered(S) && ["balance","indicators","borrow","invest","portfolio","corefunds","mrp"].indexOf(k) >= 0)
+    return box("From your ledger", `<span class="gap">Enter your figures on step 3 and this fills itself.</span>`);
+  const fig = (col, v) => colEntered(S, col) ? `<b>£${m1(v)}m</b>` : `<span class="gap">[not entered]</span>`;
+  const liqFig = liqSet(S) ? `<b>£${m1(d[0].liq)}m</b>` : `<span class="gap">[not set]</span>`;
   if(k==="balance")
     return box("From your ledger", `Capital financing requirement of
       <b>£${m1(d[0].cfr)}m</b> at ${fy(S.fy0)}, against other balance sheet items of
-      <b>£${m1(d[0].obs)}m</b>, giving a net treasury position of <b>£${m1(d[0].ntp)}m</b>.
+      ${fig("obs", d[0].obs)}, giving a net treasury position of <b>£${m1(d[0].ntp)}m</b>.
       Projected to <b>£${m1(d[d.length-1].cfr)}m</b> by ${fy(d[d.length-1].fy)} on your own
       figures, with no assumption about capital budgets you have not entered.`);
   if(k==="indicators")
@@ -8624,7 +8763,7 @@ function autoNote(k){
   if(k==="invest"){
     const p=d.reduce((a,b)=>b.inv>a.inv?b:a,d[0]);
     return box("From your ledger", `Implied treasury investments peak at <b>£${m1(p.inv)}m</b>
-      in ${fy(p.fy)}, against a liquidity allowance of <b>£${m1(d[0].liq)}m</b>. LB5 splits that
+      in ${fy(p.fy)}, against a liquidity allowance of ${liqFig}. LB5 splits that
       between liquidity, strategic and excess.`)
       + ((S.portfolio||[]).length
          ? portfolioTable() + barChart(groupHoldings(S.portfolio), "inv")
@@ -8643,9 +8782,9 @@ function autoNote(k){
          <b>£${m1(d[0].ei)}m</b>.`);
   }
   if(k==="corefunds")
-    return box("From your ledger", `Other balance sheet items of <b>£${m1(d[0].obs)}m</b> are
+    return box("From your ledger", `Other balance sheet items of ${fig("obs", d[0].obs)} are
       set against the capital financing requirement, which is the extent of internal borrowing.
-      Your liquidity allowance of <b>£${m1(d[0].liq)}m</b> sets the treasury investment
+      Your liquidity allowance of ${liqFig} sets the treasury investment
       benchmark in LB5 wherever the authority is net indebted.`);
   /* The panel moved to step 7; the table stays, because a note on a breach
      written without the breach in front of you is written blind. */
@@ -8662,9 +8801,12 @@ function autoNote(k){
       address the knowledge and skills of the officers who carry out treasury management and
       of the members who scrutinise it. 31% of strategies give this its own section.`);
   if(k==="mrp")
-    return box("From your ledger", `You have entered MRP of <b>£${m1(d[0].mrp)}m</b> in
-      ${fy(S.fy0)}. The policy wording above is yours — the Code requires a statement approved
-      by members before the year begins.`);
+    return box("From your ledger", colEntered(S, "mrp")
+      ? `You have entered MRP of <b>£${m1(d[0].mrp)}m</b> in ${fy(S.fy0)}. The policy wording
+         above is yours — the Code requires a statement approved by members before the year
+         begins.`
+      : `<span class="gap">No MRP has been entered on step 3.</span> The policy wording above
+         is yours — the Code requires a statement approved by members before the year begins.`);
   return "";
 }
 
@@ -8918,15 +9060,15 @@ const CPB = {
 /* The sectors, in the order a strategy states them. `k` keys the answer,
    `b` matches the benchmark's own sector label. */
 const CP_SECTORS = [
-  {k:"gov",   t:"UK Government, DMADF, T-bills and gilts", b:"UK Government / DMADF"},
+  {k:"gov",   t:"UK Government (DMADF, Treasury bills, gilts)", b:"UK Government / DMADF"},
   {k:"la",    t:"Other local authorities",                 b:"Other local authorities"},
   {k:"bank",  t:"Banks — unsecured",                       b:"Banks — unsecured"},
   {k:"banksec",t:"Banks — secured (covered bonds, repo)",  b:"Banks — secured"},
   {k:"bs",    t:"Building societies",                      b:"Building societies"},
   {k:"mmf",   t:"Money market funds",                      b:"Money market funds"},
   {k:"pool",  t:"Pooled and bond funds",                   b:"Pooled / bond funds"},
-  {k:"rp",    t:"Registered providers of social housing",  b:"Registered providers"},
-  {k:"corp",  t:"Corporates",                              b:"Corporates"},
+  {k:"rp",    t:"Housing associations (registered providers)", b:"Registered providers"},
+  {k:"corp",  t:"Companies (corporate deposits and bonds)",   b:"Corporates"},
   {k:"own",   t:"The authority's own bank",                b:"The council's own bank"}
 ];
 
@@ -8945,10 +9087,10 @@ const CP_BASIS = [
 ];
 
 const CP_COUNTRY = [
-  {k:"sovereign", t:"A sovereign rating floor",
+  {k:"sovereign", t:"Only countries with a minimum rating",
    d:"counterparties only in countries rated at or above a stated level",
    w:"The authority will use approved counterparties from the UK and from countries with a minimum sovereign credit rating of [[FLOOR]]."},
-  {k:"share", t:"A cap as a share of funds",
+  {k:"share", t:"Capped as a share of investments",
    d:"a proportion of the portfolio, whatever the country",
    w:"No more than [[PCT]]% of funds shall be invested in non-UK financial institutions, except that this limit may be breached for liquidity purposes for up to one week."},
   {k:"conditions", t:"Permitted, on stated conditions",
@@ -8966,9 +9108,9 @@ const CP_COUNTRY = [
    vehicle with nowhere to be ticked. */
 const CP_INSTRUMENTS = [
   ["tbills","Treasury bills and gilts"], ["cds","Certificates of deposit"],
-  ["supra","Supranational and MDB bonds"], ["corpbond","Corporate bonds"],
+  ["supra","Supranational bonds (World Bank, EIB)"], ["corpbond","Corporate bonds"],
   ["notice","Notice and call accounts"], ["covered","Covered bonds and repo"],
-  ["reits","REITs"], ["etf","Exchange-traded funds"],
+  ["reits","Property trusts (REITs)"], ["etf","Exchange-traded funds"],
   ["frn","Floating rate notes"]
 ];
 
@@ -9182,16 +9324,16 @@ function cpRenderDraw(){
     </div>`;
 
   host.innerHTML = `
-    <h3 class="cph">1 · Limits, duration and credit quality</h3>
+    <h3 class="cph">1 · Limits, longest deal and minimum rating</h3>
     <div class="cptable tight wide">
       <!-- THE UNIT BELONGS IN THE HEADING. It was in the paragraph above, which
            is four columns and one scroll away by the time the eye reaches a
            box with nothing in it but a £ sign. -->
-      <div class="cprow cphead"><span>Include &amp; counterparty type</span>
-        <span>Per counterparty<i>£m, or % of the portfolio</i></span>
-        <span>Aggregate limit<i>across a group, sector or manager</i></span>
+      <div class="cprow cphead"><span>Who you may lend to</span>
+        <span>Limit per counterparty<i>£m, or % of investments</i></span>
+        <span>Limit across a group<i>owner, sector or fund manager</i></span>
         <span>Months<i>longest deal</i></span>
-        <span>Min rating<i>lowest accepted</i></span></div>
+        <span>Minimum rating<i>lowest accepted</i></span></div>
       ${CP_SECTORS.map(row).join("")}
       ${(c.own || []).map((x, i) => ownRow(x, i)).join("")}
     </div>
@@ -9207,7 +9349,7 @@ function cpRenderDraw(){
               a==="Moody's"?CPB.ratings.moodys:CPB.ratings.sp) : 0}</i></label>`).join("")}
       </span>
       <label class="cpmini"><input type="checkbox" data-cps="groupnote"
-        ${c.groupnote?"checked":""}> Treat a group under common ownership as one name
+        ${c.groupnote?"checked":""}> Count banks under one owner as one counterparty
         <i class="cpb">${(CPB.structure||{}).group_limits || 0}</i></label>
     </div>
 
@@ -9251,7 +9393,7 @@ function cpRenderDraw(){
         </div>
         <div class="cprowflex">
           <label class="cpmini"><input type="checkbox" data-cps="split" ${c.split?"checked":""}>
-            Specified / non-specified split
+            Classify as specified or non-specified
             ${cpn((CPB.structure||{}).specified_split || 0)}</label>
           <label>Cap on non-specified investments £m <input type="text" data-cps="nonspec"
             value="${esc(c.nonspec)}" inputmode="decimal" size="5"></label>
@@ -9697,11 +9839,19 @@ function execSummary(d){
      that year. The opener now says which report it is and, for the three
      that look backwards, which year it covers. */
   const fwd = S.report === "tmss";
-  return `<p>${fwd
+  const covers = fwd
       ? `This strategy covers ${fy(S.fy0)} to ${fy(z.fy)}.`
-      : `This report covers ${fy(S.fy0)}, against the strategy members approved for it.`} The authority's capital
+      : `This report covers ${fy(S.fy0)}, against the strategy members approved for it.`;
+  /* NOTHING TYPED IS NOTHING TO SUMMARISE. On an untouched ledger this said
+     "the capital financing requirement is £0.0m, against external loans of
+     £0.0m, so it is externally financed" — three facts, none of them true. */
+  if(!figuresEntered(S))
+    return `<p>${covers}</p><p class="gap">Figures to come: the balance sheet position and the
+      liability benchmark. Enter the capital financing requirement on step 3 and this summary
+      fills itself.</p>`;
+  return `<p>${covers} The authority's capital
     financing requirement is <b>£${m1(a.cfr)}m</b>, against external loans of
-    <b>£${m1(a.el)}m</b>, so it is
+    ${loansEntered(S) ? `<b>£${m1(a.el)}m</b>` : `<span class="gap">[not entered on step 2]</span>`}, so it is
     <b>${a.el < a.ntp ? "internally borrowed" : "externally financed"}</b> at
     ${fwd ? "the start of the period" : "the balance sheet date"}.</p>
     <p>The liability benchmark ${peak.lb > a.el + 0.05
@@ -9770,10 +9920,13 @@ function execSummaryBack(d){
       out ? "" : rev
         ? ` Members are asked to approve a revised authorised limit of <b>£${m1(+L.al_revised)}m</b>.`
         : ` No revision to the strategy or to the indicators approved for the year is proposed.`}</p>`;
-  h += `<p>The authority's capital financing requirement ${out ? "closed the year"
+  h += figuresEntered(S)
+    ? `<p>The authority's capital financing requirement ${out ? "closed the year"
     : "is expected to close the year"} at <b>£${m1(a.cfr)}m</b>, against external loans of
-    <b>£${m1(a.el)}m</b>, so it ${out ? "was" : "is"}
-    <b>${a.el < a.ntp ? "internally borrowed" : "externally financed"}</b> at ${at}.</p>`;
+    ${loansEntered(S) ? `<b>£${m1(a.el)}m</b>` : `<span class="gap">[not entered on step 2]</span>`}, so it ${out ? "was" : "is"}
+    <b>${a.el < a.ntp ? "internally borrowed" : "externally financed"}</b> at ${at}.</p>`
+    : `<p class="gap">Figures to come: the balance sheet position at ${at}. Enter the capital
+      financing requirement on step 3 and this fills itself.</p>`;
   return h;
 }
 
@@ -9819,6 +9972,17 @@ function docSections(){
      own figures come from `whole`, as the summary and the checks already do. */
   const W0 = whole[0], Wz = whole[whole.length-1];
   const H  = S.hra !== "no" ? buildModel(S,"hra") : null;
+  /* NOTHING TYPED IS A GAP, NOT A NOUGHT. The sections built from the ledger
+     print a gap until a capital financing requirement exists, and a figure
+     that was never set — the liquidity allowance, other balance sheet items,
+     MRP — is named as not entered rather than quoted as £0.0m. */
+  const F = figuresEntered(S), LQ = liqSet(S);
+  const figGap = what => `<p class="gap">Figures to come: ${what}. Enter the capital financing
+    requirement and the other lines on step 3 and this fills itself.</p>`;
+  const OBS = colEntered(S, "obs") ? `<b>£${m1(W0.obs)}m</b>`
+            : `<span class="gap">[other balance sheet items not entered]</span>`;
+  const LIQ = LQ ? `<b>£${m1(W0.liq)}m</b>`
+            : `<span class="gap">[minimum cash to keep not set]</span>`;
   const peakNeed = whole.reduce((a,b)=>b.need>a.need?b:a,whole[0]);
   const peakInv  = whole.reduce((a,b)=>b.inv>a.inv+0.05?b:a,whole[0]);
   /* One report type is a strategy. The other three report on a period, and
@@ -9901,18 +10065,24 @@ function docSections(){
      + clausesFor("2") + forecastBlock() + marketBlock()},
 
    {k:"balance", n:"3", t:"Balance sheet summary and forecast",
-    b: `<p>The authority's capital financing requirement ${back
+    b: (!F ? figGap("the balance sheet summary and forecast") : `<p>The authority's capital financing requirement ${back
           ? `${out ? "closed" : "is expected to close"} ${fy(S.fy0)} at <b>£${m1(W0.cfr)}m</b>`
           : `is <b>£${m1(W0.cfr)}m</b> at ${fy(S.fy0)}`}, against other balance sheet items
-        of <b>£${m1(W0.obs)}m</b>, giving a net treasury position of <b>£${m1(W0.ntp)}m</b>.${H
+        of ${OBS}, giving a net treasury position of <b>£${m1(W0.ntp)}m</b>.${!H ? ""
+          : colEnteredFor(S, "gf", "cfr") && colEnteredFor(S, "hra", "cfr")
           ? ` Of the requirement, <b>£${m1(d[0].cfr)}m</b> is the General Fund's and
-             <b>£${m1(H[0].cfr)}m</b> the Housing Revenue Account's.` : ""} On the authority's
-        own projections the requirement ${Wz.cfr < W0.cfr ? "falls" : "rises"} to
+             <b>£${m1(H[0].cfr)}m</b> the Housing Revenue Account's.`
+          : ` <span class="gap">[The ${colEnteredFor(S, "gf", "cfr") ? "Housing Revenue Account" : "General Fund"}'s
+             capital financing requirement has not been entered on step 3.]</span>`} ${
+          projectedTo(S) < S.years - 1
+          ? `<span class="gap">[The requirement has been entered to ${fy(S.fy0 + Math.max(0, projectedTo(S)))}
+             only; the years beyond read as nil until they are entered on step 3.]</span>`
+          : `On the authority's own projections the requirement ${Wz.cfr < W0.cfr ? "falls" : "rises"} to
         <b>£${m1(Wz.cfr)}m</b> by ${fy(Wz.fy)} as the ${esc(natText("[[mrp]]"))} is charged.
-        No assumption is made about capital budgets not yet approved.</p>`
+        No assumption is made about capital budgets not yet approved.`}</p>`
       + otable(whole,[{l:"Capital financing requirement",k:"cfr"},
                   {l:"Other balance sheet items",k:"obs",neg:true},
-                  {l:"Net treasury position",k:"ntp",cls:"key"}])
+                  {l:"Net treasury position",k:"ntp",cls:"key"}]))
       // Only where a previous report was actually loaded. It never invents a
       // movement, and it says which report it is moving from.
       + (typeof priorLine === "function" ? priorLine() : "")
@@ -9925,16 +10095,19 @@ function docSections(){
                               + "rate, and the view behind them", "balance"))},
 
    {k:"portfolio", n:"3b", t:"Current portfolio position",
-    b: `<p>${back
+    b: (!F ? figGap("the current portfolio position") : `<p>${!loansEntered(S)
+          ? `<span class="gap">[Loans held have not been entered on step 2]</span>`
+          : back
           ? `Loans outstanding at ${out ? "the year end were" : "the period end are"}
              <b>£${m1(W0.el)}m</b>`
           : `Existing loan commitments are <b>£${m1(W0.el)}m</b> at ${fy(S.fy0)}`}, against a
         capital financing requirement of <b>£${m1(W0.cfr)}m</b>. Treasury investments held
-        ${out ? "were" : "are"} <b>£${m1(W0.ei)}m</b>, and the net treasury position
+        ${out ? "were" : "are"} ${invEntered(S) ? `<b>£${m1(W0.ei)}m</b>`
+          : `<span class="gap">[not entered on step 2]</span>`}, and the net treasury position
         ${out ? "was" : "is"} <b>£${m1(W0.ntp)}m</b>.</p>`
       + otable(whole,[{l:"Existing loan commitments",k:"el"},
                   {l:"Existing investment commitments",k:"ei"},
-                  {l:"Net treasury position",k:"ntp",cls:"key"}], 6)
+                  {l:"Net treasury position",k:"ntp",cls:"key"}], 6))
       // What is actually held, at whatever granularity they gave it to us.
       // The table above is the projection; this is the composition behind its
       // first year, and members read the two differently.
@@ -9973,7 +10146,7 @@ function docSections(){
          : ""; })()},
 
    {k:"borrow", n:"4", t:"Borrowing strategy",
-    b: (peakNeed.need>0.05
+    b: (!F ? figGap("the borrowing requirement") : peakNeed.need>0.05
         ? `<p>The liability benchmark implies a borrowing requirement peaking at
            <b>£${m1(peakNeed.need)}m</b> in ${fy(peakNeed.fy)}. Indicator LB4 sets out the
            profile, which determines the maturities to be sought.</p>`
@@ -9984,14 +10157,17 @@ function docSections(){
      + (t("resched")?`<h4>Debt rescheduling</h4>${para(t("resched"))}`:"")},
 
    {k:"invest", n:"5", t:"Treasury investment strategy",
-    b: `<p>${peakInv.inv > W0.liq + 0.05
+    b: (!F ? figGap("the treasury investment position")
+       : !LQ ? `<p class="gap">Figures to come: the minimum cash to keep (the liquidity allowance)
+           has not been set on step 3, so the investment position has no floor beneath it yet.</p>`
+       : `<p>${peakInv.inv > W0.liq + 0.05
         ? `Implied treasury investments peak at <b>£${m1(peakInv.inv)}m</b> in
            ${fy(peakInv.fy)}, against a liquidity allowance of <b>£${m1(W0.liq)}m</b>.`
         : `Implied treasury investments sit at the liquidity allowance of
            <b>£${m1(W0.liq)}m</b> throughout the projection: the authority is a net borrower
            in every year, so it holds no strategic balances beyond what it needs for
            day-to-day cash.`}
-        Indicator LB5 sets out the split between liquidity, strategic and excess balances.</p>`
+        Indicator LB5 sets out the split between liquidity, strategic and excess balances.</p>`)
      + clausesFor("5")
      + (t("invest_body")?para(t("invest_body")):"")
      + (t("credit")?`<h4>Creditworthiness and counterparty policy</h4>${para(t("credit"))}`:"")
@@ -10006,17 +10182,20 @@ function docSections(){
     b: cpSectionHTML() || gap("the counterparty limits, credit criteria and country policy")},
 
    {k:"corefunds", n:"5b", t:"Core funds and expected investment balances",
-    b: `<p>Other balance sheet items of <b>£${m1(W0.obs)}m</b> are set against the capital
+    b: (!F ? figGap("core funds and expected investment balances")
+       : `<p>Other balance sheet items of ${OBS} are set against the capital
         financing requirement — the extent of internal borrowing. The liquidity allowance of
-        <b>£${m1(W0.liq)}m</b> sets the treasury investment benchmark wherever the authority
-        is net indebted.</p>`
+        ${LIQ} sets the treasury investment benchmark wherever the authority
+        is net indebted.</p>`)
       + clausesFor("5b")
       + (t("corefunds_body")?para(t("corefunds_body")):"")},
 
    {k:"mrp", n:"6", t:"[[mrpTitle]]",
     b: clausesFor("6") + (t("mrp_body")?para(t("mrp_body")):"")
-     + `<p class="src">MRP of <b>£${m1(W0.mrp)}m</b> is charged in ${fy(S.fy0)} on the
-        authority's own figures.</p>`},
+     + (colEntered(S, "mrp")
+        ? `<p class="src">MRP of <b>£${m1(W0.mrp)}m</b> is charged in ${fy(S.fy0)} on the
+           authority's own figures.</p>`
+        : `<p class="src gap">No MRP has been entered on step 3.</p>`)},
 
    {k:"indicators", n:"7", t:"Treasury management prudential indicators", indicators:true,
     b: `<p>The indicators below follow the liability benchmark framework proposed in CIPFA's
@@ -10026,6 +10205,8 @@ function docSections(){
              compliance. The framework below is shown on the ${out ? "year-end" : "latest"}
              figures, and on them would derive <b>£${m1(W0.al)}m</b> as the limit for the years
              ahead.`
+          : !F ? `<span class="gap">[The authorised limit is derived from the projected liability
+             benchmark, which needs the capital financing requirement on step 3.]</span>`
           : `The authorised limit is <b>£${m1(W0.al)}m</b>, ${W0.al > W0.lb + 0.05 && W0.al <= W0.el + 0.05
               ? "the external debt already held, which exceeds the peak of the projected liability "
                 + "benchmark and so sets the limit"
@@ -10448,6 +10629,10 @@ function indicatorParts(gf, hra, all, hasHRA, twoPool){
 }
 
 function indicatorSplit(gf, hra, all, hasHRA, twoPool, forExport){
+  if(!figuresEntered(S))
+    return `<p class="gap">Figures to come: the treasury management indicators. Enter the
+      capital financing requirement and the other lines on step 3 and every indicator is
+      drawn from them.</p>`;
   // Filtering is a screen convenience; the paper is the paper.
   const F = forExport ? null : (S.view || null);
   const wantInd = t => !F || (F.ind || "all") === "all" || F.ind === t;
@@ -10455,9 +10640,16 @@ function indicatorSplit(gf, hra, all, hasHRA, twoPool, forExport){
   const head = forExport ? "" : indicatorPicker(hasHRA, twoPool);
   const H = t => `<h4 style="margin-top:24px">${t}</h4>`;
 
+  const FUND_NAME = {gf:"General Fund", hra:"Housing Revenue Account"};
   return head + indicatorParts(gf, hra, all, hasHRA, twoPool).map(p => {
     const keep = p.tags.filter(wantInd);
     if(!keep.length || (hasHRA && !wantFund(p.fund))) return "";
+    /* A fund whose own capital financing requirement is blank gets a gap, not
+       a chart of nils under the other fund's figures. */
+    if(p.fund !== "all" && !colEnteredFor(S, p.fund, "cfr"))
+      return (p.heading ? H(p.heading) : "")
+           + `<p class="gap">Figures to come: the ${FUND_NAME[p.fund]}'s capital financing
+              requirement has not been entered on step 3, so its indicators cannot be drawn yet.</p>`;
     return (p.heading ? H(p.heading) : "")
          + indicatorBlock(p.model, p.label, p.cross, {only:keep, fund:p.fund, gf:p.gf});
   }).join("");
@@ -10550,7 +10742,7 @@ function documentHTML(forExport){
     + `<h2>${esc(name)}</h2>
     <p class="lede">${esc(rep.t)} — ${fy(S.fy0)}${S.report==="tmss"?` to ${fy(S.fy0+S.years-1)}`:""}</p>`;
   const warn = outstanding && !forExport
-    ? `<div class="warn">${outstanding} section${outstanding===1?"":"s"} still to be written —
+    ? `<div class="warn">${outstanding} section${outstanding===1?"":"s"} still to be completed —
        shown in the draft as gaps so nothing reads as finished when it is not.</div>` : "";
   /* A rail, not a set of tabs.
    *
@@ -11708,6 +11900,9 @@ function piYears(fund){
 }
 
 function piTable(){
+  if(!figuresEntered(S))
+    return `<p class="gap">Figures to come: the prudential indicators. Enter the capital
+      financing requirement and the other lines on step 3 and this table fills itself.</p>`;
   const hasHRA = S.hra !== "no";
   const bands = hasHRA ? [["gf","Non-HRA"],["hra","HRA"],["all","Total"]]
                        : [["gf",""]];
@@ -11916,9 +12111,9 @@ function groupPanel(){
   const G = S.group || (S.group = {});
   G.cos = G.cos || [];
   if(!G.on) return `<label class="cpmini"><input type="checkbox" id="groupon">
-      This authority has significant group undertakings</label>`;
+      This council has significant subsidiary companies (group undertakings)</label>`;
   return `<label class="cpmini"><input type="checkbox" id="groupon" checked>
-      This authority has significant group undertakings</label>
+      This council has significant subsidiary companies (group undertakings)</label>
     <div class="perfwrap"><table class="perf">
       <thead><tr><th>Company</th><th>Paid to the authority</th>
         <th>Income from third parties</th><th>Third-party debt cost</th><th></th></tr></thead>
@@ -12920,14 +13115,14 @@ function buildLedger(){
       const v = (S.actual && S.actual[S.fund] || {})[c.k];
       return `<td class="act"><input type="text" inputmode="decimal" data-k="${c.k}"
         data-i="${A_IDX}" value="${v == null ? "" : m1(v)}" placeholder="—"
-        aria-label="${esc(c.l.replace(/<br>/g," "))} ${fy(S.fy0-1)} actual"></td>`;
+        aria-label="${esc(colName(c))} ${fy(S.fy0-1)} actual"></td>`;
     }).join("") + `</tr>`;
   for(let i=0;i<S.years;i++){
     h += `<tr class="${i<MTFP?"mtfp":"beyond"}"><th class="yr">${fy(S.fy0+i)}</th>` +
       CS.map(c=> colAsked(c, i)
         ? `<td>
-            <input type="text" inputmode="decimal" data-k="${c.k}" data-i="${i}" value="0.0"
-              aria-label="${esc(c.l.replace(/<br>/g," "))} ${fy(S.fy0+i)}"></td>`
+            <input type="text" inputmode="decimal" data-k="${c.k}" data-i="${i}" value=""
+              aria-label="${esc(colName(c))} ${fy(S.fy0+i)}"></td>`
         // Beyond the MTFP a budget line is not nil, it is not forecast. An
         // empty cell there would be read as a figure of zero.
         : `<td class="nask" title="forecast across the MTFP only"></td>`).join("") + `</tr>`;
@@ -12994,6 +13189,16 @@ function syncLedger(force){
   hiddenFor("hra", S.hra).forEach(k => {
     if(S.g.hra && S.g.hra[k]) S.g.hra[k] = S.g.hra[k].map(()=>0); });
   const g=S.g[S.fund];
+  /* A COLUMN NOBODY HAS TYPED IN IS BLANK, NOT A COLUMN OF 0.0. The state
+     holds 0 either way, so the grid asks the column: any figure at all, and
+     every cell shows its figure, the nils included; none, and the cells are
+     empty. The loans column, while empty, shows the loan book's own run-off
+     greyed (loansDerived, model.js), which is what the report uses. */
+  const typed = {};
+  COLS.forEach(c => { typed[c.k] = (g[c.k] || []).some(v => v); });
+  const derivedBy = {
+    loans: (typeof loansDerived === "function") ? loansDerived(S, S.fund) : null,
+    inv:   (typeof invDerived === "function") ? invDerived(S, S.fund) : null};
   $("ledger").querySelectorAll("input").forEach(inp=>{
     const i = +inp.dataset.i;
     // The actual row is allowed to be EMPTY, and empty is not nought: an
@@ -13004,8 +13209,15 @@ function syncLedger(force){
       if(force||document.activeElement!==inp) inp.value = (v == null) ? "" : m1(v);
       return;
     }
-    const v=g[inp.dataset.k][i];
-    if(force||document.activeElement!==inp) inp.value=m1(v);
+    const k = inp.dataset.k, v = g[k][i];
+    if(force||document.activeElement!==inp) inp.value = typed[k] ? m1(v) : "";
+    if(k === "loans" || k === "inv"){
+      const dv = (!typed[k] && derivedBy[k]) ? derivedBy[k][i] : null;
+      inp.placeholder = dv == null ? "" : m1(dv);
+      inp.title = dv == null ? "" : (k === "loans"
+        ? "From the loans on step 2, as they run off. Type a figure to state your own."
+        : "From the investments on step 2, as the fixed-term deals mature. Type a figure to state your own.");
+    }
   });
   // The derived cell, shown where it is worked out.
   const oc = $("ledger").querySelector("[data-obs]");
@@ -13067,7 +13279,7 @@ function holdRow(list, L, ix, kind){
      permanent one. */
   return `<tr>
     <td><input type="text" data-h="${kind}" data-f="name" data-i="${ix}"
-      value="${esc(L.name || "")}" aria-label="Source"></td>
+      value="${esc(L.name || "")}" aria-label="${kind === "d" ? "Lender" : "Held with"}"></td>
     <td class="num"><input type="text" inputmode="decimal" data-h="${kind}" data-f="amt"
       data-i="${ix}" value="${L.amt ? m1(L.amt) : ""}" aria-label="Amount"></td>
     <td class="num"><input type="text" inputmode="decimal" data-h="${kind}" data-f="rate"
