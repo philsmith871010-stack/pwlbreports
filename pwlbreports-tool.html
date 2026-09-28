@@ -242,12 +242,30 @@ th .hq{font-weight:600}
 /* SHOW ME ROUND. The dimming is the spot's shadow, so the page under it is
    live; only the card takes the pointer. Above the start screen, below the
    "?" popover. */
-#tour{position:fixed;inset:0;z-index:2147482000;pointer-events:none}
+#tour{position:fixed;inset:0;z-index:2147482000;pointer-events:none;opacity:0;transition:opacity .22s ease}
+#tour.on{opacity:1}
 #tour[hidden]{display:none}
+/* The spot glides from one control to the next and rings once on arrival;
+   the card rises in on each stop; a step the walkthrough moves to slides
+   up as it appears. All of it is off for anyone who asked for less motion. */
 .tour-spot{position:fixed;border-radius:8px;box-shadow:0 0 0 9999px rgba(15,23,32,.55),0 0 0 3px var(--accent);
-  transition:top .2s,left .2s,width .2s,height .2s}
+  transition:top .32s cubic-bezier(.2,.8,.2,1),left .32s cubic-bezier(.2,.8,.2,1),
+    width .32s cubic-bezier(.2,.8,.2,1),height .32s cubic-bezier(.2,.8,.2,1)}
+.tour-spot::after{content:"";position:absolute;inset:-3px;border-radius:inherit;pointer-events:none}
+.tour-spot.ping::after{animation:tourPing .9s ease-out .25s 1}
+@keyframes tourPing{0%{box-shadow:0 0 0 0 rgba(15,23,32,.45)}100%{box-shadow:0 0 0 18px rgba(15,23,32,0)}}
 .tour-card{position:fixed;pointer-events:auto;background:var(--card);border:1px solid var(--line);
-  border-radius:var(--r);box-shadow:0 10px 30px rgba(0,0,0,.22);padding:14px 16px 12px;font-family:var(--sans)}
+  border-radius:var(--r);box-shadow:0 10px 30px rgba(0,0,0,.22);padding:14px 16px 12px;font-family:var(--sans);overflow:hidden}
+.tour-card.in{animation:tourCardIn .3s cubic-bezier(.2,.8,.2,1)}
+@keyframes tourCardIn{from{opacity:0;transform:translateY(10px) scale(.98)}to{opacity:1;transform:none}}
+.tour-bar{height:3px;background:var(--line);margin:-14px -16px 12px}
+.tour-bar i{display:block;height:100%;width:0;background:var(--accent);transition:width .4s cubic-bezier(.2,.8,.2,1)}
+html.touring section.panel.tour-reveal{animation:tourReveal .42s cubic-bezier(.2,.8,.2,1)}
+@keyframes tourReveal{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){
+  #tour,.tour-spot,.tour-bar i{transition:none}
+  .tour-spot.ping::after,.tour-card.in,html.touring section.panel.tour-reveal{animation:none}
+}
 .tour-card .tour-n{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:4px}
 .tour-card h4{margin:0 0 6px;font-size:15px;color:var(--ink)}
 .tour-card p{margin:0 0 12px;font-size:13.5px;line-height:1.5;color:var(--ink2)}
@@ -13237,7 +13255,12 @@ function wireSteps(){
  *
  * The stops are data. Adding one is a line; a control that is not on the
  * page (a strategy has no period figures beyond the group question) is
- * skipped rather than pointed at.
+ * skipped rather than pointed at. A stop's sel may be a list: the first
+ * one that is on the page and showing wins. That is how the same stops
+ * fit the site's skin (pwlbreports-skin.js, loaded last), which lays the
+ * figures and the counterparty policy out as tabs and cards of its own:
+ * pre opens the tab, sel finds the card, post puts the tab back on the way
+ * out, and without the skin all three are no-ops.
  * ======================================================================== */
 const TOUR_STOPS = [
   {step:1, sel:"#rail", title:"Six steps, in any order",
@@ -13252,15 +13275,17 @@ const TOUR_STOPS = [
    text:"A lender, the amount outstanding and the rate. Leave the rate blank on the PWLB line and the book's own average is used."},
   {step:2, sel:"#matdebt", title:"When the debt falls due",
    text:"Optional grids: how much falls due in each period, the limits members set on that, and the split between fixed and variable rates. Leave a grid blank and that indicator is simply not reported."},
-  {step:3, sel:".ledgerwrap", title:"Your figures",
+  {step:3, sel:".ledgerwrap", title:"Your figures", pre: () => tourTab(".pr-projtabs [data-ptab=figures]"),
    text:"One row a year, one column a figure. The ? beside each column heading says what goes in it and where to find it. Type, or paste the whole thing from your spreadsheet."},
-  {step:3, sel:"#pastex", title:"Paste from Excel",
+  {step:3, sel:"#pastex", title:"Paste from Excel", pre: () => tourTab(".pr-projtabs [data-ptab=figures]"),
    text:"Copy the block from your projection sheet and paste it here. A header row and a year column are read if you give them, so the columns need not be in this order."},
-  {step:3, sel:"#pv", title:"The chart, as you type",
+  {step:3, sel:"#pv", title:"The chart, as you type", pre: () => tourTab(".pr-projtabs [data-ptab=chart]"),
+   post: () => tourTab(".pr-projtabs [data-ptab=figures]"),
    text:"The liability benchmark and the other indicators redraw on every keystroke. This is the same chart the report will carry."},
-  {step:5, sel:"#cpbody .cptable", title:"Who you will lend to",
+  {step:5, sel:["#cpbody .cptable", "#cpbody .pr-cpcard"], title:"Who you will lend to",
+   pre: () => tourTab([...document.querySelectorAll(".pr-cptabs .pr-cptab")].find(b => /limits/i.test(b.textContent)) || ".pr-cptabs .pr-cptab"),
    text:"Tick the kinds of body, and set a limit and a longest deal for each. The grey figures are the middle of what other councils' published strategies say; type over them."},
-  {step:5, sel:"#cpsurvopen", title:"How other councils do it",
+  {step:5, sel:["#cpsurvopen", ".pr-survbtn"], title:"How other councils do it",
    text:"The whole survey, if you want to see where your limits sit."},
   {step:6, sel:"#seclist", title:"The words",
    text:"One section at a time. Sections marked produced for you are written from your figures; the rest have a box each."},
@@ -13283,9 +13308,44 @@ const TOUR_STOPS = [
    text:"Your file's reports, and the doors to open or start another. That is the walkthrough; Home brings you back to it any time."}
 ];
 
-let TOUR = null;   // {i, stops, el} while a walkthrough is running
+let TOUR = null;   // {i, stops, target} while a walkthrough is running
 
 function tourStops(){ return TOUR_STOPS.filter(s => !s.when || s.when()); }
+
+/* Press a tab the skin drew, if it drew one and it is not already on. */
+function tourTab(sel){
+  const b = typeof sel === "string" ? document.querySelector(sel) : sel;
+  if(b && !b.classList.contains("on") && b.getAttribute("aria-selected") !== "true") b.click();
+}
+
+/* Where a control is. A control the skin lays out as display:contents (the
+   maturity ladders become cards of their own) has no box; its children do,
+   so the box is theirs. */
+function tourRect(el){
+  const r = el.getBoundingClientRect();
+  if((r.width > 0 && r.height > 0) || !el.children.length) return r;
+  let top = Infinity, left = Infinity, bottom = -Infinity, right = -Infinity;
+  for(const c of el.children){
+    const cr = c.getBoundingClientRect(); if(!cr.width || !cr.height) continue;
+    top = Math.min(top, cr.top); left = Math.min(left, cr.left);
+    bottom = Math.max(bottom, cr.bottom); right = Math.max(right, cr.right);
+  }
+  if(top === Infinity) return r;
+  return {top, left, bottom, right, width: right - left, height: bottom - top};
+}
+
+/* The first control a stop names that is on the page and showing. */
+function tourFind(stop){
+  const sels = Array.isArray(stop.sel) ? stop.sel : [stop.sel];
+  for(const sel of sels){
+    for(const el of document.querySelectorAll(sel)){
+      if(el.closest("[hidden]")) continue;
+      const r = tourRect(el);
+      if(r.width > 0 && r.height > 0) return el;
+    }
+  }
+  return null;
+}
 
 function tourEl(){
   let t = document.getElementById("tour");
@@ -13293,6 +13353,7 @@ function tourEl(){
   t = document.createElement("div"); t.id = "tour"; t.hidden = true;
   t.innerHTML = `<div class="tour-spot"></div>
     <div class="tour-card" role="dialog" aria-label="Walkthrough">
+      <div class="tour-bar"><i></i></div>
       <div class="tour-n"></div><h4></h4><p></p>
       <div class="tour-acts">
         <button type="button" data-tour="back">Back</button>
@@ -13309,46 +13370,82 @@ function tourEl(){
   return t;
 }
 
+/* Run an animation again: drop the class, force a frame, put it back. */
+function tourReplay(el, cls){
+  if(!el) return;
+  el.classList.remove(cls);
+  void el.offsetWidth;
+  el.classList.add(cls);
+}
+
 function tourStart(){
   const stops = tourStops();
   if(!stops.length) return;
   TOUR = {i: 0, stops, target: null};
   document.documentElement.classList.add("touring");
-  tourEl().hidden = false;
+  const t = tourEl();
+  t.hidden = false;
+  t.classList.remove("on");
+  requestAnimationFrame(() => { if(TOUR) t.classList.add("on"); });
   document.dispatchEvent(new Event("tour:start"));
   tourGo(0);
 }
 
 function tourEnd(){
   if(!TOUR) return;
+  const prev = TOUR.stops[TOUR.i];
+  if(prev && prev.post && TOUR.target) try{ prev.post(); }catch(_){}
   TOUR = null;
   document.documentElement.classList.remove("touring");
-  const t = document.getElementById("tour"); if(t) t.hidden = true;
+  const t = document.getElementById("tour");
+  if(t){
+    /* Fade out, then go; the fade is the only thing left of it. */
+    t.classList.remove("on");
+    setTimeout(() => { if(!TOUR) t.hidden = true; }, 220);
+  }
 }
 
 /* Go to a stop: move to its step first, let the step draw, then find the
    control. A control that is not on the page is skipped in the direction of
-   travel; if none is left, the walkthrough ends. */
+   travel; if none is left, the walkthrough ends. A change of step slides the
+   new step in; on the same step the spot glides to the next control. */
 function tourGo(i, dir){
   if(!TOUR) return;
   const stops = TOUR.stops;
   if(i < 0) i = 0;
   if(i >= stops.length){ tourEnd(); return; }
   dir = dir || (i >= TOUR.i ? 1 : -1);
+  const prev = stops[TOUR.i];
+  if(prev && prev !== stops[i] && prev.post && TOUR.target) try{ prev.post(); }catch(_){}
   TOUR.i = i;
   const stop = stops[i];
-  if(stop.step && typeof STEP !== "undefined" && STEP !== stop.step && typeof showStep === "function") showStep(stop.step);
-  if(stop.pre) try{ stop.pre(); }catch(_){}
+  const moving = !!(stop.step && typeof STEP !== "undefined" && STEP !== stop.step && typeof showStep === "function");
+  if(moving){
+    showStep(stop.step);
+    const panel = document.querySelector(`section.panel[data-step="${stop.step}"]:not([hidden])`);
+    if(panel){
+      tourReplay(panel, "tour-reveal");
+      setTimeout(() => panel.classList.remove("tour-reveal"), 600);
+    }
+  }
+  /* pre runs once the step is on screen and the skin has seen it open —
+     the skin puts the counterparty tabs back to the first as a step opens,
+     which undid a tab pressed in the same tick. */
+  if(stop.pre) setTimeout(() => { if(TOUR && TOUR.i === i) try{ stop.pre(); }catch(_){} }, moving ? 150 : 0);
+  /* A new step needs a moment to draw; a tab the skin opens needs less;
+     a control already on screen needs none. Skipping a run of controls
+     that are not on the page is then quick rather than a pause each. */
+  const wait = moving ? 420 : stop.pre ? 200 : 20;
   setTimeout(() => {
     if(!TOUR || TOUR.i !== i) return;
-    const el = document.querySelector(stop.sel);
-    const shown = el && !el.closest("[hidden]") && el.getBoundingClientRect().width > 0;
-    if(!shown){
+    const el = tourFind(stop);
+    if(!el){
       const next = i + dir;
       if(next < 0 || next >= stops.length) tourEnd(); else tourGo(next, dir);
       return;
     }
     TOUR.target = el;
+    const box = () => tourRect(el);
     try{ el.scrollIntoView({block: "center", behavior: "auto"}); }catch(_){ el.scrollIntoView(); }
     /* Centred, a grid taller than the window shows its middle years and
        hides its headings; and anything centred close to the top can sit
@@ -13361,22 +13458,25 @@ function tourGo(i, dir){
       for(let a = el.parentElement; a && a !== document.body; a = a.parentElement){
         const cs = getComputedStyle(a);
         if(!/auto|scroll/.test(cs.overflowY)) continue;
-        const d = el.getBoundingClientRect().top - a.getBoundingClientRect().top;
+        const d = box().top - a.getBoundingClientRect().top;
         if(d < 0) a.scrollTop += d;
       }
       const rail = document.querySelector(".railwrap");
       const hb = rail ? rail.getBoundingClientRect().bottom : 0;
-      const rr = el.getBoundingClientRect();
+      const rr = box();
       if(rr.height > window.innerHeight - hb - 60 || rr.top < hb + 8) window.scrollBy(0, rr.top - hb - 12);
     }
     const t = tourEl();
     t.querySelector(".tour-n").textContent = `${i + 1} of ${stops.length}`;
+    t.querySelector(".tour-bar i").style.width = ((i + 1) / stops.length * 100).toFixed(1) + "%";
     t.querySelector("h4").textContent = stop.title;
     t.querySelector("p").textContent = stop.text;
     t.querySelector('[data-tour="back"]').disabled = i === 0;
     t.querySelector('[data-tour="next"]').textContent = i === stops.length - 1 ? "Finish" : "Next";
-    setTimeout(tourPlace, 60);
-  }, stop.step && typeof STEP !== "undefined" && STEP !== stop.step ? 400 : 250);
+    tourReplay(t.querySelector(".tour-card"), "in");
+    tourReplay(t.querySelector(".tour-spot"), "ping");
+    setTimeout(tourPlace, 40);
+  }, wait);
 }
 
 /* The dimming is a box-shadow around the spot, so the page underneath stays
@@ -13384,7 +13484,7 @@ function tourGo(i, dir){
 function tourPlace(){
   if(!TOUR || !TOUR.target) return;
   const t = tourEl(), spot = t.querySelector(".tour-spot"), card = t.querySelector(".tour-card");
-  const r = TOUR.target.getBoundingClientRect();
+  const r = tourRect(TOUR.target);
   const pad = 6;
   const top = Math.max(0, r.top - pad), left = Math.max(0, r.left - pad);
   const h = Math.min(window.innerHeight - top, r.height + pad * 2), w = Math.min(window.innerWidth - left, r.width + pad * 2);
@@ -13422,7 +13522,7 @@ document.addEventListener("keydown", e => {
   const watch = () => {
     if(!TOUR) { last = ""; return; }
     if(TOUR.target){
-      const r = TOUR.target.getBoundingClientRect();
+      const r = tourRect(TOUR.target);
       const now = [r.top, r.left, r.width, r.height, window.innerWidth, window.innerHeight].map(Math.round).join(",");
       if(now !== last){ last = now; tourPlace(); }
     }
@@ -17154,3 +17254,4 @@ function setupSummary(){
 
 
 </script>
+<script src="https://pwlbtoday.org/pwlbreports-skin.js" defer></script>
