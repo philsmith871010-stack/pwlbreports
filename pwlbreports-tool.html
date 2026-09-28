@@ -248,6 +248,25 @@ html.help .hq{border-color:var(--accent);color:var(--accent)}
   font:400 13px/1.5 var(--sans);color:var(--ink)}
 #hpop[hidden]{display:none}
 .ribbon-btn#helptog[aria-pressed=true]{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+/* SHOW ME ROUND. The dimming is the spot's shadow, so the page under it is
+   live; only the card takes the pointer. Above the start screen, below the
+   "?" popover. */
+#tour{position:fixed;inset:0;z-index:2147482000;pointer-events:none}
+#tour[hidden]{display:none}
+.tour-spot{position:fixed;border-radius:8px;box-shadow:0 0 0 9999px rgba(15,23,32,.55),0 0 0 3px var(--accent);
+  transition:top .2s,left .2s,width .2s,height .2s}
+.tour-card{position:fixed;pointer-events:auto;background:var(--card);border:1px solid var(--line);
+  border-radius:var(--r);box-shadow:0 10px 30px rgba(0,0,0,.22);padding:14px 16px 12px;font-family:var(--sans)}
+.tour-card .tour-n{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:4px}
+.tour-card h4{margin:0 0 6px;font-size:15px;color:var(--ink)}
+.tour-card p{margin:0 0 12px;font-size:13.5px;line-height:1.5;color:var(--ink2)}
+.tour-acts{display:flex;align-items:center;gap:10px}
+.tour-acts .lnk{flex:1;text-align:left;font-size:12.5px;color:var(--muted);background:none;border:0;cursor:pointer;padding:0}
+.tour-acts button:not(.lnk){font-family:var(--sans);font-size:13px;font-weight:500;padding:7px 14px;border-radius:var(--r-sm);
+  border:1px solid var(--line2);background:var(--paper);color:var(--ink);cursor:pointer}
+.tour-acts button.primary{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.tour-acts button[disabled]{opacity:.45;cursor:default}
+.helpwalk{margin:10px 0 0}
 /* The worked example's figures, greyed into the empty boxes of a step. */
 .exlegend{display:block;flex-basis:100%;margin-top:6px;font-family:var(--sans);font-size:12px;color:var(--ink2)}
 [data-example][aria-pressed=true]{color:var(--accent);font-weight:600}
@@ -13188,6 +13207,213 @@ function wireSteps(){
   showStep(1);
 }
 
+/* ===========================================================================
+ * SHOW ME ROUND: the guided walkthrough.
+ *
+ * A first-time author asked for a teacher that walks them through the tool —
+ * this control, then this one, what each is for, Next to the next. This is
+ * it. A stop names a control on a step, the page dims around that control,
+ * a card beside it says what to do, and Next moves on; the page stays live
+ * under the dimming, so the control it points at can be used there and
+ * then. It runs on the worked example from the start screen's first door,
+ * and on the reader's own report from the Help panel.
+ *
+ * The stops are data. Adding one is a line; a control that is not on the
+ * page (a strategy has no period figures beyond the group question) is
+ * skipped rather than pointed at.
+ * ======================================================================== */
+const TOUR_STOPS = [
+  {step:1, sel:"#rail", title:"Six steps, in any order",
+   text:"The report is built in six steps, then the draft. Click any of them at any time: nothing is locked, and nothing has to be finished before you look at the next. Next here takes you through them in order."},
+  {step:1, sel:"#setupsum", title:"What you are working on",
+   text:"The authority, the report and the year. Change opens your file's list of reports and lets you start another."},
+  {step:1, sel:".logocell", title:"The council's crest",
+   text:"Optional. It goes on the front of the draft and travels inside the file."},
+  {step:2, sel:"#holdtabs", title:"What you hold",
+   text:"Debt on one tab, investments on the other. The PWLB loans are already here from the published book; add other lenders with Add a source."},
+  {step:2, sel:"#loanrows", title:"Each lender, or each kind of loan",
+   text:"A lender, the amount outstanding and the rate. Leave the rate blank on the PWLB line and the book's own average is used."},
+  {step:2, sel:"#matdebt", title:"When the debt falls due",
+   text:"Optional grids: how much falls due in each period, the limits members set on that, and the split between fixed and variable rates. Leave a grid blank and that indicator is simply not reported."},
+  {step:3, sel:".ledgerwrap", title:"Your figures",
+   text:"One row a year, one column a figure. The ? beside each column heading says what goes in it and where to find it. Type, or paste the whole thing from your spreadsheet."},
+  {step:3, sel:"#pastex", title:"Paste from Excel",
+   text:"Copy the block from your projection sheet and paste it here. A header row and a year column are read if you give them, so the columns need not be in this order."},
+  {step:3, sel:"#pv", title:"The chart, as you type",
+   text:"The liability benchmark and the other indicators redraw on every keystroke. This is the same chart the report will carry."},
+  {step:5, sel:"#cpbody .cptable", title:"Who you will lend to",
+   text:"Tick the kinds of body, and set a limit and a longest deal for each. The grey figures are the middle of what other councils' published strategies say; type over them."},
+  {step:5, sel:"#cpsurvopen", title:"How other councils do it",
+   text:"The whole survey, if you want to see where your limits sit."},
+  {step:6, sel:"#seclist", title:"The words",
+   text:"One section at a time. Sections marked produced for you are written from your figures; the rest have a box each."},
+  {step:6, sel:"#secbody .usedraft", title:"Use our draft wording",
+   pre: () => { const b = document.querySelector('#seclist button[data-s="borrow"]') || document.querySelector('#seclist button'); if(b) b.click(); },
+   text:"Every box has a draft that fits your figures and your choices. Press this to take it, then edit it as you like. The highlighted fill-ins are the parts only you can answer."},
+  {step:7, sel:"#figbody", title:"The period's figures",
+   text:"For a review or an outturn: the limits members approved and what happened, the year against the strategy, and what the period cost and earned. A strategy has only the group question here."},
+  {step:8, sel:"#doc", title:"The draft",
+   text:"Your figures and your words, assembled into the committee paper. Sections still to be written show as gaps, so nothing reads as finished when it is not."},
+  {step:8, sel:"#expdoc", title:"Download for Word",
+   text:"The whole paper as a Word file, charts included, ready for your own template."},
+  {sel:"#libfile", title:"Save",
+   text:"Everything you save goes into one file on your own computer: every report, every year. Nothing is uploaded anywhere."},
+  {sel:"#helptog", title:"Help, when you want it",
+   text:"Lists what goes in every box on the step you are on. The ? beside each box does the same for one."},
+  {sel:"[data-example]", title:"The example's figures", when: () => !S.demo,
+   text:"On your own report this greys the worked example's figures into the empty boxes, so you can see what kind of number goes where. Nothing is copied."},
+  {sel:"#startbtn", title:"Home",
+   text:"Your file's reports, and the doors to open or start another. That is the walkthrough; Home brings you back to it any time."}
+];
+
+let TOUR = null;   // {i, stops, el} while a walkthrough is running
+
+function tourStops(){ return TOUR_STOPS.filter(s => !s.when || s.when()); }
+
+function tourEl(){
+  let t = document.getElementById("tour");
+  if(t) return t;
+  t = document.createElement("div"); t.id = "tour"; t.hidden = true;
+  t.innerHTML = `<div class="tour-spot"></div>
+    <div class="tour-card" role="dialog" aria-label="Walkthrough">
+      <div class="tour-n"></div><h4></h4><p></p>
+      <div class="tour-acts">
+        <button type="button" data-tour="back">Back</button>
+        <button type="button" class="lnk" data-tour="skip">Leave the walkthrough</button>
+        <button type="button" class="primary" data-tour="next">Next</button>
+      </div></div>`;
+  document.body.appendChild(t);
+  t.addEventListener("click", e => {
+    const b = e.target.closest("[data-tour]"); if(!b) return;
+    if(b.dataset.tour === "next") tourGo(TOUR ? TOUR.i + 1 : 0);
+    else if(b.dataset.tour === "back") tourGo(TOUR ? TOUR.i - 1 : 0);
+    else tourEnd();
+  });
+  return t;
+}
+
+function tourStart(){
+  const stops = tourStops();
+  if(!stops.length) return;
+  TOUR = {i: 0, stops, target: null};
+  document.documentElement.classList.add("touring");
+  tourEl().hidden = false;
+  document.dispatchEvent(new Event("tour:start"));
+  tourGo(0);
+}
+
+function tourEnd(){
+  if(!TOUR) return;
+  TOUR = null;
+  document.documentElement.classList.remove("touring");
+  const t = document.getElementById("tour"); if(t) t.hidden = true;
+}
+
+/* Go to a stop: move to its step first, let the step draw, then find the
+   control. A control that is not on the page is skipped in the direction of
+   travel; if none is left, the walkthrough ends. */
+function tourGo(i, dir){
+  if(!TOUR) return;
+  const stops = TOUR.stops;
+  if(i < 0) i = 0;
+  if(i >= stops.length){ tourEnd(); return; }
+  dir = dir || (i >= TOUR.i ? 1 : -1);
+  TOUR.i = i;
+  const stop = stops[i];
+  if(stop.step && typeof STEP !== "undefined" && STEP !== stop.step && typeof showStep === "function") showStep(stop.step);
+  if(stop.pre) try{ stop.pre(); }catch(_){}
+  setTimeout(() => {
+    if(!TOUR || TOUR.i !== i) return;
+    const el = document.querySelector(stop.sel);
+    const shown = el && !el.closest("[hidden]") && el.getBoundingClientRect().width > 0;
+    if(!shown){
+      const next = i + dir;
+      if(next < 0 || next >= stops.length) tourEnd(); else tourGo(next, dir);
+      return;
+    }
+    TOUR.target = el;
+    try{ el.scrollIntoView({block: "center", behavior: "auto"}); }catch(_){ el.scrollIntoView(); }
+    /* Centred, a grid taller than the window shows its middle years and
+       hides its headings; and anything centred close to the top can sit
+       under the sticky rail. Either way, bring the top of the control to
+       just under the rail instead. */
+    {
+      /* A control inside its own scrolling box (the figures grid) was
+         centred in that box too, so the first years were out of sight.
+         Bring its top into every scrolling box it sits in first. */
+      for(let a = el.parentElement; a && a !== document.body; a = a.parentElement){
+        const cs = getComputedStyle(a);
+        if(!/auto|scroll/.test(cs.overflowY)) continue;
+        const d = el.getBoundingClientRect().top - a.getBoundingClientRect().top;
+        if(d < 0) a.scrollTop += d;
+      }
+      const rail = document.querySelector(".railwrap");
+      const hb = rail ? rail.getBoundingClientRect().bottom : 0;
+      const rr = el.getBoundingClientRect();
+      if(rr.height > window.innerHeight - hb - 60 || rr.top < hb + 8) window.scrollBy(0, rr.top - hb - 12);
+    }
+    const t = tourEl();
+    t.querySelector(".tour-n").textContent = `${i + 1} of ${stops.length}`;
+    t.querySelector("h4").textContent = stop.title;
+    t.querySelector("p").textContent = stop.text;
+    t.querySelector('[data-tour="back"]').disabled = i === 0;
+    t.querySelector('[data-tour="next"]').textContent = i === stops.length - 1 ? "Finish" : "Next";
+    setTimeout(tourPlace, 60);
+  }, stop.step && typeof STEP !== "undefined" && STEP !== stop.step ? 400 : 250);
+}
+
+/* The dimming is a box-shadow around the spot, so the page underneath stays
+   live: the control the card points at can be pressed while the card is up. */
+function tourPlace(){
+  if(!TOUR || !TOUR.target) return;
+  const t = tourEl(), spot = t.querySelector(".tour-spot"), card = t.querySelector(".tour-card");
+  const r = TOUR.target.getBoundingClientRect();
+  const pad = 6;
+  const top = Math.max(0, r.top - pad), left = Math.max(0, r.left - pad);
+  const h = Math.min(window.innerHeight - top, r.height + pad * 2), w = Math.min(window.innerWidth - left, r.width + pad * 2);
+  spot.style.top = top + "px"; spot.style.left = left + "px"; spot.style.width = w + "px"; spot.style.height = h + "px";
+  const cw = Math.min(360, window.innerWidth - 24), ch = card.offsetHeight;
+  const below = top + h + 12 + ch <= window.innerHeight - 8;
+  const above = top - ch - 12 >= 8;
+  card.style.width = cw + "px";
+  if(below || above){
+    card.style.left = Math.max(12, Math.min(left, window.innerWidth - cw - 12)) + "px";
+    card.style.top = (below ? top + h + 12 : top - ch - 12) + "px";
+  }else{
+    /* No room above or below (a grid that fills the window): bottom right,
+       over the least of it. */
+    card.style.left = (window.innerWidth - cw - 12) + "px";
+    card.style.top = Math.max(8, window.innerHeight - ch - 12) + "px";
+  }
+}
+
+document.addEventListener("keydown", e => {
+  if(!TOUR) return;
+  if(e.key === "Escape"){ tourEnd(); return; }
+  if(e.target && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return;
+  if(e.key === "ArrowRight"){ e.preventDefault(); tourGo(TOUR.i + 1); }
+  if(e.key === "ArrowLeft"){ e.preventDefault(); tourGo(TOUR.i - 1); }
+});
+/* THE SPOT FOLLOWS THE CONTROL, NOT JUST THE SCROLL. Placed once on
+   arrival, the spot sat 44px below the rail: the note under the ribbon
+   cleared itself a moment later and the whole page moved up, and no scroll
+   or resize event says so. So while the walkthrough is up, every frame
+   compares where the control is with where the spot was put, and moves it
+   when they differ — one rect read a frame, nothing when nothing moves. */
+{
+  let last = "";
+  const watch = () => {
+    if(!TOUR) { last = ""; return; }
+    if(TOUR.target){
+      const r = TOUR.target.getBoundingClientRect();
+      const now = [r.top, r.left, r.width, r.height, window.innerWidth, window.innerHeight].map(Math.round).join(",");
+      if(now !== last){ last = now; tourPlace(); }
+    }
+    requestAnimationFrame(watch);
+  };
+  document.addEventListener("tour:start", () => { last = ""; requestAnimationFrame(watch); });
+}
+
 /* ---- the ledger: years down, measures across ---------------------------- */
 let SEL = null;                                   // last focused cell, for fill-down
 
@@ -14184,31 +14410,14 @@ function setupSummary(){
    * PWLB debt, because plenty of them do. What is lost is only the
    * pre-filled book; every other part of the report is unchanged. */
   LB.other = {n:"", o:0, l:0, r:new Array(51).fill(0), d:[]};
-  /* The order they are offered in, and what they are called in the list.
-     Named here rather than in the markup so the list cannot drift from the
-     table below it — and ABOVE the list that reads it, because a const is not
-     hoisted: declared beside DEMOS, 250 lines further down, the list built
-     here threw "Cannot access 'DEMO_ORDER' before initialization" and the
-     whole page came up empty. */
-  /* The demonstration is not in the authority list — it is one of the three
-     entries above it — so its selected value is the demo option, not the GSS.
-     Three places set this control back to whatever the state is, and each
-     one of them turned the select blank on a demonstration when it did the
-     obvious thing and assigned S.gss. */
-  const councilValue = () =>
-    S.gss === DEMO_GSS ? "demo:" + (S.demoKind || "nohra") : (S.gss || "");
-  const DEMO_ORDER = [["nohra", "Demonstration · a council with no HRA"],
-                      ["one",   "Demonstration · an HRA, one pool"],
-                      ["two",   "Demonstration · an HRA, two pools"]];
-  /* THE DEMONSTRATIONS ARE AUTHORITIES, SO THEY LIVE IN THE AUTHORITY LIST.
-     They were a second dropdown further down the step, which asked a reader
-     to understand the difference between "which authority" and "which
-     demonstration" before they had seen anything at all. Three entries at the
-     top of the one list they were already looking at asks nothing. */
+  /* THE WORKED EXAMPLE IS NOT AN AUTHORITY IN THE LIST. It used to be three
+     — one per pooling approach — at the top of this control. Phil's call: one
+     guided walkthrough instead, from the start screen, with the example built
+     for the housing and report the reader picks on the way in. While it is
+     open the control shows nothing chosen, which is the truth. */
+  const councilValue = () => S.gss === DEMO_GSS ? "" : (S.gss || "");
   $("council").innerHTML=`<option value="">Choose an authority…</option>`
-    + `<optgroup label="See a finished report first">`
-    + DEMO_ORDER.map(([k,t])=>`<option value="demo:${k}">${esc(t)}</option>`).join("")
-    + `</optgroup><optgroup label="Your authority">`
+    + `<optgroup label="Your authority">`
     /* THE NAME, AND NOTHING ELSE. Each line carried "— £412.8m", which is the
        authority's PWLB balance. In a list somebody is scanning for their own
        council it is noise at best; at worst a reader takes the figure for
@@ -14293,21 +14502,13 @@ function setupSummary(){
  * fields to clear is a list that drifts, and the one field somebody forgets is
  * the one that survives onto a real council's report. */
   $("council").addEventListener("change", e=>{
-    /* A demonstration is chosen from the same list. fillDemo sets the real
-       authority underneath it and puts that back in the control, which is
-       also what keeps the entry re-pickable: a <select> fires change only
-       when its value CHANGES, so leaving "Demonstration ·  two pools" showing
-       would make choosing it again do nothing — the failure this control had
-       four times before it was one control. */
+    /* The worked example is not in this list any more (it starts from the
+       walkthrough door); while it is open the control shows nothing chosen,
+       so picking any authority here is always a change and always fires. */
     if(DEFER_PICK){
       // Held until Continue (see applyNew); only the "another body" boxes follow the pick.
       const on = e.target.value === "other";
       $("otherbox").hidden = !on; $("otherregbox").hidden = !on;
-      return;
-    }
-    if(String(e.target.value).startsWith("demo:")){
-      fillDemo(e.target.value.slice(5), DEMO_REPORT);
-      DEMO_REPORT = null;
       return;
     }
     /* SWITCHING AUTHORITY BLANKS THE REPORT; IT DOES NOT CARRY ONE ACROSS.
@@ -14432,9 +14633,6 @@ function setupSummary(){
      is chosen, so every entry stays pickable and the control still says what
      is loaded. Keyboard users never reach this: arrowing a closed select
      changes the value and fires change on its own. */
-  $("council").addEventListener("mousedown", e => {
-    if(String(e.target.value).startsWith("demo:")) e.target.value = "";
-  });
   $("council").addEventListener("blur", e => {
     if(e.target.value === "") e.target.value = councilValue();
   });
@@ -14869,9 +15067,9 @@ function setupSummary(){
     }
   }
 
-  /* Which report the start screen asked the next demonstration to open as —
-     see the "demorep" view. Read once by the #council handler, then cleared. */
-  let DEMO_REPORT = null;
+  /* The worked example, one per pooling approach. Built by fillDemo for the
+     walkthrough (the housing position and report the reader picked on the
+     start screen) and for the placeholders the [data-example] button shows. */
   const DEMOS = {
     /* cfr0 IS SET SO THE BENCHMARK SITS ABOVE THE BOOK IN THE FIRST YEAR. The
        ledger now carries the whole loan book (LOBO and market loan included),
@@ -15362,12 +15560,12 @@ function setupSummary(){
        report carrying an Aberdeen City wordmark — captioned "example crest",
        which excuses the coat of arms and not the wrong name on it. */
     S.logo = demoLogo(LB[S.gss] ? LB[S.gss].n : ""); S.logoDemo = true; logoRow();
-    // The #council change handler returns straight out of the demo: branch
-    // above fillDemo's own call, so the otherShown() it runs for every other
-    // selection never gets a turn here. Picking a demo right after "Another
-    // body" left that body's name sitting open on screen, over a report that
-    // had nothing to do with it — S.gss is unconditionally "demo" by this
-    // point, so this is always a hide, never wrongly shows anything.
+    // The #council change handler is not on this path (the example starts
+    // from the walkthrough door), so the otherShown() it runs for every
+    // selection never gets a turn here. Starting the example right after
+    // "Another body" left that body's name sitting open on screen, over a
+    // report that had nothing to do with it — S.gss is unconditionally
+    // "demo" by this point, so this is always a hide, never wrongly shows.
     otherShown();
     S.asAt = MKT.as_at; if($("asat")) $("asat").value = MKT.as_at || "";
     $("hra").value = S.hra;
@@ -16250,7 +16448,6 @@ function setupSummary(){
         changes not yet saved to a file.</span>
       <button type="button" class="primary" data-savenow="1">Save now</button></div>`;
   }
-  let DEMO_KIND = null;
   let startView = "doors";
   /* WHAT IS PICKED ON "START A NEW FILE" HAPPENS ON CONTINUE. The controls
      there are the real ones, lent in, and their handlers used to run at
@@ -16330,8 +16527,8 @@ function setupSummary(){
          makes by looking at a finished one before they type a figure, so
          the worked example is the first door, and the two that start real
          work follow. */
-      + door("demo", ICON.eye, "See a finished example first",
-             "A complete demonstration authority: figures, commentary and a finished draft. Nothing here touches a real report.", !rec)
+      + door("walk", ICON.eye, "Show me round",
+             "A guided walkthrough on a worked example: each step, what to do on it, and the finished report. Nothing here touches a real report.", !rec)
       + `<div class="startor">or</div>`
       + door("open", ICON.open, "Open my reports file",
              "If you have used PWLBreports before, everything you saved is in that file — every report, every year.")
@@ -16390,41 +16587,26 @@ function setupSummary(){
          <button type="button" class="primary" id="s-go">Start the report</button>`;
     }
 
-    else if(V === "demo"){
-      $(SV.t).textContent = "A worked example";
-      $(SV.sub).textContent = "A complete authority with figures, commentary and a "
-        + "finished draft. Nothing you do here touches a real report. First the authority, then the report.";
-      $(SV.body).innerHTML = DEMO_ORDER.map(([k, label]) =>
-        `<button type="button" class="startdoor" data-door="demo:${k}">
-           <span class="sd-ic">${svg(ICON.eye)}</span>
-           <span><span class="sd-t">${esc(label.replace("Demonstration · ", ""))}</span></span>
-         </button>`).join("");
-      $(SV.foot).innerHTML = `<button type="button" id="s-back">Back</button>`;
-    }
-
-    else if(V === "demorep"){
-      /* THE REPORT, AS WELL AS THE AUTHORITY. A worked example was always
-         the strategy, and a reader who wanted to see a quarterly had to
-         find the way to start one. Phil's call: ask both, and fill for the
-         one chosen (fillDemo takes the report), so each of the four opens
-         complete. */
-      const label = ((DEMO_ORDER.find(x => x[0] === DEMO_KIND) || [])[1] || "")
-        .replace("Demonstration · ", "");
-      $(SV.t).textContent = "Which report?";
-      $(SV.sub).textContent = `${label ? label.charAt(0).toUpperCase() + label.slice(1) : "The example"} — `
-        + "every step filled and every section written, for whichever report you pick.";
-      const DESC = {
-        tmss:  "The year ahead: borrowing and investment plans, the indicators and the limits members approve.",
-        quart: "A quarter against the strategy: limits held, spend and income against budget, the indicators so far.",
-        mid:   "The half-year against the strategy, and any revision put to members.",
-        out:   "The year that has ended: what happened, against what was approved."
-      };
-      $(SV.body).innerHTML = ["tmss", "quart", "mid", "out"].map(k => REPORTS.find(r => r.k === k)).filter(Boolean).map(r =>
-        `<button type="button" class="startdoor${r.k === "tmss" ? " primary" : ""}" data-door="demorep:${r.k}">
-           <span class="sd-ic">${svg(ICON.eye)}</span>
-           <span><span class="sd-t">${esc(r.t)}</span><span class="sd-s">${esc(DESC[r.k] || "")}</span></span>
-         </button>`).join("");
-      $(SV.foot).innerHTML = `<button type="button" id="s-back">Back</button>`;
+    else if(V === "walk"){
+      /* TWO QUESTIONS, SO THE EXAMPLE IS THE READER'S KIND OF COUNCIL. The
+         walkthrough runs on a worked example built for the housing position
+         and the report chosen here, and then walks every step of it. */
+      $(SV.t).textContent = "Show me round";
+      $(SV.sub).textContent = "Two questions, so the example matches your council. "
+        + "Then the walkthrough starts: every step filled, with a card on each saying what to do.";
+      $(SV.body).innerHTML =
+          `<div class="startslot"><div><label for="s-whra">Council housing (HRA)</label>
+             <select id="s-whra">
+               <option value="no">None: no Housing Revenue Account</option>
+               <option value="one">One pool: housing shares the council's debt</option>
+               <option value="two">Two pools: housing has its own loans</option>
+             </select></div></div>`
+        + `<div class="startslot"><div><label for="s-wrep">Which report</label>
+             <select id="s-wrep">${["tmss","quart","mid","out"].map(k => REPORTS.find(r => r.k === k)).filter(Boolean)
+               .map(r => `<option value="${r.k}">${esc(r.t)}</option>`).join("")}</select></div></div>`;
+      $(SV.foot).innerHTML =
+        `<button type="button" id="s-back">Back</button>
+         <button type="button" class="primary" id="s-walk">Start the walkthrough</button>`;
     }
 
     else if(V === "reports"){
@@ -16496,21 +16678,30 @@ function setupSummary(){
      the box for every visit. */
   $(SV.box).addEventListener("click", e => {
     const t = e.target.closest("[data-door],[data-open],[data-del],[data-delyes],"
-      + "[data-delno],[data-savenow],#s-back,#s-next,#s-go,#s-close");
+      + "[data-delno],[data-savenow],#s-back,#s-next,#s-go,#s-close,#s-walk");
     if(!t) return;
     if(t.getAttribute("data-savenow")){ startClose(); $("libfile").click(); return; }
     const d = t.getAttribute("data-door");
-    if(d && /^demo:/.test(d)){ DEMO_KIND = d.slice(5); startOpen("demorep"); return; }
-    if(d && /^demorep:/.test(d)){
-      /* The authority's change handler fills the demonstration for the
-         report asked for (DEMO_REPORT, read by fillDemo); the start screen
-         is still open at that moment, so it never asks "Fill the
-         demonstration?" — this door was the answer. Then Set up. */
-      DEMO_REPORT = d.slice(8);
-      $("council").value = "demo:" + (DEMO_KIND || "nohra");
-      $("council").dispatchEvent(new Event("change", {bubbles:true}));
+    if(t.id === "s-walk"){
+      /* Build the example for the housing and report chosen, then walk it.
+         The walkthrough waits for the example to actually be there, and
+         never starts on the reader's own report from this door. */
+      const kind = {no:"nohra", one:"one", two:"two"}[$("s-whra").value] || "nohra";
+      const rep = $("s-wrep").value || "tmss";
+      /* FILL FIRST, CLOSE SECOND. fillDemo asks "Fill the demonstration?"
+         over unsaved work unless the start screen is still open, because
+         pressing this door IS the answer; closed first, the question came
+         up over the walkthrough and the example never loaded. PRE_DEMO
+         still keeps whatever was on screen for the way back. */
+      fillDemo(kind, rep);
       startClose();
       showStep(1);
+      const t0 = Date.now();
+      const tick = () => {
+        if(S.gss === DEMO_GSS && S.demoKind === kind){ if(typeof tourStart === "function") tourStart(); return; }
+        if(Date.now() - t0 < 60000) setTimeout(tick, 250);
+      };
+      setTimeout(tick, 300);
       return;
     }
     if(d === "recover"){
@@ -16542,7 +16733,7 @@ function setupSummary(){
        to the file that was opened rather than asking where to put it. */
     if(d === "open"){ if(FS_ACCESS) openViaFilePicker(); else $("libopen").click(); return; }
     if(d === "new"){ startOpen("new"); return; }
-    if(d === "demo"){ startOpen("demo"); return; }
+    if(d === "walk"){ startOpen("walk"); return; }
     if(d === "another"){ presetFrom(null); startOpen("report"); return; }
     if(d === "suggest"){
       /* The suggestion is always a report not yet in the file, lined up in
@@ -16558,8 +16749,7 @@ function setupSummary(){
       presetFrom(null);
       /* Back from "which report" is back to the file's list, where it was
          reached from — not to the welcome doors two levels up. */
-      startOpen(startView === "demorep" ? "demo"
-              : startView === "report" && S.gss ? "reports" : "doors");
+      startOpen(startView === "report" && S.gss ? "reports" : "doors");
       return;
     }
 
@@ -16787,6 +16977,9 @@ function setupSummary(){
     S.showEx = !S.showEx;
     exampleOverlay();
   });
+  document.addEventListener("click", e => {
+    if(e.target.closest("[data-tour-start]") && typeof tourStart === "function") tourStart();
+  });
   /* Re-applied after any redraw while it is on — every step rebuilds its
      boxes on a keystroke, and a rebuilt box has lost its grey figure. */
   {
@@ -16862,7 +17055,8 @@ function setupSummary(){
         });
         if(!rows.length) return;
         const d = document.createElement("div"); d.className = "helppanel";
-        d.innerHTML = `<b>What goes in each box</b><dl>${rows.join("")}</dl>`;
+        d.innerHTML = `<b>What goes in each box</b><dl>${rows.join("")}</dl>
+          <p class="helpwalk"><button type="button" class="lnk" data-tour-start>Show me round this report</button></p>`;
         at.insertBefore(d, at.firstChild);
       });
     };
