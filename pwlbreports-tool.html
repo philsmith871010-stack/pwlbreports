@@ -1852,14 +1852,14 @@ td.nask{background:repeating-linear-gradient(45deg,var(--hair),var(--hair) 4px,
            the page and every handler hanging off it still works. -->
       <div class="setupsum" id="setupsum"></div>
       <div id="setupstash" hidden>
-      <div><label for="council">Authority<button type="button" class="hq" data-help="council" data-text="Pick your authority. Its PWLB loans are already known and fill the debt table for you." aria-label="What goes here" title="What goes here">?</button></label>
+      <div><label for="council">Authority<button type="button" class="hq" data-help="council" aria-label="What goes here" title="What goes here">?</button></label>
         <select id="council"></select></div>
       <div class="otherbox" id="otherbox" hidden>
-        <label for="othername">Name of the body<button type="button" class="hq" data-help="othername" data-text="The body's name as it should appear on the front of the report." aria-label="What goes here" title="What goes here">?</button></label>
+        <label for="othername">Name of the body<button type="button" class="hq" data-help="othername" aria-label="What goes here" title="What goes here">?</button></label>
         <input type="text" id="othername" placeholder="e.g. North London Waste Authority">
       </div>
       <div class="otherbox" id="otherregbox" hidden>
-        <label for="otherreg">Country, or combined authority<button type="button" class="hq" data-help="otherreg" data-text="Where the body is. This decides the accounting terms the report uses, such as MRP or the loans fund." aria-label="What goes here" title="What goes here">?</button></label>
+        <label for="otherreg">Country, or combined authority<button type="button" class="hq" data-help="otherreg" aria-label="What goes here" title="What goes here">?</button></label>
         <select id="otherreg">
           <option value="">Choose…</option>
           <option value="england">England</option>
@@ -1868,8 +1868,8 @@ td.nask{background:repeating-linear-gradient(45deg,var(--hair),var(--hair) 4px,
           <option value="combined">Combined authority (England)</option>
         </select>
       </div>
-      <div><label for="rtype">Report<button type="button" class="hq" data-help="rtype" data-text="The strategy is written before the year; a mid-year review, quarterly report or outturn reports on it afterwards." aria-label="What goes here" title="What goes here">?</button></label><select id="rtype"></select></div>
-      <div><label for="fy0">Financial year<button type="button" class="hq" data-help="fy0" data-text="The financial year the report is for. A strategy projects forward from it; a review or outturn reports on it." aria-label="What goes here" title="What goes here">?</button></label>
+      <div><label for="rtype">Report<button type="button" class="hq" data-help="rtype" aria-label="What goes here" title="What goes here">?</button></label><select id="rtype"></select></div>
+      <div><label for="fy0">Financial year<button type="button" class="hq" data-help="fy0" aria-label="What goes here" title="What goes here">?</button></label>
         <select id="fy0"></select></div>
       <!-- WHERE THE AWARENESS LIVES NOW. It used to be four clauses naming our
            own services inside the authority's strategy, which is their
@@ -1877,9 +1877,9 @@ td.nask{background:repeating-linear-gradient(45deg,var(--hair),var(--hair) 4px,
            where the data THIS TOOL ships comes from, in the tool, next to the
            date it is as at — a fact about our own product, said in our own
            product, which the reader can act on or ignore. -->
-      <div><label for="asat">Report date<button type="button" class="hq" data-help="asat" data-text="The date the report is prepared. The PWLB and SONIA rates in it are the rates published for this date." aria-label="What goes here" title="What goes here">?</button></label>
+      <div><label for="asat">Report date<button type="button" class="hq" data-help="asat" aria-label="What goes here" title="What goes here">?</button></label>
         <input type="date" id="asat"></div>
-      <div><label for="hra">Council housing (HRA)<button type="button" class="hq" data-help="hra" data-text="Council housing is accounted for separately in a Housing Revenue Account. Your accountant will know which pooling approach applies; most housing authorities use one pool." aria-label="What goes here" title="What goes here">?</button></label>
+      <div><label for="hra">Council housing (HRA)<button type="button" class="hq" data-help="hra" aria-label="What goes here" title="What goes here">?</button></label>
         <select id="hra"><option value="no">None: no Housing Revenue Account</option><option value="one">One pool: housing shares the council's debt</option>
         <option value="two">Two pools: housing has its own loans</option></select></div>
       <!-- HORIZON WAS A QUESTION, AND IS NOW AN ANSWER. It offered 10, 20, 30,
@@ -1891,7 +1891,7 @@ td.nask{background:repeating-linear-gradient(45deg,var(--hair),var(--hair) 4px,
            year plus fifty forward — and the control is gone. A file saved
            with a shorter horizon still opens: applyVersion pads it out, and
            a year left blank is nil, so nothing is lost or invented. -->
-      <div><label for="whoami">Your name<button type="button" class="hq" data-help="whoami" data-text="Your name, saved with the file so colleagues can see who last worked on it." aria-label="What goes here" title="What goes here">?</button></label>
+      <div><label for="whoami">Your name<button type="button" class="hq" data-help="whoami" aria-label="What goes here" title="What goes here">?</button></label>
         <input type="text" id="whoami" placeholder="your name" maxlength="60"></div>
       </div><!-- /#setupstash -->
       <div class="setup">
@@ -1899,7 +1899,7 @@ td.nask{background:repeating-linear-gradient(45deg,var(--hair),var(--hair) 4px,
            the file, set once, read on the front of every draft. There was an
            "issued to members" tick beside it, which locked the report; gone,
            with the locking — every report is open. -->
-      <div class="logocell"><label>Council logo<button type="button" class="hq" data-help="logo" data-text="Optional. A PNG or JPG of the council's crest, printed on the front of the draft." aria-label="What goes here" title="What goes here">?</button></label>
+      <div class="logocell"><label>Council logo<button type="button" class="hq" data-help="logo" aria-label="What goes here" title="What goes here">?</button></label>
         <div class="logowrap">
           <label class="logobtn" for="logo" id="logorow" title="Council logo — click to choose">
             <img id="logoshow" alt="" hidden>
@@ -1965,8 +1965,8 @@ td.nask{background:repeating-linear-gradient(45deg,var(--hair),var(--hair) 4px,
 
       <div id="holdd">
         <table class="loans"><thead><tr>
-          <th style="width:46%">Lender<button type="button" class="hq" data-help="loan:name" data-text="Who the money is borrowed from: PWLB, a bank, another council. One line per lender or type of loan." aria-label="What goes here" title="What goes here">?</button></th><th style="width:22%" class="num">Amount £m<button type="button" class="hq" data-help="loan:amt" data-text="The principal still outstanding, in £ millions. From the loans register or the balance sheet note on borrowing." aria-label="What goes here" title="What goes here">?</button></th>
-          <th style="width:18%" class="num">Rate %<button type="button" class="hq" data-help="loan:rate" data-text="The interest rate paid, as a percentage. Leave blank on the PWLB line and the book's own average is used." aria-label="What goes here" title="What goes here">?</button></th><th></th>
+          <th style="width:46%">Lender<button type="button" class="hq" data-help="loan:name" aria-label="What goes here" title="What goes here">?</button></th><th style="width:22%" class="num">Amount £m<button type="button" class="hq" data-help="loan:amt" aria-label="What goes here" title="What goes here">?</button></th>
+          <th style="width:18%" class="num">Rate %<button type="button" class="hq" data-help="loan:rate" aria-label="What goes here" title="What goes here">?</button></th><th></th>
         </tr></thead><tbody id="loanrows"></tbody></table>
         <div class="ltools"><button type="button" id="addloan">Add a source</button>
         </div>
@@ -1978,8 +1978,8 @@ td.nask{background:repeating-linear-gradient(45deg,var(--hair),var(--hair) 4px,
 
       <div id="holdi" hidden>
         <table class="loans"><thead><tr>
-          <th style="width:46%">Held with<button type="button" class="hq" data-help="inv:name" data-text="Where the money is placed: a bank, a money market fund, another council, a property fund." aria-label="What goes here" title="What goes here">?</button></th><th style="width:22%" class="num">Amount £m<button type="button" class="hq" data-help="inv:amt" data-text="The amount invested, in £ millions, from the investments register." aria-label="What goes here" title="What goes here">?</button></th>
-          <th style="width:18%" class="num">Rate %<button type="button" class="hq" data-help="inv:rate" data-text="The rate earned, as a percentage. For a fund, its latest yield." aria-label="What goes here" title="What goes here">?</button></th><th></th>
+          <th style="width:46%">Held with<button type="button" class="hq" data-help="inv:name" aria-label="What goes here" title="What goes here">?</button></th><th style="width:22%" class="num">Amount £m<button type="button" class="hq" data-help="inv:amt" aria-label="What goes here" title="What goes here">?</button></th>
+          <th style="width:18%" class="num">Rate %<button type="button" class="hq" data-help="inv:rate" aria-label="What goes here" title="What goes here">?</button></th><th></th>
         </tr></thead><tbody id="invrows"></tbody></table>
         <div class="ltools"><button type="button" id="addinv">Add a source</button>
         </div>
@@ -2003,7 +2003,7 @@ td.nask{background:repeating-linear-gradient(45deg,var(--hair),var(--hair) 4px,
       </div>
       <span class="hintline" id="xhint"></span>
       <div class="pastebox" id="xpaste" hidden>
-        <label for="xtext">Paste your projection<button type="button" class="hq" data-help="xpaste" data-text="Paste the projection straight from your spreadsheet. A header row and a year column are read if you give them." aria-label="What goes here" title="What goes here">?</button></label>
+        <label for="xtext">Paste your projection<button type="button" class="hq" data-help="xpaste" aria-label="What goes here" title="What goes here">?</button></label>
         <textarea id="xtext" rows="6" placeholder="Year end&#9;Capital financing requirement&#9;MRP&#9;Existing loan commitments
 2026/27&#9;755.5&#9;0.0&#9;545.6
 2027/28&#9;763.9&#9;30.2&#9;519.6
@@ -2019,7 +2019,7 @@ td.nask{background:repeating-linear-gradient(45deg,var(--hair),var(--hair) 4px,
         <span><i style="border-left:3px solid var(--accent);border-radius:0"></i>your MTFP years</span>
       </div>
       <div class="ltools">
-        <label class="minliq" for="minliq">Minimum cash to keep (liquidity allowance) £m<button type="button" class="hq" data-help="minliq" data-text="The minimum cash the council keeps at all times to pay its bills on time, in £ millions. Your treasury team will have a working figure; the same figure applies to every year unless you change a year in the grid." aria-label="What goes here" title="What goes here">?</button>
+        <label class="minliq" for="minliq">Minimum cash to keep (liquidity allowance) £m<button type="button" class="hq" data-help="minliq" aria-label="What goes here" title="What goes here">?</button>
           <input type="text" inputmode="decimal" id="minliq" value="" placeholder="e.g. 15">
         </label>
       </div>
@@ -3816,13 +3816,13 @@ function arrowNav(root){
  * ======================================================================== */
 const HELP = {
   // ---- set up ----
-  council:  "Pick your authority. Its PWLB loans are already known and fill the debt table for you.",
+  council:  "Pick your authority. Its PWLB loans are on file from the published PWLB data and fill the debt table for you.",
   othername:"The body's name as it should appear on the front of the report.",
   otherreg: "Where the body is. This decides the accounting terms the report uses, such as MRP or the loans fund.",
   rtype:    "The strategy is written before the year; a mid-year review, quarterly report or outturn reports on it afterwards.",
   fy0:      "The financial year the report is for. A strategy projects forward from it; a review or outturn reports on it.",
-  asat:     "The date the report is prepared. The PWLB and SONIA rates in it are the rates published for this date.",
-  hra:      "Council housing is accounted for separately in a Housing Revenue Account. Your accountant will know which pooling approach applies; most housing authorities use one pool.",
+  asat:     "The date the report is as at. The PWLB and SONIA rates quoted in it are the rates for this date.",
+  hra:      "Council housing is accounted for separately in a Housing Revenue Account. Your accountant will know whether housing shares the council's debt (one pool) or has its own loans (two pools).",
   whoami:   "Your name, saved with the file so colleagues can see who last worked on it.",
   logo:     "Optional. A PNG or JPG of the council's crest, printed on the front of the draft.",
   // ---- what you hold: debt and investments ----
@@ -3833,21 +3833,21 @@ const HELP = {
   "inv:amt":    "The amount invested, in £ millions, from the investments register.",
   "inv:rate":   "The rate earned, as a percentage. For a fund, its latest yield.",
   "ladder:d":   "How much of the debt falls due in each period, in £ millions. Optional: left blank, it is worked out from the loans above and their dates.",
-  "ladder:i":   "How much of the investment comes back in each period. Optional: left blank, it is worked out from the investments above.",
+  "ladder:i":   "How much of the money invested comes back in each period, in £ millions. Optional: left blank, it is worked out from the investments above and their dates.",
   "ms:lo":      "The smallest share of the debt members allow to fall due in this period, as a percentage. Optional; most strategies set 0% here.",
   "ms:hi":      "The largest share of the debt members allow to fall due in this period, as a percentage. Optional; leave the table blank and it is not reported.",
   "lim:exp_var":     "Debt whose rate can change within the year: short-term or temporary loans, variable-rate market loans, and a LOBO if you treat it as variable. In £ millions.",
   "lim:exp_var_max": "The most of the debt members allow at variable rates, in £ millions. Optional.",
   "lim:exp_fix_max": "The most of the debt members allow at fixed rates, in £ millions. Optional; many strategies set it to the whole book.",
-  "lim:inv364":      "The most that may be invested for longer than a year at any one time, in £ millions. Optional; from last year's strategy if you had one.",
+  "lim:inv364":      "The most that may be invested for longer than a year at any one time, in £ millions. Optional: a strategy sets it, and a review or outturn reports against the figure the strategy set.",
   // ---- your figures: the ledger ----
   "col:cfr":     "The capital financing requirement: what the council has spent on capital and not yet paid for, so its underlying need to borrow. From the balance sheet note on capital financing, then your capital programme for the years ahead.",
-  "col:mrp":     "The minimum revenue provision: the amount charged to revenue each year to repay borrowing. From the MRP statement in the budget report.",
+  "col:mrp":     "The minimum revenue provision: the amount charged to revenue each year to repay borrowing (in Scotland, the loans fund repayment). From the MRP statement in the budget report.",
   "col:rec":     "Capital receipts set aside to repay debt, in the year. From the capital programme; often nil.",
-  "col:obs":     "Reserves, provisions and working capital the council holds, which reduce what it needs to borrow. From the balance sheet: usable reserves plus provisions, less working capital.",
+  "col:obs":     "Reserves, provisions and working capital the council can use instead of borrowing: its internal borrowing. From the balance sheet forecast: usable reserves and provisions, with working capital netted in.",
   "col:loans":   "Loans already taken, as they run off year by year. Left blank, the loans on step 2 fill it in from their dates. Type a figure to state your own.",
   "col:inv":     "Investments already placed, as they mature. Left blank, the investments on step 2 fill it in. Type a figure to state your own.",
-  "col:liq":     "The minimum cash the council keeps to pay its bills: the liquidity allowance. Set once in the box above the grid.",
+  "col:liq":     "The minimum cash the council keeps to pay its bills: the liquidity allowance. Set once, in the box below the grid.",
   "col:capex":   "Capital spending in the year that will be paid for by borrowing, in £ millions. From the capital programme, for the years of the medium-term plan.",
   "col:intpay":  "Interest the council pays on its borrowing and leases in the year, in £ millions. From the treasury budget.",
   "col:intfund": "Interest one fund charges the other: the item 8 charge the HRA pays the General Fund for its share of the debt, or interest on an internal loan. From the HRA business plan.",
@@ -3855,7 +3855,7 @@ const HELP = {
   "col:intinc":  "Interest earned on cash balances in the year, in £ millions. From the treasury budget.",
   "col:nrs":     "The net revenue budget: what the council raises from government grant and local taxpayers to run its services. For the HRA, its rent income. From the budget report.",
   "col:comminc": "Income from investments held for return rather than treasury: commercial property, loans to companies. Net of costs; nil if none.",
-  minliq:        "The minimum cash the council keeps at all times to pay its bills on time, in £ millions. Your treasury team will have a working figure; the same figure applies to every year unless you change a year in the grid.",
+  minliq:        "The minimum cash the council keeps at all times to pay its bills on time, in £ millions. Your treasury team will have a working figure. The same figure applies to every year.",
   actualrow:     "The position at the last year end, from the statement of accounts. Optional, but the charts start from it when it is given.",
   xpaste:        "Paste the projection straight from your spreadsheet. A header row and a year column are read if you give them.",
   // ---- counterparty policy ----
@@ -3865,22 +3865,22 @@ const HELP = {
   "cp:basis":    "What the group limit is measured across: an ownership group, a sector, or a fund manager.",
   "cp:months":   "The longest the council will lend to them for, in months.",
   "cp:rating":   "The lowest credit rating the council will accept for them. Leave as a dash where ratings do not apply, such as other councils.",
-  "cp:agencies": "Which rating agencies the council uses. Most use all three.",
-  "cp:groupnote":"Whether deposits with two banks under one owner count against one limit. Most policies say yes.",
+  "cp:agencies": "Which rating agencies the council uses. Fitch is the most used; many policies use two or all three.",
+  "cp:groupnote":"Whether deposits with two banks under one owner count against one limit. Many policies say yes.",
   "cp:country":  "Whether the council lends to banks outside the UK, and on what condition. Most policies set a minimum rating for the country.",
   "cp:pool":     "The kinds of pooled fund the council may hold. These have no fixed maturity and their value can fall as well as rise.",
-  "cp:split":    "The government's investment guidance sorts investments into specified (sterling, under a year, high credit quality) and non-specified (everything else, including property and multi-asset funds). Tick to say the policy uses that split.",
-  "cp:nonspec":  "The most the council will hold in non-specified investments in total, in £ millions. From last year's strategy if you had one.",
+  "cp:split":    "The statutory investment guidance sorts investments into specified (sterling, under a year, high credit quality) and non-specified (everything else: anything over a year, and property or multi-asset funds). Tick to say the policy uses that split.",
+  "cp:nonspec":  "The most the council will hold in non-specified investments in total, in £ millions. From your current strategy, if it set one.",
   "cp:instr":    "The kinds of instrument the council may use. Tick what your policy allows; the grey figure is how many published strategies allow it.",
   // ---- the period's figures ----
-  "lim:al_approved": "The authorised limit members approved for the year: the legal ceiling on the council's total debt, in £ millions. From last year's strategy.",
-  "lim:ob_approved": "The operational boundary members approved: the debt level expected in the normal course of business. From last year's strategy, if it set one.",
+  "lim:al_approved": "The authorised limit members approved for the year: the legal ceiling on the council's total debt, in £ millions. From the strategy approved for this year.",
+  "lim:ob_approved": "The operational boundary members approved: the debt level expected in the normal course of business. From the strategy approved for this year, if it set one.",
   "lim:al_revised":  "Only if this report asks members to change the authorised limit. Leave blank otherwise.",
   "lim:debt_max":    "The highest the council's total debt reached at any point in the period, in £ millions. From the treasury records.",
   "lim:debt_close":  "Total debt at the end of the period, in £ millions.",
   "lim:inv_close":   "Total treasury investments at the end of the period, in £ millions.",
   "lim:inv_max":     "The highest treasury investments reached at any point in the period, in £ millions.",
-  "mon:approved":    "The figure members approved for this year in the strategy. Open that strategy from the file list and this column fills itself.",
+  "mon:approved":    "The figure members approved for this year in the strategy. If that strategy was written in this tool and is in your file, the column fills itself.",
   "mon:latest":      "What the year now looks like: the actual at year end for an outturn, the latest forecast for a review. Filled from your figures; type over it.",
   "perf:intpay":     "Interest paid on borrowing and leases: the budget for the period, the actual, and last year's, in £ millions.",
   "perf:avgdebt":    "The average debt outstanding across the period, in £ millions. Used to work out the rate paid.",
@@ -3891,7 +3891,7 @@ const HELP = {
   "perf:intinc":     "Interest earned on investments in the period, in £ millions.",
   "perf:avginv":     "The average balance invested across the period, in £ millions. Used to work out the return.",
   "perf:ret":        "Income over the average balance, as a percentage. Worked out for you; type a figure to state your own.",
-  "perf:bench":      "The rate the return is measured against, as a percentage: usually SONIA or 7-day SONIA over the period, from your treasury adviser.",
+  "perf:bench":      "The rate the return is measured against, as a percentage: usually average SONIA over the period, or the compounded SONIA rate, from your treasury adviser.",
   "perf:hra":        "The part of the line that belongs to the HRA, where debt is pooled and charged to it.",
   groupon:           "Tick only if the council owns companies whose borrowing is significant. Most councils do not, and are not asked.",
   "gc:n":            "The company's name.",
@@ -3908,9 +3908,12 @@ const HELP = {
 function helpBtn(key, label){
   const t = HELP[key];
   if(!t) return "";
-  return `<button type="button" class="hq" data-help="${key}" data-text="${esc(t)}"${
+  return `<button type="button" class="hq" data-help="${key}"${
     label ? ` data-label="${esc(label)}"` : ""} aria-label="What goes here" title="What goes here">?</button>`;
 }
+/* The text behind a "?", from the one table above. The markup carries the
+   key only, so the wording lives in one place. */
+function helpText(b){ return HELP[(b && b.dataset && b.dataset.help) || ""] || ""; }
 
 /* ===========================================================================
  * The liability benchmark framework — CIPFA's 2026 consultation on the
@@ -16806,7 +16809,7 @@ function setupSummary(){
       const b = e.target.closest(".hq");
       if(b && pop){
         const r = b.getBoundingClientRect();
-        pop.textContent = b.dataset.text || "";
+        pop.textContent = helpText(b);
         pop.hidden = false;
         const w = Math.min(320, window.innerWidth - 24);
         pop.style.maxWidth = w + "px";
@@ -16843,7 +16846,7 @@ function setupSummary(){
         root.querySelectorAll(".hq").forEach(b => {
           if(b.closest("[hidden]") || seen.has(b.dataset.help)) return;
           seen.add(b.dataset.help);
-          rows.push(`<dt>${esc(labelOf(b) || b.dataset.help)}</dt><dd>${esc(b.dataset.text || "")}</dd>`);
+          rows.push(`<dt>${esc(labelOf(b) || b.dataset.help)}</dt><dd>${esc(helpText(b))}</dd>`);
         });
         if(!rows.length) return;
         const d = document.createElement("div"); d.className = "helppanel";
