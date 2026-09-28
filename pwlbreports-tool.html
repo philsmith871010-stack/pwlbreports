@@ -1494,17 +1494,6 @@ svg.ctip .hits rect{cursor:crosshair}
 .ladh{font-family:var(--sans);font-size:13px;font-weight:600;color:var(--ink);
   margin:22px 0 4px}
 .cpix-row{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 18px}
-/* The invitation to load a strategy rather than retype it. Quiet, but not so
-   quiet it is missed — it is the difference between typing six figures and
-   typing none. */
-.offer{font-family:var(--sans);font-size:12.5px;line-height:1.55;color:var(--ink2);
-  background:var(--sunken);border:1px solid var(--line);border-left:3px solid var(--accent);
-  border-radius:var(--r);padding:10px 13px;margin:0 0 12px}
-.offer{display:flex;gap:16px;align-items:center;justify-content:space-between;flex-wrap:wrap}
-.offer > div{flex:1;min-width:280px}
-.offer b{color:var(--ink)}
-.offer i{font-style:normal;font-family:var(--mono);font-size:11.5px;
-  background:var(--card);border:1px solid var(--line);border-radius:3px;padding:1px 5px}
 .pv{margin-top:26px;border-top:1px solid var(--line);padding-top:18px}
 .pvhead{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:14px}
 .pvtog{font-family:var(--sans);font-size:14px;font-weight:600;color:var(--ink);
@@ -7808,15 +7797,6 @@ const MON_COLS = [["approved","Approved"], ["latest","Latest expected"]];
 function monPanel(){
   S.mon = S.mon || {};
   const rows = monRows();
-  const seeded = rows.some(r => r.approved.seeded);
-  /* THE OFFER TO FILL IT IN. Everything in the approved column is a figure
-     that already exists in a document the authority wrote — so ask for the
-     document before asking for the figures. Only shown where it would help:
-     once a strategy has been loaded, the invitation is noise. */
-  const offer = seeded ? ""
-    : `<div class="offer"><div><b>Open your approved strategy and this fills itself.</b></div>
-       <label class="filebtn" for="libopen2">Open a file</label>
-       <input type="file" id="libopen2" data-libopen accept=".pwlb,.json,application/json" hidden></div>`;
   const cell = (r, c) => {
     const raw = (S.mon[r.k] || {})[c];
     /* The placeholder is the derived figure where there is one, and the UNIT
@@ -7836,7 +7816,7 @@ function monPanel(){
       value="${raw == null ? "" : raw}" placeholder="${esc(ph)}"
       aria-label="${esc(r.l)} ${c}"></td>`;
   };
-  return offer + `<div class="perfwrap"><table class="perf">
+  return `<div class="perfwrap"><table class="perf">
     <thead><tr><th>${esc(fy(S.fy0))}</th>${MON_COLS.map(([,t])=>`<th>${esc(t)}</th>`)
       .join("")}<th>Variance</th></tr></thead>
     <tbody>${rows.map(r=>`<tr>
