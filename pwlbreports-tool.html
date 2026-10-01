@@ -1232,6 +1232,15 @@ button.rm:hover{color:var(--alert)}
   background:color-mix(in srgb,var(--orange) 10%,var(--card));border:1px solid var(--orange);
   border-radius:8px;padding:10px 13px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
 .startwarn b{color:var(--ink)}
+/* The same box, quieter: a fact about this browser, not unsaved work. */
+.startwarn.startinfo{background:var(--sunken);border-color:var(--line2)}
+.fsres{list-style:none;margin:12px 0 0;padding:0;display:grid;gap:6px}
+.fsres li{display:flex;gap:8px;align-items:baseline}
+.fsres li::before{content:"\2713";font-weight:700;color:#2f7d4a;flex:none}
+.fsres li.no::before{content:"\2715";color:#b4441a}
+.fsres li.skip::before{content:"\2013";color:var(--muted)}
+.fsit{margin-top:12px;padding:10px 12px;border-radius:8px;background:var(--sunken);font-size:13px}
+.fsit code{font-family:var(--mono);font-size:12px}
 .startwarn button{margin-left:auto;white-space:nowrap;background:var(--orange);border:1px solid var(--orange);
   color:#fff;font-weight:600;font-family:var(--sans);font-size:13px;padding:7px 13px;border-radius:7px;cursor:pointer}
 .startwarn button:hover{filter:brightness(1.06)}
@@ -2049,6 +2058,7 @@ td.nask{background:repeating-linear-gradient(45deg,var(--hair),var(--hair) 4px,
     <h3 id="helptitle">What goes in each box</h3>
     <div class="hb" id="helpbody"></div>
     <p class="helpwalk"><button type="button" class="lnk" data-tour-start>Show me round this report</button></p>
+    <p class="helpwalk"><button type="button" class="lnk" data-fscheck>Check this computer can save files</button></p>
     <div class="ltools" style="margin-top:14px">
       <button type="button" class="primary" id="helpclose">Close</button>
     </div>
@@ -2639,6 +2649,34 @@ const FS_SAME_ORIGIN = (() => {
 const FS_ACCESS = typeof window !== "undefined"
   && "showOpenFilePicker" in window && "showSaveFilePicker" in window
   && FS_SAME_ORIGIN;
+/* CAN THIS COMPUTER KEEP ONE FILE UP TO DATE? Said on the opening menu
+ * when the answer is no, so nobody finds out after an afternoon's work.
+ * Two reasons are knowable as the page loads — a browser without the
+ * feature, and a frame that is not ours. The third, a computer whose IT
+ * settings stop pages writing to files, a browser only reveals when a page
+ * actually tries, and it only lets a page try on a click: so FS_BLOCKED is
+ * set by a Save or Open that was refused, or by Help › Check this computer,
+ * and holds for this visit only (nothing about it is stored). */
+let FS_BLOCKED = "";   // "write" or "read" once refused this visit
+function saveCapability(){
+  if(typeof window === "undefined" || !("showSaveFilePicker" in window)) return "browser";
+  if(!FS_SAME_ORIGIN) return "frame";
+  if(FS_BLOCKED) return "policy";
+  return "";
+}
+function saveCapabilityNote(){
+  const why = saveCapability();
+  if(!why) return "";
+  const lead = "<b>Saving here downloads a copy each time</b> &mdash; one file can't be kept up to date the way Word or Excel does. ";
+  const body = why === "browser"
+      ? "This browser doesn't allow it. Open PWLBreports in <b>Microsoft Edge</b> or <b>Google Chrome</b> to save into one file."
+    : why === "frame"
+      ? "PWLBreports is running inside another website's page, which stops it. Open it directly at pwlbtoday.org."
+    : "This computer's settings stop websites saving into files. Your IT team can allow it for pwlbtoday.org.";
+  return `<div class="startwarn startinfo"><span>${lead}${body}</span>`
+    + (why === "policy" ? `<button type="button" data-fscheck="1">Details for IT</button>` : "")
+    + `</div>`;
+}
 /* THE LIVE LINK TO A REAL FILE ON DISK, WHERE FS_ACCESS HOLDS ONE. Set by
  * opening a file or by the first Save of a session (see wire.js); cleared by
  * applyVersion, on the same reasoning as OVERRIDE_KEY/SCENARIO_KEY there —
@@ -16451,6 +16489,7 @@ function setupSummary(){
           console.error("PWLBreports: could not write a newly chosen file, downloading instead —", err && err.name, err);
           FILE_HANDLE = null;
           fellBack = true;
+          if(!(err && err.name === "SecurityError" && !FS_SAME_ORIGIN)) FS_BLOCKED = "write";
         } else {
           // A moved/deleted file, a revoked permission, anything unexpected —
           // the link is no longer trustworthy, so forget it rather than keep
@@ -16610,10 +16649,15 @@ function setupSummary(){
         types: [{description: "PWLBreports file", accept: {"application/json": [".pwlb", ".json"]}}]
       });
     }catch(err){
-      // No picker allowed here after all: the plain file input still opens
-      // a file, it just cannot be saved back to in place.
-      if(err && err.name === "SecurityError"){ $("libopen").click(); return; }
-      if(err && err.name !== "AbortError") saveHint("Could not open that file.");
+      if(err && err.name === "AbortError") return;
+      /* Refused for any other reason — a frame, or an IT policy that stops
+         pages reading files through this route — the browser's ordinary
+         file chooser still opens a file (no policy of that kind governs it).
+         The file just cannot be saved back to in place, and the status says
+         so ("Saved to Downloads" mode). */
+      console.error("PWLBreports: file picker refused, using the plain file chooser —", err && err.name, err);
+      FS_BLOCKED = FS_BLOCKED || "read";
+      $("libopen").click();
       return;
     }
     WRITE_ASKED = false;
@@ -16974,7 +17018,7 @@ function setupSummary(){
         ? `${(REPORTS.find(x=>x.k===rec.report)||{}).t || "report"} ${fy(rec.fy0)}`
           + (rec.n ? ` — ${rec.n}` : "")
         : "";
-      $(SV.body).innerHTML = unsavedWarn()
+      $(SV.body).innerHTML = unsavedWarn() + saveCapabilityNote()
       + (rec ? `<button type="button" class="startdoor primary" data-door="recover">
              <span class="sd-ic">${svg(ICON.undo)}</span>
              <span><span class="sd-t">Pick up where you left off</span>
@@ -17496,6 +17540,100 @@ function setupSummary(){
   });
   document.addEventListener("click", e => {
     if(e.target.closest("[data-tour-start]") && typeof tourStart === "function"){ helpClose(); tourStart(); }
+  });
+
+  /* CHECK THIS COMPUTER. Whether saving works like Word here is not something
+     a browser will say until a page tries, so this tries, for real, on the
+     reader's click: it asks them to save a small test file anywhere, writes
+     it twice (the second is what AutoSave does), reads it back, and removes
+     it where the browser allows. Every step is reported in plain words, and
+     a refusal comes with the exact settings to give IT. Nothing is sent
+     anywhere; the result lasts for this visit (FS_BLOCKED, ui.js). */
+  const IT_NOTE = `<div class="fsit"><b>For your IT team.</b> Microsoft Edge and Google Chrome let a
+      website save into a file the user chooses unless a policy blocks it. To allow it for
+      PWLBreports only, add <code>https://pwlbtoday.org</code> to the policies
+      <code>FileSystemWriteAskForUrls</code> and <code>FileSystemReadAskForUrls</code>
+      (or set <code>DefaultFileSystemWriteGuardSetting</code> and
+      <code>DefaultFileSystemReadGuardSetting</code> to 3, “ask”). If Windows
+      “Controlled folder access” is on, allow the browser too. Until then PWLBreports
+      still works: each Save downloads a copy.</div>`;
+  let FS_IT_SHOWN = false;   // the IT note is already on screen in this notice
+  function fsCheckOpen(){
+    helpClose();
+    FS_IT_SHOWN = !!FS_BLOCKED;
+    notice("Check this computer",
+      `<p>This checks whether PWLBreports can keep your reports file up to date the way
+         Word or Excel does. You'll be asked to save a small test file — choose any folder,
+         such as Desktop. It is removed afterwards where the browser allows. Nothing is sent anywhere.</p>
+       ${FS_BLOCKED ? `<p><b>A save on this computer has already been refused this visit.</b></p>` + IT_NOTE : ""}
+       <p><button type="button" class="primary fsrun">${FS_BLOCKED ? "Run the check again" : "Run the check"}</button></p>
+       <div class="fsout"></div>`);
+    // Classes, not ids: these live only inside this notice's body.
+    $("noticebody").querySelector(".fsrun").addEventListener("click", fsCheckRun);
+  }
+  async function fsCheckRun(){
+    const box = $("noticebody"), out = box.querySelector(".fsout"), run = box.querySelector(".fsrun");
+    const lines = [];
+    const show = (verdict, extra) => {
+      out.innerHTML = `<ul class="fsres">${lines.map(([c, t]) => `<li class="${c}">${t}</li>`).join("")}</ul>`
+        + (verdict ? `<p style="margin-top:12px"><b>${verdict}</b></p>` : "") + (extra || "");
+      if(verdict) run.hidden = true;
+    };
+    const ok = t => lines.push(["", t]);
+    const no = t => lines.push(["no", t]);
+    const aside = t => lines.push(["skip", t]);
+    run.disabled = true;
+    if(!("showSaveFilePicker" in window)){
+      no("This browser can't save into a file you choose.");
+      aside("Saving will download a copy each time instead.");
+      show("Use Microsoft Edge or Google Chrome to keep one file up to date.");
+      return;
+    }
+    ok("This browser supports saving into a file.");
+    if(!FS_SAME_ORIGIN){
+      no("PWLBreports is inside another website's page, which stops it.");
+      show("Open PWLBreports directly at pwlbtoday.org.");
+      return;
+    }
+    let h;
+    try{
+      h = await window.showSaveFilePicker({suggestedName: "pwlbreports-test.txt",
+        types: [{description: "Text file", accept: {"text/plain": [".txt"]}}]});
+    }catch(err){
+      if(err && err.name === "AbortError"){
+        lines.pop(); run.disabled = false;
+        out.innerHTML = "<p>Cancelled. Run the check again and choose any folder, such as Desktop.</p>";
+        return;
+      }
+      FS_BLOCKED = "write";
+      no(`This computer's settings stopped the save window opening (${esc(err && err.name || "refused")}).`);
+      show("Saving will download a copy each time instead.", FS_IT_SHOWN ? "" : IT_NOTE);
+      return;
+    }
+    const stamp = () => `PWLBreports test file, ${new Date().toLocaleString("en-GB")}. Safe to delete.`;
+    try{
+      let w = await h.createWritable(); await w.write(stamp()); await w.close();
+      ok(`Saved a test file (${esc(h.name)}).`);
+      w = await h.createWritable(); await w.write(stamp() + " Updated."); await w.close();
+      ok("Updated it again without asking — this is how AutoSave works.");
+      const back = await (await h.getFile()).text();
+      if(/Updated\.$/.test(back)) ok("Read it back as written.");
+      else no("Read it back, but it did not match what was written.");
+    }catch(err){
+      FS_BLOCKED = "write";
+      no(`Couldn't write to the file you chose (${esc(err && err.name || "refused")}).`);
+      show("Saving will download a copy each time instead.", FS_IT_SHOWN ? "" : IT_NOTE);
+      return;
+    }
+    let gone = false;
+    try{ if(typeof h.remove === "function"){ await h.remove(); gone = true; } }catch(_){}
+    if(gone) ok("Removed the test file.");
+    else aside(`You can delete ${esc(h.name)} — this browser doesn't let a page remove it.`);
+    FS_BLOCKED = "";
+    show("This computer can save like Word or Excel: one file, kept up to date automatically.");
+  }
+  document.addEventListener("click", e => {
+    if(e.target.closest("[data-fscheck]")) fsCheckOpen();
   });
   /* Re-applied after any redraw while it is on — every step rebuilds its
      boxes on a keystroke, and a rebuilt box has lost its grey figure. */
