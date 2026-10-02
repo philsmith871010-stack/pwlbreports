@@ -2687,6 +2687,89 @@ const REG = (() => {
     }
     return out;
   }
+  /* ---- the shapes the charts draw ----------------------------------------
+     Each gives rows of {label, parts:{key: amount}, total, count}: a stacked
+     bar per label, one segment per key. */
+  const catRows = labels => labels.map(l => ({label: l, parts: {}, total: 0, count: 0}));
+  const addPart = (row, k, v) => { row.parts[k] = (row.parts[k] || 0) + v; row.total += v; row.count++; };
+  const noticeDate = (asAt, days) => new Date(asAt.getTime() + days * 86400000);
+  /* The investment ladder by counterparty type, money on call first; a
+     notice account sits at its notice. */
+  function ladderBy(reg){
+    const out = catRows(["On call"].concat(BUCKETS));
+    if(!reg.asAt) return out;
+    reg.termInvestments.filter(r => r.counts).forEach(r => addPart(out[1 + bucketOf(reg.asAt, r.maturity)], r.cpType || "Not on the list", r.nominal));
+    reg.callAccounts.filter(r => r.counts).forEach(r => addPart(out[r.noticeDays > 0 ? 1 + bucketOf(reg.asAt, noticeDate(reg.asAt, r.noticeDays)) : 0], r.cpType || "Not on the list", r.balance));
+    return out;
+  }
+  /* The Code's maturity structure by lender type, from the schedules. */
+  function debtLadderBy(reg){
+    const out = catRows(DEBT_BUCKETS);
+    if(!reg.asAt) return out;
+    reg.loans.filter(l => l.counts).forEach(l => {
+      const seen = new Set();
+      l.schedule.forEach(p => { const i = debtBucketOf(reg.asAt, p.date), row = out[i], k = l.lenderType || "Not on the list";
+        row.parts[k] = (row.parts[k] || 0) + p.amount; row.total += p.amount; if(!seen.has(i)){ seen.add(i); row.count++; } });
+    });
+    return out;
+  }
+  /* Debt outstanding at each 31 March, split by fund (two pools) or by lender
+     type, for n year ends or until the last repayment, whichever is sooner. */
+  function runoffBy(reg, n, key){
+    const out = [];
+    if(!reg.asAt) return out;
+    const loans = reg.loans.filter(l => l.counts), y = firstYearEnd(reg.asAt);
+    const last = loans.reduce((m, l) => Math.max(m, ...l.schedule.map(p => p.date.getUTCFullYear())), y);
+    const N = Math.min(n || 50, Math.max(1, last - y + 1));
+    for(let k = 0; k < N; k++){
+      const ye = new Date(Date.UTC(y + k, 2, 31)), row = {label: `31 Mar ${y + k}`, parts: {}, total: 0, count: 0};
+      loans.forEach(l => { const left = l.principal - l.schedule.filter(p => p.date <= ye).reduce((s, p) => s + p.amount, 0);
+        if(left > 0.5){ const kk = key === "fund" ? (l.fund || "Unassigned") : (l.lenderType || "Not on the list"); row.parts[kk] = (row.parts[kk] || 0) + left; row.total += left; row.count++; } });
+      out.push(row);
+    }
+    return out;
+  }
+  /* Investments maturing in and loan repayments out, month by month from the
+     month after the as-at date. */
+  function calendar(reg, months){
+    const out = [];
+    if(!reg.asAt) return out;
+    const MON = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    for(let k = 1; k <= (months || 24); k++){
+      const d = new Date(Date.UTC(reg.asAt.getUTCFullYear(), reg.asAt.getUTCMonth() + k, 1));
+      out.push({ym: d.getUTCFullYear() * 12 + d.getUTCMonth(), label: MON[d.getUTCMonth()] + " " + String(d.getUTCFullYear()).slice(2), year: d.getUTCFullYear(), month: d.getUTCMonth(), inflow: 0, outflow: 0, inDeals: [], outLoans: []});
+    }
+    const slot = d => out.find(m => m.ym === d.getUTCFullYear() * 12 + d.getUTCMonth());
+    reg.termInvestments.filter(r => r.counts).forEach(r => { const m = slot(r.maturity); if(m){ m.inflow += r.nominal; m.inDeals.push(r); } });
+    reg.loans.filter(l => l.counts).forEach(l => l.schedule.forEach(p => { const m = slot(p.date); if(m){ m.outflow += p.amount; if(m.outLoans.indexOf(l) < 0) m.outLoans.push(l); } }));
+    return out;
+  }
+  /* Exposure by counterparty: term deals at nominal and call balances. */
+  function exposure(reg){
+    const by = {};
+    const add = (r, v) => { const k = norm(r.counterparty); const o = by[k] || (by[k] = {counterparty: r.counterparty, cpType: r.cpType || "Not on the list", total: 0, deals: 0}); o.total += v; o.deals++; };
+    reg.termInvestments.filter(r => r.counts).forEach(r => add(r, r.nominal));
+    reg.callAccounts.filter(r => r.counts).forEach(r => add(r, r.balance));
+    return Object.values(by).sort((a, b) => b.total - a.total);
+  }
+  /* Every investment as a point: months to maturity (nil for money on call)
+     against its rate, sized by amount. */
+  function yieldPoints(reg){
+    if(!reg.asAt) return [];
+    const pts = reg.termInvestments.filter(r => r.counts && r.rate != null).map(r => ({name: r.counterparty, type: r.type, cpType: r.cpType || "Not on the list",
+      months: Math.max(0, (r.maturity - reg.asAt) / 86400000 / 30.436875), rate: r.rate, amount: r.nominal, maturity: r.maturity}));
+    reg.callAccounts.filter(r => r.counts && r.rate != null).forEach(r => pts.push({name: r.counterparty, type: r.type, cpType: r.cpType || "Not on the list",
+      months: r.noticeDays > 0 ? r.noticeDays / 30.436875 : 0, rate: r.rate, amount: r.balance, maturity: null}));
+    return pts;
+  }
+  /* Every loan as a point: years to final maturity against its rate, sized by
+     the principal outstanding. */
+  function costPoints(reg){
+    if(!reg.asAt) return [];
+    return reg.loans.filter(l => l.counts && l.rate != null).map(l => ({name: l.lender, type: l.type, lenderType: l.lenderType || "Not on the list", fund: l.fund,
+      years: Math.max(0, years(reg.asAt, l.maturity)), rate: l.rate, amount: l.principal, maturity: l.maturity, nextCall: l.nextCall, profile: l.profile}));
+  }
+
   const byKey = (rows, key, amount) => { const o = {}; rows.forEach(r => { const k = r[key] || "Not on the list"; o[k] = (o[k] || 0) + amount(r); }); return o; };
   function stats(reg){
     const term = reg.termInvestments.filter(r => r.counts), call = reg.callAccounts.filter(r => r.counts), funds = reg.pooledFunds.filter(r => r.counts);
@@ -2714,7 +2797,8 @@ const REG = (() => {
       net: invested + fundsTotal - debt, flagged
     };
   }
-  return {TEMPLATE_VERSION, VOCAB, BUCKETS, DEBT_BUCKETS, readRegister, schedule, ladder, yearEnds, debtLadder, debtYearEnds, stats, dmy, money, pct, bucketOf, debtBucketOf, addMonths, monthsBetween};
+  return {TEMPLATE_VERSION, VOCAB, BUCKETS, DEBT_BUCKETS, readRegister, schedule, ladder, yearEnds, debtLadder, debtYearEnds, stats, dmy, money, pct, bucketOf, debtBucketOf, addMonths, monthsBetween,
+    ladderBy, debtLadderBy, runoffBy, calendar, exposure, yieldPoints, costPoints};
 })();
 if(typeof module !== "undefined") module.exports = REG;
 
@@ -4790,11 +4874,41 @@ function liqSet(S){
  * takes over. Not under two pools, where the book is not split by fund and
  * each fund's own loans are the author's to state. */
 function loansDerived(S, fund){
-  if(fund === "hra" || S.hra === "two") return null;
+  if(fund === "hra" && S.hra !== "two") return null;   // pooled: the General Fund carries it
   if(colEntered(S, "loans")) return null;
+  const R = schedRows(S.loans);
+  if(R) return schedRunoff(S, R, S.hra === "two" ? fund : "all");   // pooled or no HRA: every loan is the General Fund's
+  if(fund === "hra" || S.hra === "two") return null;
   if(!(S.loans || []).some(L => L && L.amt > 0)) return null;
   if(typeof LB === "undefined" || !LB) return null;
   return loanProfile(S, LB);
+}
+
+/* THE DEAL REGISTER'S DATES, WHEN THE ROWS CARRY THEM.
+ *
+ * A row filled from the register (register.js) carries sched: one entry per
+ * repayment — [isoDate, £m, fund] — or, for a term investment, its nominal on
+ * its maturity date. Where every row with an amount carries one, the run-off
+ * is read from the dates loan by loan instead of from the rule above, the
+ * PWLB row included (the council's own loans beat the published book scaled
+ * to a total). And because each entry says which fund the loan belongs to,
+ * a two-pool authority gets a derived column for each fund — the one case
+ * the rule could never serve, because the book is not split by fund.
+ * A row with an empty sched (money on call, a pooled fund) is held, not
+ * committed: it counts at the first year end and at none after. */
+function schedRows(rows){
+  const R = (rows || []).filter(L => L && L.amt > 0);
+  return R.length && R.every(L => Array.isArray(L.sched)) ? R : null;
+}
+const yeIso = (S, i) => (S.fy0 + i + 1) + "-03-31";
+function schedRunoff(S, rows, fund){
+  const out = new Array(S.years).fill(0);
+  rows.forEach(L => (L.sched || []).forEach(e => {
+    if(fund === "gf" && e[2] === "HRA") return;
+    if(fund === "hra" && e[2] !== "HRA") return;
+    for(let i = 0; i < S.years; i++) if(e[0] > yeIso(S, i)) out[i] += +e[1] || 0;
+  }));
+  return out.map(v => Math.round(v * 10) / 10);
 }
 
 /* THE INVESTMENTS HELD FILL THE INVESTMENTS COLUMN UNTIL THE AUTHOR DOES.
@@ -4803,8 +4917,10 @@ function loansDerived(S, fund){
  * column on step 3 asked for its run-off again. While it is untouched, the
  * holdings stand in — everything held at the first year end, and after that
  * only the fixed-term deals that have not yet matured, since money on call is
- * not a commitment. Investments are the General Fund's under every pooling
- * approach, so there is no fund to split. */
+ * not a commitment. A row from the register carries its maturity dates
+ * (sched), and after the first year end those decide, deal by deal.
+ * Investments are the General Fund's under every pooling approach, so there
+ * is no fund to split. */
 function invDerived(S, fund){
   if(fund === "hra") return null;
   if(colEntered(S, "inv")) return null;
@@ -4812,7 +4928,11 @@ function invDerived(S, fund){
   if(!P.length) return null;
   const out = new Array(S.years).fill(0);
   for(let i = 0; i < S.years; i++)
-    P.forEach(L => { if(i === 0 || (L.mat && (+L.mat - S.fy0) > i)) out[i] += +L.amt; });
+    P.forEach(L => {
+      if(i === 0) out[i] += +L.amt;                       // everything held, at the first year end
+      else if(Array.isArray(L.sched)) L.sched.forEach(e => { if(e[0] > yeIso(S, i)) out[i] += +e[1] || 0; });
+      else if(L.mat && (+L.mat - S.fy0) > i) out[i] += +L.amt;
+    });
   return out.map(v => Math.round(v * 10) / 10);
 }
 
@@ -14411,6 +14531,10 @@ function regBand(bands, asAt, d){
   return bands[bands.length - 1][2];
 }
 const regNoticeDate = (asAt, days) => new Date(asAt.getTime() + days * 86400000);
+/* A debt row's schedule for the projection model: every repayment of every
+   loan in the group — [isoDate, £m, fund] — so step 3's "existing loan
+   commitments" runs off loan by loan, and by fund under two pools. */
+const regSched = rows => rows.flatMap(l => l.schedule.map(p => [regIso(p.date), regM(p.amount), l.fund || null]));
 
 function registerApply(reg, name){
   const asAt = reg.asAt;
@@ -14420,22 +14544,24 @@ function registerApply(reg, name){
   REG_DEBT_GROUPS.forEach(([types, row]) => {
     const rows = loans.filter(l => types.indexOf(l.type) >= 0);
     if(!rows.length) return;
-    dRows.push(Object.assign({}, row, {amt: regM(rows.reduce((s, l) => s + l.principal, 0)), rate: regRate(rows, l => l.principal)}));
+    dRows.push(Object.assign({}, row, {amt: regM(rows.reduce((s, l) => s + l.principal, 0)), rate: regRate(rows, l => l.principal), sched: regSched(rows)}));
   });
   const stray = loans.filter(l => !REG_DEBT_GROUPS.some(([types]) => types.indexOf(l.type) >= 0));
-  if(stray.length) dRows.push({name: "Other loans", type: "Other", amt: regM(stray.reduce((s, l) => s + l.principal, 0)), rate: regRate(stray, l => l.principal)});
+  if(stray.length) dRows.push({name: "Other loans", type: "Other", amt: regM(stray.reduce((s, l) => s + l.principal, 0)), rate: regRate(stray, l => l.principal), sched: regSched(stray)});
   /* ---- investment rows ---- */
   const term = reg.termInvestments.filter(r => r.counts), call = reg.callAccounts.filter(r => r.counts), funds = reg.pooledFunds.filter(r => r.counts);
   const iRows = [];
   REG_INV_GROUPS.forEach(([types, label]) => {
     const rows = term.filter(r => types.indexOf(r.type) >= 0);
-    if(rows.length) iRows.push({name: label, type: label, amt: regM(rows.reduce((s, r) => s + r.nominal, 0)), rate: regRate(rows, r => r.nominal)});
+    if(rows.length) iRows.push({name: label, type: label, amt: regM(rows.reduce((s, r) => s + r.nominal, 0)), rate: regRate(rows, r => r.nominal), sched: rows.map(r => [regIso(r.maturity), regM(r.nominal)])});
   });
+  /* Money on call and pooled funds carry no date: an empty sched, which the
+     model reads as held at the first year end and committed at none after. */
   REG_CALL_GROUPS.forEach(([types, label]) => {
     const rows = call.filter(r => types.indexOf(r.type) >= 0);
-    if(rows.length) iRows.push({name: label, type: label, amt: regM(rows.reduce((s, r) => s + r.balance, 0)), rate: regRate(rows, r => r.balance)});
+    if(rows.length) iRows.push({name: label, type: label, amt: regM(rows.reduce((s, r) => s + r.balance, 0)), rate: regRate(rows, r => r.balance), sched: []});
   });
-  if(funds.length) iRows.push({name: "Pooled funds", type: "Pooled funds", amt: regM(funds.reduce((s, r) => s + (r.latestValue == null ? r.carryingValue : r.latestValue), 0)), rate: regRate(funds, r => r.latestValue == null ? r.carryingValue : r.latestValue)});
+  if(funds.length) iRows.push({name: "Pooled funds", type: "Pooled funds", amt: regM(funds.reduce((s, r) => s + (r.latestValue == null ? r.carryingValue : r.latestValue), 0)), rate: regRate(funds, r => r.latestValue == null ? r.carryingValue : r.latestValue), sched: []});
   /* ---- the maturity grids, from the dates ---- */
   const md = {}, mi = {};
   const addTo = (m, k, v) => { m[k] = Math.round(((m[k] || 0) + v) * 1e6) / 1e6; };

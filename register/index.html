@@ -107,8 +107,9 @@ table.rep tfoot td{font-weight:650;border-top:2px solid var(--line);border-botto
 .tile .v{font-size:24px;font-weight:650;letter-spacing:-.01em;line-height:1.15;font-variant-numeric:tabular-nums}
 .tile .l{font-size:13px;color:var(--muted);margin-top:2px}
 .tile.hero .v{font-size:30px}
-.charts{display:grid;grid-template-columns:repeat(auto-fit,minmax(400px,1fr));gap:16px}
-#dcharts{grid-template-columns:1fr}   /* nine and ten columns: a full row each */
+.charts{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(400px,100%),1fr));gap:16px;margin-bottom:16px}
+.charts:empty{display:none}
+.charts.one{grid-template-columns:1fr}   /* the wide ones: a full row each */
 figure.chart{margin:0;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 16px 12px;position:relative}
 figure.chart figcaption{margin-bottom:8px}
 figure.chart figcaption b{font-size:15px;font-weight:650;display:block}
@@ -119,9 +120,27 @@ figure.chart text.cap{fill:var(--ink);font-weight:600}
 figure.chart text.nil{fill:var(--faint)}
 figure.chart .grid{stroke:var(--line);stroke-width:1}
 figure.chart .base{stroke:#c9d1da;stroke-width:1}
-figure.chart .bar{fill:var(--accent)}
+figure.chart .bar:not([fill]){fill:var(--accent)}   /* every segment carries its own fill attribute; this is the fallback */
 figure.chart .hit{fill:transparent}
-figure.chart .hit:hover+.bar,figure.chart .col.on .bar{fill:var(--accent-ink)}
+figure.chart .col.on .bar,figure.chart .row.on .bar,figure.chart .pt.on{filter:brightness(.82)}
+figure.chart .col.on .hit{fill:rgba(0,0,0,.035)}
+figure.chart .ye{stroke:var(--line)}
+figure.chart .asat{stroke:var(--ink);stroke-width:1.5}
+figure.chart text.tl{fill:var(--faint);font-size:11px}
+figure.chart text.tl.ink{fill:var(--ink);font-weight:600}
+figure.chart text.rl{fill:var(--ink)}
+figure.chart text.cap .muted{fill:var(--muted);font-weight:400}
+figure.chart .pt{stroke:#fff;stroke-width:2;opacity:.92}
+figure.chart .ar{opacity:.85}
+figure.chart .arl{fill:none;stroke:#fff;stroke-width:2}
+figure.chart .hl{stroke:transparent}
+figure.chart .col.on .hl{stroke:var(--ink);stroke-width:1}
+figure.chart .ref{stroke:var(--faint);stroke-dasharray:4 3}
+figure.chart text.refl,figure.chart text.axl{fill:var(--muted);font-size:11px}
+.legend{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12px;color:var(--muted);margin:0 0 8px}
+.legend i,.tip .sw{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:-1px}
+.tip .sw{margin-right:5px}
+.tip{text-align:left}
 .tip{position:absolute;pointer-events:none;background:var(--tip);color:#fff;font-size:12px;line-height:1.35;padding:6px 9px;border-radius:6px;white-space:nowrap;transform:translate(-50%,calc(-100% - 26px));opacity:0;transition:opacity .12s}
 .tip.on{opacity:1}
 .tip b{font-weight:650}
@@ -198,11 +217,15 @@ footer.fine{margin-top:32px;font-size:13px;color:var(--faint);max-width:720px}
   <h2 class="group">Investments</h2>
   <div class="tiles" id="tiles"></div>
   <div class="charts" id="charts"></div>
+  <div class="charts one" id="wcharts"></div>
   <div class="card bytype" id="bytype"></div>
   <h2 class="group">Borrowing</h2>
   <div class="tiles" id="dtiles"></div>
   <div class="charts" id="dcharts"></div>
+  <div class="charts one" id="wdcharts"></div>
   <div class="card bytype" id="bylender"></div>
+  <h2 class="group">Year ends and the months ahead</h2>
+  <div class="charts one" id="ycharts"></div>
 </section>
 <section class="rpanel" id="p-term" role="tabpanel" aria-label="Term investments">
   <div class="card">
@@ -681,6 +704,89 @@ const REG = (() => {
     }
     return out;
   }
+  /* ---- the shapes the charts draw ----------------------------------------
+     Each gives rows of {label, parts:{key: amount}, total, count}: a stacked
+     bar per label, one segment per key. */
+  const catRows = labels => labels.map(l => ({label: l, parts: {}, total: 0, count: 0}));
+  const addPart = (row, k, v) => { row.parts[k] = (row.parts[k] || 0) + v; row.total += v; row.count++; };
+  const noticeDate = (asAt, days) => new Date(asAt.getTime() + days * 86400000);
+  /* The investment ladder by counterparty type, money on call first; a
+     notice account sits at its notice. */
+  function ladderBy(reg){
+    const out = catRows(["On call"].concat(BUCKETS));
+    if(!reg.asAt) return out;
+    reg.termInvestments.filter(r => r.counts).forEach(r => addPart(out[1 + bucketOf(reg.asAt, r.maturity)], r.cpType || "Not on the list", r.nominal));
+    reg.callAccounts.filter(r => r.counts).forEach(r => addPart(out[r.noticeDays > 0 ? 1 + bucketOf(reg.asAt, noticeDate(reg.asAt, r.noticeDays)) : 0], r.cpType || "Not on the list", r.balance));
+    return out;
+  }
+  /* The Code's maturity structure by lender type, from the schedules. */
+  function debtLadderBy(reg){
+    const out = catRows(DEBT_BUCKETS);
+    if(!reg.asAt) return out;
+    reg.loans.filter(l => l.counts).forEach(l => {
+      const seen = new Set();
+      l.schedule.forEach(p => { const i = debtBucketOf(reg.asAt, p.date), row = out[i], k = l.lenderType || "Not on the list";
+        row.parts[k] = (row.parts[k] || 0) + p.amount; row.total += p.amount; if(!seen.has(i)){ seen.add(i); row.count++; } });
+    });
+    return out;
+  }
+  /* Debt outstanding at each 31 March, split by fund (two pools) or by lender
+     type, for n year ends or until the last repayment, whichever is sooner. */
+  function runoffBy(reg, n, key){
+    const out = [];
+    if(!reg.asAt) return out;
+    const loans = reg.loans.filter(l => l.counts), y = firstYearEnd(reg.asAt);
+    const last = loans.reduce((m, l) => Math.max(m, ...l.schedule.map(p => p.date.getUTCFullYear())), y);
+    const N = Math.min(n || 50, Math.max(1, last - y + 1));
+    for(let k = 0; k < N; k++){
+      const ye = new Date(Date.UTC(y + k, 2, 31)), row = {label: `31 Mar ${y + k}`, parts: {}, total: 0, count: 0};
+      loans.forEach(l => { const left = l.principal - l.schedule.filter(p => p.date <= ye).reduce((s, p) => s + p.amount, 0);
+        if(left > 0.5){ const kk = key === "fund" ? (l.fund || "Unassigned") : (l.lenderType || "Not on the list"); row.parts[kk] = (row.parts[kk] || 0) + left; row.total += left; row.count++; } });
+      out.push(row);
+    }
+    return out;
+  }
+  /* Investments maturing in and loan repayments out, month by month from the
+     month after the as-at date. */
+  function calendar(reg, months){
+    const out = [];
+    if(!reg.asAt) return out;
+    const MON = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    for(let k = 1; k <= (months || 24); k++){
+      const d = new Date(Date.UTC(reg.asAt.getUTCFullYear(), reg.asAt.getUTCMonth() + k, 1));
+      out.push({ym: d.getUTCFullYear() * 12 + d.getUTCMonth(), label: MON[d.getUTCMonth()] + " " + String(d.getUTCFullYear()).slice(2), year: d.getUTCFullYear(), month: d.getUTCMonth(), inflow: 0, outflow: 0, inDeals: [], outLoans: []});
+    }
+    const slot = d => out.find(m => m.ym === d.getUTCFullYear() * 12 + d.getUTCMonth());
+    reg.termInvestments.filter(r => r.counts).forEach(r => { const m = slot(r.maturity); if(m){ m.inflow += r.nominal; m.inDeals.push(r); } });
+    reg.loans.filter(l => l.counts).forEach(l => l.schedule.forEach(p => { const m = slot(p.date); if(m){ m.outflow += p.amount; if(m.outLoans.indexOf(l) < 0) m.outLoans.push(l); } }));
+    return out;
+  }
+  /* Exposure by counterparty: term deals at nominal and call balances. */
+  function exposure(reg){
+    const by = {};
+    const add = (r, v) => { const k = norm(r.counterparty); const o = by[k] || (by[k] = {counterparty: r.counterparty, cpType: r.cpType || "Not on the list", total: 0, deals: 0}); o.total += v; o.deals++; };
+    reg.termInvestments.filter(r => r.counts).forEach(r => add(r, r.nominal));
+    reg.callAccounts.filter(r => r.counts).forEach(r => add(r, r.balance));
+    return Object.values(by).sort((a, b) => b.total - a.total);
+  }
+  /* Every investment as a point: months to maturity (nil for money on call)
+     against its rate, sized by amount. */
+  function yieldPoints(reg){
+    if(!reg.asAt) return [];
+    const pts = reg.termInvestments.filter(r => r.counts && r.rate != null).map(r => ({name: r.counterparty, type: r.type, cpType: r.cpType || "Not on the list",
+      months: Math.max(0, (r.maturity - reg.asAt) / 86400000 / 30.436875), rate: r.rate, amount: r.nominal, maturity: r.maturity}));
+    reg.callAccounts.filter(r => r.counts && r.rate != null).forEach(r => pts.push({name: r.counterparty, type: r.type, cpType: r.cpType || "Not on the list",
+      months: r.noticeDays > 0 ? r.noticeDays / 30.436875 : 0, rate: r.rate, amount: r.balance, maturity: null}));
+    return pts;
+  }
+  /* Every loan as a point: years to final maturity against its rate, sized by
+     the principal outstanding. */
+  function costPoints(reg){
+    if(!reg.asAt) return [];
+    return reg.loans.filter(l => l.counts && l.rate != null).map(l => ({name: l.lender, type: l.type, lenderType: l.lenderType || "Not on the list", fund: l.fund,
+      years: Math.max(0, years(reg.asAt, l.maturity)), rate: l.rate, amount: l.principal, maturity: l.maturity, nextCall: l.nextCall, profile: l.profile}));
+  }
+
   const byKey = (rows, key, amount) => { const o = {}; rows.forEach(r => { const k = r[key] || "Not on the list"; o[k] = (o[k] || 0) + amount(r); }); return o; };
   function stats(reg){
     const term = reg.termInvestments.filter(r => r.counts), call = reg.callAccounts.filter(r => r.counts), funds = reg.pooledFunds.filter(r => r.counts);
@@ -708,9 +814,306 @@ const REG = (() => {
       net: invested + fundsTotal - debt, flagged
     };
   }
-  return {TEMPLATE_VERSION, VOCAB, BUCKETS, DEBT_BUCKETS, readRegister, schedule, ladder, yearEnds, debtLadder, debtYearEnds, stats, dmy, money, pct, bucketOf, debtBucketOf, addMonths, monthsBetween};
+  return {TEMPLATE_VERSION, VOCAB, BUCKETS, DEBT_BUCKETS, readRegister, schedule, ladder, yearEnds, debtLadder, debtYearEnds, stats, dmy, money, pct, bucketOf, debtBucketOf, addMonths, monthsBetween,
+    ladderBy, debtLadderBy, runoffBy, calendar, exposure, yieldPoints, costPoints};
 })();
 if(typeof module !== "undefined") module.exports = REG;
+
+/* ===========================================================================
+ * THE CHART KIT: hand-drawn SVG, one set of rules.
+ *
+ * Colour does one job per chart. Identity (which counterparty type, which
+ * lender type, which fund) is a fixed slot in one eight-hue palette, assigned
+ * in vocabulary order and never cycled, validated for colour-vision
+ * deficiency on adjacent pairs (the dataviz validator, 2 October 2026: every
+ * gate passes; three hues sit under 3:1 on the surface, which is why every
+ * chart carries labels and a table view). A scatter can only hold three
+ * hues all-pairs, so its points fold to three groups. Polarity (money in,
+ * money out) is blue against red around a neutral baseline. Text is always
+ * in text tokens, never the series colour.
+ *
+ * Marks: bars no wider than 24px with 4px rounded ends away from the
+ * baseline and a 2px surface gap between stacked segments; 2px lines; points
+ * at least 8px across with a 2px surface ring. Every chart has a hover
+ * tooltip, a legend when there is more than one series, and a table view.
+ * When columns get too narrow the labels go selective rather than collide.
+ * ======================================================================== */
+const CH = (() => {
+  const PAL = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300", "#4a3aa7", "#e34948"];
+  const SLOT = {
+    "UK bank": 0, "Overseas bank": 1, "Building society": 2, "Local authority": 3, "UK Government": 4, "Money market fund": 5, "PWLB": 6, "Other": 7, "Pooled fund": 7, "Not on the list": 7,
+    "General Fund": 0, "HRA": 1, "Unassigned": 7,
+    "Banks": 0, "Public sector": 1, "Funds and other": 2,
+    "Investments": 0, "Borrowing": 1, "Maturing in": 0, "Repaid out": 7
+  };
+  const color = k => PAL[SLOT[k] == null ? 7 : SLOT[k]];
+  const order = keys => keys.slice().sort((a, b) => (SLOT[a] == null ? 9 : SLOT[a]) - (SLOT[b] == null ? 9 : SLOT[b]) || a.localeCompare(b));
+  /* The three groups a scatter can carry. */
+  const group3 = t => /bank|building/i.test(t) ? "Banks" : /authority|government|pwlb/i.test(t) ? "Public sector" : "Funds and other";
+
+  const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[c]));
+  const money = n => n == null ? "" : "£" + Math.round(n).toLocaleString("en-GB");
+  const mill = n => n == null ? "" : "£" + (Math.abs(n) >= 1e7 ? (Math.round(n / 1e5) / 10).toLocaleString("en-GB", {maximumFractionDigits: 1}) : (Math.round(n / 1e4) / 100).toLocaleString("en-GB", {maximumFractionDigits: 2})) + "m";
+  const short = n => n == null ? "" : n === 0 ? "£0" : Math.abs(n) >= 1e6 ? mill(n) : Math.abs(n) >= 1e3 ? "£" + Math.round(n / 1e3).toLocaleString("en-GB") + "k" : "£" + Math.round(n);
+  const pct = r => r == null ? "" : (r * 100).toFixed(2) + "%";
+  const dmy = d => d ? `${String(d.getUTCDate()).padStart(2, "0")}/${String(d.getUTCMonth() + 1).padStart(2, "0")}/${d.getUTCFullYear()}` : "";
+  const niceMax = v => { if(!(v > 0)) return 1e6; const p = Math.pow(10, Math.floor(Math.log10(v))), m = v / p; const n = m <= 1 ? 1 : m <= 2 ? 2 : m <= 2.5 ? 2.5 : m <= 5 ? 5 : 10; return n * p; };
+  const divisions = top => { const m = top / Math.pow(10, Math.floor(Math.log10(top))); return m === 2.5 || m === 5 || m === 10 || m === 1 ? 5 : 4; };
+  const fits = (s, colW) => s.length * 6.5 <= colW - 16;
+  const wrap = (s, colW) => { if(fits(s, colW)) return [s]; const i = s.indexOf(" ", Math.floor(s.length / 2) - 2); return i < 0 ? [s] : [s.slice(0, i), s.slice(i + 1)]; };
+  const topPath = (x, y, w, h, r) => { r = Math.min(r, w / 2, h); return `M${x},${y + h} V${y + r} Q${x},${y} ${x + r},${y} H${x + w - r} Q${x + w},${y} ${x + w},${y + r} V${y + h} Z`; };
+  const bottomPath = (x, y, w, h, r) => { r = Math.min(r, w / 2, h); return `M${x},${y} V${y + h - r} Q${x},${y + h} ${x + r},${y + h} H${x + w - r} Q${x + w},${y + h} ${x + w},${y + h - r} V${y} Z`; };
+  const f1 = n => (+n).toFixed(1);
+
+  /* ---- the frame every chart sits in ------------------------------------- */
+  const legend = keys => keys.length > 1 ? `<div class="legend">${keys.map(k => `<span><i style="background:${color(k)}"></i>${esc(k)}</span>`).join("")}</div>` : "";
+  function frame(o, H, inner, table, keys){
+    return `<figure class="chart${o.wide ? " wide" : ""}" id="c-${o.id}"><figcaption><b>${esc(o.title)}</b><span>${esc(o.sub)}</span></figcaption>${legend(keys || [])}` +
+      `<svg viewBox="0 0 ${o.W} ${H}" width="${o.W}" height="${H}" role="img" aria-label="${esc(o.title)}">${inner}</svg>` +
+      table + `<div class="tip"></div><button class="tv" type="button" aria-pressed="false">Show as a table</button></figure>`;
+  }
+  const tableOf = (heads, rows) => `<table><thead><tr>${heads.map((h, i) => `<th${i ? ' class="n"' : ""}>${esc(h)}</th>`).join("")}</tr></thead><tbody>` +
+    rows.map(r => `<tr>${r.map((c, i) => `<td${i ? ' class="n"' : ""}>${esc(c)}</td>`).join("")}</tr>`).join("") + `</tbody></table>`;
+  const tipOf = (title, lines) => `<b>${esc(title)}</b>` + lines.map(l => `<br>${l}`).join("");
+
+  /* A y axis with hairline grid from 0 to a nice top. */
+  function yAxis(top, L, R, T, ph, W, fmt){
+    const div = divisions(top), y = v => T + ph - (v / top) * ph;
+    let svg = "";
+    for(let k = 0; k <= div; k++){ const v = top * k / div, yy = y(v).toFixed(1);
+      svg += `<line class="${k ? "grid" : "base"}" x1="${L}" x2="${W - R}" y1="${yy}" y2="${yy}"/><text x="${L - 8}" y="${yy}" text-anchor="end" dominant-baseline="middle">${(fmt || short)(v)}</text>`; }
+    return {svg, y};
+  }
+  /* Column labels, wrapped or short, every column or every other. */
+  function columns(rows, colW){
+    const labels = rows.map(d => { const w = wrap(d.label, colW); return d.short && !w.every(l => fits(l, colW)) ? [d.short] : w; });
+    const useShort = rows.some(d => d.short) && labels.some((ls, i) => ls.length === 1 && ls[0] === rows[i].short);
+    if(useShort) rows.forEach((d, i) => { if(d.short) labels[i] = [d.short]; });
+    const xw = Math.max(...labels.map(ls => Math.max(...ls.map(l => l.length)))) * 6.5;
+    return {labels, xSpan: xw <= colW - 4 ? 1 : Math.ceil((xw + 6) / colW)};
+  }
+  /* Cap labels: all when they fit, else the tallest bars first, each kept
+     clear of the ones already placed. Worked in pixels, after each label has
+     been kept inside the plot (the first column's must not cross the axis),
+     so a label pushed sideways still keeps its distance. labels[i] is the
+     text for column i or "" for none; values[i] decides who goes first.
+     Returns a Map of index -> x. */
+  function caps(values, labels, xs, L, W, R){
+    const w = i => labels[i].length * 8.5, x = i => Math.max(L + w(i) / 2, Math.min(W - R - w(i) / 2, xs[i]));
+    const on = new Map();
+    values.map((v, i) => [v, i]).filter(p => p[0] > 0 && labels[p[1]]).sort((a, b) => b[0] - a[0]).forEach(([, i]) => {
+      for(const [j, xj] of on) if(Math.abs(x(i) - xj) < (w(i) + w(j)) / 2 + 4) return;
+      on.set(i, x(i));
+    });
+    return on;
+  }
+  const capAt = (on, i) => on.has(i) ? on.get(i).toFixed(1) : null;
+  const xLabel = (cx, y, lines) => `<text class="xl" x="${cx}" y="${y}" text-anchor="middle">${lines.map((l, j) => `<tspan x="${cx}" dy="${j ? 14 : 0}">${esc(l)}</tspan>`).join("")}</text>`;
+
+  /* ---- stacked bars: rows of {label, short?, parts, total, count} ---------- */
+  function stacked(o){
+    const rows = o.rows, keys = order([...new Set(rows.flatMap(r => Object.keys(r.parts)))]);
+    const W = o.W, H = 290, L = 54, R = 12, T = 30, B = 46, pw = W - L - R, ph = H - T - B;
+    const top = niceMax(Math.max(...rows.map(r => r.total), 0)), ax = yAxis(top, L, R, T, ph, W);
+    const colW = pw / rows.length, bw = Math.min(24, colW * 0.6), {labels, xSpan} = columns(rows, colW);
+    const xs = rows.map((d, i) => L + colW * (i + 0.5)), capped = caps(rows.map(r => r.total), rows.map(r => r.total > 0 ? mill(r.total) : ""), xs, L, W, R);
+    let svg = ax.svg;
+    rows.forEach((d, i) => {
+      const cx = L + colW * (i + 0.5), x = cx - bw / 2;
+      const parts = keys.filter(k => d.parts[k] > 0);
+      const tip = tipOf(d.label, parts.map(k => `<i class="sw" style="background:${color(k)}"></i>${esc(k)}: ${money(d.parts[k])}`).concat([`<b>${money(d.total)}</b> · ${d.count} ${esc(o.unit)}${d.count === 1 ? "" : "s"}`]));
+      svg += `<g class="col" data-tip="${esc(tip)}"><rect class="hit" x="${(cx - colW / 2).toFixed(1)}" y="${T}" width="${colW.toFixed(1)}" height="${ph + B}"/>`;
+      let cum = 0;
+      parts.forEach((k, j) => {
+        const y0 = ax.y(cum), y1 = ax.y(cum + d.parts[k]), last = j === parts.length - 1;
+        const yTop = y1 + (last ? 0 : 1), yBot = y0 - (j ? 1 : 0), h = Math.max(0, yBot - yTop);
+        svg += last ? `<path class="bar" fill="${color(k)}" d="${topPath(x, yTop, bw, h, 4)}"/>` : `<rect class="bar" fill="${color(k)}" x="${x}" y="${yTop.toFixed(1)}" width="${bw}" height="${h.toFixed(1)}"/>`;
+        cum += d.parts[k];
+      });
+      if(d.total > 0){ if(capped.has(i)) svg += `<text class="cap" x="${capAt(capped, i)}" y="${(ax.y(d.total) - 7).toFixed(1)}" text-anchor="middle">${mill(d.total)}</text>`; }
+      else if(colW >= 24) svg += `<text class="nil" x="${cx}" y="${(ax.y(0) - 7).toFixed(1)}" text-anchor="middle">nil</text>`;
+      if(i % xSpan === 0) svg += xLabel(cx, T + ph + 18, labels[i]);
+      svg += `</g>`;
+    });
+    const table = tableOf([o.catName || "Period"].concat(keys).concat(["Total", o.unit[0].toUpperCase() + o.unit.slice(1) + "s"]),
+      rows.map(r => [r.label].concat(keys.map(k => r.parts[k] ? money(r.parts[k]) : "")).concat([money(r.total), r.count])));
+    return frame(o, H, svg, table, keys);
+  }
+
+  /* ---- grouped bars: rows of {label, short?, parts} over o.keys ------------ */
+  function grouped(o){
+    const rows = o.rows, keys = o.keys;
+    const W = o.W, H = 290, L = 54, R = 12, T = 30, B = 46, pw = W - L - R, ph = H - T - B;
+    const top = niceMax(Math.max(...rows.flatMap(r => keys.map(k => r.parts[k] || 0)), 0)), ax = yAxis(top, L, R, T, ph, W);
+    const colW = pw / rows.length, bw = Math.min(24, (colW * 0.7 - 2 * (keys.length - 1)) / keys.length), gw = bw * keys.length + 2 * (keys.length - 1);
+    const {labels, xSpan} = columns(rows, colW);
+    /* One label over each group — "£7m · £43.9m" — because caps centred on
+       bars 2px apart would overlap each other whenever two values are close. */
+    const combined = rows.map(d => keys.every(k => !(d.parts[k] > 0)) ? "" : keys.map(k => d.parts[k] > 0 ? mill(d.parts[k]) : "nil").join(" · "));
+    const xs = rows.map((d, i) => L + colW * (i + 0.5)), capped = caps(rows.map(d => Math.max(...keys.map(k => d.parts[k] || 0))), combined, xs, L, W, R);
+    let svg = ax.svg;
+    rows.forEach((d, i) => {
+      const cx = L + colW * (i + 0.5);
+      const tip = tipOf(d.label, keys.map(k => `<i class="sw" style="background:${color(k)}"></i>${esc(k)}: ${money(d.parts[k] || 0)}`));
+      svg += `<g class="col" data-tip="${esc(tip)}"><rect class="hit" x="${(cx - colW / 2).toFixed(1)}" y="${T}" width="${colW.toFixed(1)}" height="${ph + B}"/>`;
+      keys.forEach((k, j) => {
+        const v = d.parts[k] || 0, x = cx - gw / 2 + j * (bw + 2), h = (v / top) * ph, yy = ax.y(v);
+        if(v > 0) svg += `<path class="bar" fill="${color(k)}" d="${topPath(x, yy, bw, h, 4)}"/>`;
+      });
+      if(capped.has(i)) svg += `<text class="cap" x="${capAt(capped, i)}" y="${(ax.y(Math.max(...keys.map(k => d.parts[k] || 0))) - 7).toFixed(1)}" text-anchor="middle">${combined[i]}</text>`;
+      if(keys.every(k => !(d.parts[k] > 0)) && colW >= 24) svg += `<text class="nil" x="${cx}" y="${(ax.y(0) - 7).toFixed(1)}" text-anchor="middle">nil</text>`;
+      if(i % xSpan === 0) svg += xLabel(cx, T + ph + 18, labels[i]);
+      svg += `</g>`;
+    });
+    const table = tableOf([o.catName || "Year end"].concat(keys), rows.map(r => [r.label].concat(keys.map(k => money(r.parts[k] || 0)))));
+    return frame(o, H, svg, table, keys);
+  }
+
+  /* ---- horizontal bars: rows of {label, sub, v, key, tip} ------------------ */
+  function hbars(o){
+    const rows = o.rows, W = o.W, L = Math.min(190, Math.max(120, W * 0.28)), R = 70, T = 8, rh = 26, H = T + rows.length * rh + 28;
+    const pw = W - L - R, top = niceMax(Math.max(...rows.map(r => r.v), 0)), div = divisions(top), x = v => L + (v / top) * pw;
+    const total = rows.reduce((s, r) => s + r.v, 0), keys = order([...new Set(rows.map(r => r.key))]);
+    let svg = "";
+    const tickW = short(top).length * 6.5 + 8, every = Math.max(1, Math.ceil(tickW / (pw / div)));
+    for(let k = 0; k <= div; k++){ const v = top * k / div, xx = x(v).toFixed(1);
+      svg += `<line class="${k ? "grid" : "base"}" x1="${xx}" x2="${xx}" y1="${T}" y2="${T + rows.length * rh}"/>` + (k % every === 0 ? `<text x="${xx}" y="${T + rows.length * rh + 16}" text-anchor="middle">${short(v)}</text>` : ""); }
+    const maxChars = Math.floor((L - 14) / 6.5);
+    rows.forEach((r, i) => {
+      const y = T + i * rh, bh = 16, tip = r.tip || tipOf(r.label, [money(r.v)]);
+      const lab = r.label.length > maxChars ? r.label.slice(0, maxChars - 1) + "…" : r.label;
+      svg += `<g class="row" data-tip="${esc(tip)}"><rect class="hit" x="0" y="${y}" width="${W}" height="${rh}"/>` +
+        `<text class="rl" x="${L - 10}" y="${y + rh / 2}" text-anchor="end" dominant-baseline="middle">${esc(lab)}</text>` +
+        (r.v > 0 ? `<path class="bar" fill="${color(r.key)}" d="${(() => { const w = x(r.v) - L, rr = Math.min(4, w / 2); return `M${L},${y + 5} H${(L + w - rr).toFixed(1)} Q${(L + w).toFixed(1)},${y + 5} ${(L + w).toFixed(1)},${y + 5 + rr} V${y + 5 + bh - rr} Q${(L + w).toFixed(1)},${y + 5 + bh} ${(L + w - rr).toFixed(1)},${y + 5 + bh} H${L} Z`; })()}"/>` : "") +
+        `<text class="cap" x="${(x(r.v) + 6).toFixed(1)}" y="${y + rh / 2}" dominant-baseline="middle">${mill(r.v)}${total ? ` <tspan class="muted">${(100 * r.v / total).toFixed(0)}%</tspan>` : ""}</text></g>`;
+    });
+    const table = tableOf([o.catName || "Counterparty", "Type", "Amount", "Share"], rows.map(r => [r.label, r.sub || "", money(r.v), total ? (100 * r.v / total).toFixed(1) + "%" : ""]));
+    return frame(o, H, svg, table, keys);
+  }
+
+  /* ---- a timeline: rows of {label, start, end, v, key, tip}, dates --------- */
+  function timeline(o){
+    const rows = o.rows, W = o.W, L = Math.min(170, Math.max(110, W * 0.25)), R = 76, T = 26, rh = 22, H = T + rows.length * rh + 30;
+    const t0 = Math.min(o.asAt.getTime(), ...rows.map(r => r.start ? r.start.getTime() : Infinity)), t1 = Math.max(o.asAt.getTime() + 30 * 86400000, ...rows.map(r => r.end.getTime()));
+    const span = t1 - t0, pad = span * 0.03, x = t => L + ((t - (t0 - pad)) / (span + 2 * pad)) * (W - L - R);
+    const keys = order([...new Set(rows.map(r => r.key))]);
+    let svg = "";
+    /* year-end lines, labelled below */
+    const y0 = new Date(t0).getUTCFullYear(), y1 = new Date(t1).getUTCFullYear() + 1;
+    const yes = []; for(let y = y0; y <= y1; y++){ const d = Date.UTC(y, 2, 31); if(d >= t0 - pad && d <= t1 + pad) yes.push(d); }
+    const every = Math.max(1, Math.ceil(yes.length * 62 / (W - L - R)));
+    yes.forEach((d, i) => { const xx = x(d).toFixed(1); svg += `<line class="ye" x1="${xx}" x2="${xx}" y1="${T - 4}" y2="${T + rows.length * rh}"/>`; if(i % every === 0) svg += `<text class="tl" x="${xx}" y="${T + rows.length * rh + 16}" text-anchor="middle">31 Mar ${new Date(d).getUTCFullYear()}</text>`; });
+    const maxChars = Math.floor((L - 14) / 6.5);
+    rows.forEach((r, i) => {
+      const y = T + i * rh, xs = x(Math.max(r.start ? r.start.getTime() : t0, t0 - pad)), xe = x(r.end.getTime()), w = Math.max(3, xe - xs);
+      const lab = r.label.length > maxChars ? r.label.slice(0, maxChars - 1) + "…" : r.label;
+      svg += `<g class="row" data-tip="${esc(r.tip)}"><rect class="hit" x="0" y="${y}" width="${W}" height="${rh}"/>` +
+        `<text class="rl" x="${L - 10}" y="${y + rh / 2}" text-anchor="end" dominant-baseline="middle">${esc(lab)}</text>` +
+        `<rect class="bar" fill="${color(r.key)}" x="${xs.toFixed(1)}" y="${y + 5}" width="${w.toFixed(1)}" height="12" rx="3"/>` +
+        `<text class="cap" x="${(xe + 6).toFixed(1)}" y="${y + rh / 2}" dominant-baseline="middle">${mill(r.v)}</text></g>`;
+    });
+    const xa = x(o.asAt.getTime()).toFixed(1);
+    svg += `<line class="asat" x1="${xa}" x2="${xa}" y1="${T - 10}" y2="${T + rows.length * rh}"/><text class="tl ink" x="${xa}" y="${T - 14}" text-anchor="middle">as at ${dmy(o.asAt)}</text>`;
+    const table = tableOf([o.catName || "Counterparty", "Type", "Start", "Maturity", "Amount", "Rate"], (o.all || rows).map(r => [r.label, r.sub || "", dmy(r.start), dmy(r.end), money(r.v), r.rate == null ? "" : pct(r.rate)]));
+    return frame(o, H, svg, table, keys);
+  }
+
+  /* ---- a scatter: points {x, y, r, key, tip}; r in £ -------------------------- */
+  function scatter(o){
+    const pts = o.pts, W = o.W, H = 300, L = 54, R = 16, T = 24, B = 46, pw = W - L - R, ph = H - T - B;
+    const xmax = o.xMax || niceMax(Math.max(...pts.map(p => p.x), 0) * 1.08), ymax = niceMax(Math.max(...pts.map(p => p.y), 0) * 1.15);
+    const xdiv = divisions(xmax), ydiv = divisions(ymax);
+    const x = v => L + (v / xmax) * pw, y = v => T + ph - (v / ymax) * ph;
+    const rmax = Math.max(...pts.map(p => p.r), 1), rad = v => 4 + 14 * Math.sqrt(v / rmax);
+    const keys = order([...new Set(pts.map(p => p.key))]);
+    let svg = "";
+    for(let k = 0; k <= ydiv; k++){ const v = ymax * k / ydiv, yy = y(v).toFixed(1); svg += `<line class="${k ? "grid" : "base"}" x1="${L}" x2="${W - R}" y1="${yy}" y2="${yy}"/><text x="${L - 8}" y="${yy}" text-anchor="end" dominant-baseline="middle">${o.yFmt(v)}</text>`; }
+    for(let k = 0; k <= xdiv; k++){ const v = xmax * k / xdiv, xx = x(v).toFixed(1); svg += `<line class="grid" x1="${xx}" x2="${xx}" y1="${T}" y2="${T + ph}"/><text x="${xx}" y="${T + ph + 18}" text-anchor="middle">${o.xFmt(v)}</text>`; }
+    svg += `<text class="axl" x="${W - R}" y="${T + ph + 36}" text-anchor="end">${esc(o.xLabel)}</text>`;
+    if(o.ref != null) svg += `<line class="ref" x1="${L}" x2="${W - R}" y1="${y(o.ref).toFixed(1)}" y2="${y(o.ref).toFixed(1)}"/><text class="refl" x="${W - R}" y="${(y(o.ref) - 5).toFixed(1)}" text-anchor="end">${esc(o.refLabel)}</text>`;
+    pts.slice().sort((a, b) => b.r - a.r).forEach(p => {
+      svg += `<circle class="pt" data-tip="${esc(p.tip)}" cx="${x(p.x).toFixed(1)}" cy="${y(p.y).toFixed(1)}" r="${rad(p.r).toFixed(1)}" fill="${color(p.key)}"/>`;
+    });
+    const table = tableOf(o.cols, (o.all || pts).map(o.row));
+    return frame(o, H, svg, table, keys);
+  }
+
+  /* ---- stacked area: rows of {label, parts, total} in order ------------------- */
+  function area(o){
+    const rows = o.rows, keys = order([...new Set(rows.flatMap(r => Object.keys(r.parts)))]);
+    const W = o.W, H = 290, L = 54, R = 16, T = 24, B = 46, pw = W - L - R, ph = H - T - B;
+    const top = niceMax(Math.max(...rows.map(r => r.total), 0)), ax = yAxis(top, L, R, T, ph, W);
+    const n = rows.length, x = i => n > 1 ? L + (i / (n - 1)) * pw : L + pw / 2, colW = n > 1 ? pw / (n - 1) : pw;
+    const {labels, xSpan} = columns(rows, colW);
+    let svg = ax.svg, base = rows.map(() => 0);
+    keys.forEach(k => {
+      const tops = rows.map((r, i) => base[i] + (r.parts[k] || 0));
+      const up = rows.map((r, i) => `${x(i).toFixed(1)},${ax.y(tops[i]).toFixed(1)}`), down = rows.map((r, i) => `${x(i).toFixed(1)},${ax.y(base[i]).toFixed(1)}`).reverse();
+      svg += `<path class="ar" fill="${color(k)}" d="M${up.join(" L")} L${down.join(" L")} Z"/><polyline class="arl" points="${up.join(" ")}"/>`;
+      base = tops;
+    });
+    rows.forEach((r, i) => {
+      const cx = x(i), parts = keys.filter(k => r.parts[k] > 0);
+      const tip = tipOf(r.label, parts.map(k => `<i class="sw" style="background:${color(k)}"></i>${esc(k)}: ${money(r.parts[k])}`).concat([`<b>${money(r.total)}</b>` + (r.count ? ` · ${r.count} ${esc(o.unit || "loan")}${r.count === 1 ? "" : "s"}` : "")]));
+      svg += `<g class="col" data-tip="${esc(tip)}"><rect class="hit" x="${(cx - colW / 2).toFixed(1)}" y="${T}" width="${colW.toFixed(1)}" height="${ph + B}"/><line class="hl" x1="${cx.toFixed(1)}" x2="${cx.toFixed(1)}" y1="${ax.y(r.total).toFixed(1)}" y2="${T + ph}"/>` +
+        (i % xSpan === 0 ? xLabel(cx, T + ph + 18, labels[i]) : "") + `</g>`;
+    });
+    const table = tableOf([o.catName || "Year end"].concat(keys).concat(["Total"]), rows.map(r => [r.label].concat(keys.map(k => r.parts[k] ? money(r.parts[k]) : "")).concat([money(r.total)])));
+    return frame(o, H, svg, table, keys);
+  }
+
+  /* ---- the calendar: months {label, short, inflow, outflow, tip} ------------- */
+  function calendar(o){
+    const rows = o.months, W = o.W, H = 300, L = 54, R = 12, T = 28, B = 46, pw = W - L - R, ph = H - T - B;
+    const upMax = niceMax(Math.max(...rows.map(r => r.inflow), 0)), dnMax = niceMax(Math.max(...rows.map(r => r.outflow), 0));
+    const scale = ph / (upMax + dnMax), y0 = T + upMax * scale, y = v => y0 - v * scale;
+    const colW = pw / rows.length, bw = Math.min(24, colW * 0.6), {labels, xSpan} = columns(rows, colW);
+    const xs = rows.map((d, i) => L + colW * (i + 0.5));
+    const capUp = caps(rows.map(r => r.inflow), rows.map(r => r.inflow > 0 ? mill(r.inflow) : ""), xs, L, W, R), capDn = caps(rows.map(r => r.outflow), rows.map(r => r.outflow > 0 ? mill(r.outflow) : ""), xs, L, W, R);
+    let svg = "";
+    const ticks = (max, sign) => { const div = divisions(max); for(let k = 1; k <= div; k++){ const v = max * k / div, yy = y(sign * v).toFixed(1); svg += `<line class="grid" x1="${L}" x2="${W - R}" y1="${yy}" y2="${yy}"/><text x="${L - 8}" y="${yy}" text-anchor="end" dominant-baseline="middle">${short(v)}</text>`; } };
+    ticks(upMax, 1); ticks(dnMax, -1);
+    svg += `<line class="base" x1="${L}" x2="${W - R}" y1="${y0.toFixed(1)}" y2="${y0.toFixed(1)}"/><text x="${L - 8}" y="${y0.toFixed(1)}" text-anchor="end" dominant-baseline="middle">£0</text>`;
+    rows.forEach((d, i) => {
+      const cx = L + colW * (i + 0.5), x = cx - bw / 2;
+      svg += `<g class="col" data-tip="${esc(d.tip)}"><rect class="hit" x="${(cx - colW / 2).toFixed(1)}" y="${T}" width="${colW.toFixed(1)}" height="${ph + B}"/>`;
+      if(d.inflow > 0){ const h = d.inflow * scale; svg += `<path class="bar" fill="${color("Maturing in")}" d="${topPath(x, y0 - h, bw, h - 1, 4)}"/>`; if(capUp.has(i)) svg += `<text class="cap" x="${capAt(capUp, i)}" y="${(y0 - h - 6).toFixed(1)}" text-anchor="middle">${mill(d.inflow)}</text>`; }
+      if(d.outflow > 0){ const h = d.outflow * scale; svg += `<path class="bar" fill="${color("Repaid out")}" d="${bottomPath(x, y0 + 1, bw, h - 1, 4)}"/>`; if(capDn.has(i)) svg += `<text class="cap" x="${capAt(capDn, i)}" y="${(y0 + h + 14).toFixed(1)}" text-anchor="middle">${mill(d.outflow)}</text>`; }
+      if(i % xSpan === 0) svg += xLabel(cx, T + ph + 18, labels[i]);
+      svg += `</g>`;
+    });
+    const table = tableOf(["Month", "Maturing in", "Repaid out", "Net"], rows.map(r => [r.label, money(r.inflow), money(r.outflow), money(r.inflow - r.outflow)]));
+    return frame(o, H, svg, table, ["Maturing in", "Repaid out"]);
+  }
+
+  /* ---- hover and the table view, for every chart under root ------------------ */
+  function wire(root){
+    root.querySelectorAll("figure.chart").forEach(fig => {
+      if(fig._wired) return; fig._wired = true;
+      const tip = fig.querySelector(".tip"), svg = fig.querySelector("svg");
+      let cur = null;
+      const show = el => {
+        if(cur === el) return; cur = el;
+        fig.querySelectorAll(".on").forEach(c => c.classList.remove("on")); el.classList.add("on");
+        tip.innerHTML = el.dataset.tip;
+        const fr = fig.getBoundingClientRect(), mark = el.querySelector(".bar, .pt") || el, br = mark.getBoundingClientRect();
+        const left = Math.max(70, Math.min(fr.width - 70, br.left + br.width / 2 - fr.left));
+        tip.style.left = left + "px"; tip.style.top = (br.top - fr.top) + "px";
+        tip.classList.add("on");
+      };
+      const hide = () => { cur = null; tip.classList.remove("on"); fig.querySelectorAll(".on").forEach(c => c.classList.remove("on")); };
+      svg.addEventListener("pointermove", e => { const el = e.target.closest("[data-tip]"); if(el) show(el); else hide(); });
+      svg.addEventListener("pointerleave", hide);
+      fig.querySelector(".tv").addEventListener("click", e => {
+        const on = fig.classList.toggle("table");
+        e.currentTarget.setAttribute("aria-pressed", String(on));
+        e.currentTarget.textContent = on ? "Show as a chart" : "Show as a table";
+      });
+    });
+  }
+  return {PAL, color, order, group3, stacked, grouped, hbars, timeline, scatter, area, calendar, wire, mill, short, money, pct, dmy, esc, tipOf};
+})();
+if(typeof module !== "undefined") module.exports = CH;
 
 /* ===========================================================================
  * THE PAGE: three doors, one workbook, read where it is.
@@ -832,9 +1235,6 @@ if(typeof module !== "undefined") module.exports = REG;
 
   /* ---- rendering ------------------------------------------------------------- */
   const hm = d => d ? String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0") + ":" + String(d.getSeconds()).padStart(2, "0") : "";
-  /* Cap labels: two decimals under £10m (£9.57m), one above (£42.1m). */
-  const mill = n => n == null ? "" : "£" + (n >= 1e7 ? (Math.round(n / 1e5) / 10).toLocaleString("en-GB", {maximumFractionDigits: 1}) : (Math.round(n / 1e4) / 100).toLocaleString("en-GB", {maximumFractionDigits: 2})) + "m";
-  const short = n => n == null ? "" : n === 0 ? "£0" : Math.abs(n) >= 1e6 ? mill(n) : Math.abs(n) >= 1e3 ? "£" + Math.round(n / 1e3).toLocaleString("en-GB") + "k" : "£" + Math.round(n);
 
   function render(){
     const reg = S.reg, wb = S.wb, st = REG.stats(reg);
@@ -918,115 +1318,69 @@ if(typeof module !== "undefined") module.exports = REG;
   }
   const shareTable = (pairs, total, head) => pairs.length ?
     `<table><thead><tr><th>${esc(head)}</th><th class="n">Amount</th><th class="n">Share</th></tr></thead><tbody>` +
-    pairs.map(([k, v]) => `<tr><td><span class="sw"></span>${esc(k)}</td><td class="n">${REG.money(v)}</td><td class="n">${total ? (100 * v / total).toFixed(1) + "%" : ""}</td></tr>`).join("") +
+    pairs.map(([k, v]) => `<tr><td><span class="sw" style="background:${CH.color(k)}"></span>${esc(k)}</td><td class="n">${REG.money(v)}</td><td class="n">${total ? (100 * v / total).toFixed(1) + "%" : ""}</td></tr>`).join("") +
     `</tbody></table>` : `<p class="sub">Nothing counts yet.</p>`;
   /* The charts are drawn to the width of the column they sit in, so the text
      stays 12px on a phone instead of a 640-unit viewBox shrunk to half; a
      resize redraws them. The width is worked out from the page, not the
      figure, so it is right even while the Figures tab is hidden. */
+  const SHORT_BUCKETS = ["call", "<3m", "3–6m", "6–12m", "1–2y", "2–5y", ">5y"];
+  const SHORT_DEBT = ["<1y", "1–2y", "2–5y", "5–10y", "10–20y", "20–30y", "30–40y", "40–50y", ">50y"];
+  const tipRow = (r, lines) => CH.tipOf(r, lines);
   function drawCharts(){
     const reg = S.reg; if(!reg) return;
     const ww = document.querySelector(".wrap").clientWidth - 32;
     const col = ww >= 2 * 400 + 16 ? (ww - 16) / 2 : ww;   /* mirrors .charts' minmax(400px,1fr) */
     const W = Math.max(280, Math.floor(col - 34)), Wd = Math.max(280, Math.floor(ww - 34));
-    const asAt = reg.asAt ? REG.dmy(reg.asAt) : "the as-at date";
-    const lad = REG.ladder(reg).map((b, i) => ({...b, short: SHORT_BUCKETS[i]}));
-    const ye = REG.yearEnds(reg, 5).map(y => ({...y, short: "Mar " + y.label.slice(-2)}));
+    const asAt = reg.asAt ? REG.dmy(reg.asAt) : "the as-at date", st = REG.stats(reg);
+    const cpk = r => r.cpType || "Not on the list", lk = l => l.lenderType || "Not on the list";
+
+    /* ---- investments ---- */
+    const lad = REG.ladderBy(reg).map((b, i) => ({...b, short: SHORT_BUCKETS[i]}));
+    const yp = REG.yieldPoints(reg);
     $("charts").innerHTML =
-      chart("ladder", "Maturity ladder", "term deals at nominal, by time to maturity from " + asAt, lad, W, "deal") +
-      chart("yearends", "Still invested at each year end", "term deals at nominal maturing after 31 March; call balances not included", ye, W, "deal");
-    const dl = REG.debtLadder(reg).map((b, i) => ({...b, short: SHORT_DEBT[i]}));
-    const dye = REG.debtYearEnds(reg, 10).map(y => ({...y, short: "Mar " + y.label.slice(-2)}));
+      CH.stacked({id: "ladder", title: "Maturity ladder", sub: "by counterparty type: money on call first, a notice account at its notice, term deals at nominal by time to maturity from " + asAt, W, rows: lad, unit: "deal", catName: "Period"}) +
+      CH.scatter({id: "yield", title: "What each investment earns, and for how long", sub: "rate against months to maturity, sized by amount; the dashed line is the weighted average", W,
+        pts: yp.map(p => ({x: p.months, y: p.rate * 100, r: p.amount, key: CH.group3(p.cpType), tip: tipRow(p.name, [esc(p.type) + " · " + esc(p.cpType), REG.money(p.amount) + " at " + REG.pct(p.rate), p.maturity ? "matures " + REG.dmy(p.maturity) : (p.months > 0 ? Math.round(p.months * 30.4) + " days' notice" : "on call")])})),
+        xFmt: v => v === 0 ? "0" : Math.round(v) + "m", yFmt: v => v.toFixed(1) + "%", xLabel: "months to maturity", ref: st.invRate == null ? null : st.invRate * 100, refLabel: "average " + REG.pct(st.invRate),
+        all: yp, cols: ["Counterparty", "Type", "Months", "Rate", "Amount"], row: p => [p.name, p.type, p.months.toFixed(1), REG.pct(p.rate), REG.money(p.amount)]});
+    const term = reg.termInvestments.filter(r => r.counts).sort((a, b) => a.maturity - b.maturity);
+    const dealRow = r => ({label: r.counterparty, sub: r.type, start: r.start, end: r.maturity, v: r.nominal, key: cpk(r), rate: r.rate,
+      tip: tipRow(r.counterparty, [esc(r.type) + " · " + esc(cpk(r)), REG.money(r.nominal) + " at " + REG.pct(r.rate), REG.dmy(r.start) + " to " + REG.dmy(r.maturity)])});
+    const shown = term.slice(0, 30);
+    $("wcharts").innerHTML =
+      (term.length ? CH.timeline({id: "deals", title: "When each deal comes back", sub: "every term deal from its start to its maturity, soonest first" + (term.length > shown.length ? `; the first ${shown.length} of ${term.length}, all in the table` : "") + "; the year ends are marked", W: Wd, wide: true, asAt: reg.asAt || new Date(), rows: shown.map(dealRow), all: term.map(dealRow)}) : "") +
+      CH.hbars({id: "exposure", title: "Exposure by counterparty", sub: "term deals at nominal and call balances together, largest first", W: Wd, wide: true,
+        rows: REG.exposure(reg).map(e => ({label: e.counterparty, sub: e.cpType, v: e.total, key: e.cpType, tip: tipRow(e.counterparty, [esc(e.cpType), REG.money(e.total) + " in " + e.deals + " deal" + (e.deals === 1 ? "" : "s")])}))});
+
+    /* ---- borrowing ---- */
+    const dl = REG.debtLadderBy(reg).map((b, i) => ({...b, short: SHORT_DEBT[i]}));
+    const cp = REG.costPoints(reg);
     $("dcharts").innerHTML =
-      chart("debtladder", "Maturity structure of borrowing", "principal repaid in each period from " + asAt + "; EIP and annuity loans by instalment, LOBOs at their next call", dl, Wd, "loan") +
-      chart("debtyearends", "Debt outstanding at each year end", "principal still outstanding at 31 March, after the instalments due by then", dye, Wd, "loan");
-    wireCharts();
+      CH.stacked({id: "debtladder", title: "Maturity structure of borrowing", sub: "principal repaid in each period from " + asAt + ", by lender type; EIP and annuity loans by instalment, LOBOs at their next call", W, rows: dl, unit: "loan", catName: "Period"}) +
+      CH.scatter({id: "cost", title: "What each loan costs, and for how long", sub: "rate against years to final maturity, sized by principal outstanding; the dashed line is the weighted average", W,
+        pts: cp.map(p => ({x: p.years, y: p.rate * 100, r: p.amount, key: CH.group3(p.lenderType), tip: tipRow(p.name, [esc(p.type) + " · " + esc(p.profile || "Maturity") + (p.fund ? " · " + esc(p.fund) : ""), REG.money(p.amount) + " at " + REG.pct(p.rate), "matures " + REG.dmy(p.maturity) + (p.nextCall ? ", next call " + REG.dmy(p.nextCall) : "")])})),
+        xFmt: v => Math.round(v) + "y", yFmt: v => v.toFixed(1) + "%", xLabel: "years to final maturity", ref: st.debtRate == null ? null : st.debtRate * 100, refLabel: "average " + REG.pct(st.debtRate),
+        all: cp, cols: ["Lender", "Type", "Years", "Rate", "Outstanding"], row: p => [p.name, p.type, p.years.toFixed(1), REG.pct(p.rate), REG.money(p.amount)]});
+    const ro = REG.runoffBy(reg, 50, reg.twoPools ? "fund" : "lenderType").map(r => ({...r, short: "Mar " + r.label.slice(-2)}));
+    $("wdcharts").innerHTML = ro.length ? CH.area({id: "runoff", title: "How the debt runs off", sub: "principal outstanding at each 31 March, " + (reg.twoPools ? "by fund" : "by lender type") + ", to the last repayment; LOBOs at their next call", W: Wd, wide: true, rows: ro, unit: "loan"}) : "";
+
+    /* ---- year ends and the months ahead ---- */
+    const ye = REG.yearEnds(reg, 5), dye = REG.debtYearEnds(reg, 5);
+    const pos = ye.map((y, i) => ({label: y.label, short: "Mar " + y.label.slice(-2), parts: {"Investments": y.total, "Borrowing": dye[i] ? dye[i].total : 0}}));
+    const cal = REG.calendar(reg, 24).map(m => ({...m, short: m.label, tip: tipRow(m.label, m.inDeals.map(r => `<i class="sw" style="background:${CH.color("Maturing in")}"></i>${esc(r.counterparty)} ${REG.money(r.nominal)}`)
+      .concat(m.outLoans.map(l => `<i class="sw" style="background:${CH.color("Repaid out")}"></i>${esc(l.lender)} ${REG.money(l.schedule.filter(p => p.date.getUTCFullYear() === m.year && p.date.getUTCMonth() === m.month).reduce((s, p) => s + p.amount, 0))}`))
+      .concat(m.inflow || m.outflow ? [`net ${REG.money(m.inflow - m.outflow)}`] : ["nothing due"]))}));
+    $("ycharts").innerHTML =
+      CH.grouped({id: "positions", title: "Investments and borrowing at each year end", sub: "term deals still invested at nominal (money on call not counted) against debt outstanding, at 31 March", W: Wd, wide: true, rows: pos, keys: ["Investments", "Borrowing"]}) +
+      CH.calendar({id: "calendar", title: "The next two years, month by month", sub: "investments maturing in against loan repayments out", W: Wd, wide: true, months: cal});
+    CH.wire(document);
     S.drawnAt = ww;
   }
   let rsz = 0;
   window.addEventListener("resize", () => { clearTimeout(rsz); rsz = setTimeout(() => { if(S.reg && document.querySelector(".wrap").clientWidth - 32 !== S.drawnAt) drawCharts(); }, 150); });
   const tile = (v, l, hero) => `<div class="tile${hero ? " hero" : ""}"><div class="v">${esc(v)}</div><div class="l">${esc(l)}</div></div>`;
 
-  /* ---- a bar chart, by hand ------------------------------------------------------
-     One series, one hue. Bars at most 24px wide with 4px rounded tops anchored
-     to the baseline; cap labels in ink; hairline grid; the tooltip and the
-     table view are wired in wireCharts(). */
-  const niceMax = v => { if(!(v > 0)) return 1e6; const p = Math.pow(10, Math.floor(Math.log10(v))), m = v / p; const n = m <= 1 ? 1 : m <= 2 ? 2 : m <= 2.5 ? 2.5 : m <= 5 ? 5 : 10; return n * p; };
-  const divisions = top => { const m = top / Math.pow(10, Math.floor(Math.log10(top))); return m === 2.5 || m === 5 || m === 10 || m === 1 ? 5 : 4; };
-  const barPath = (x, y, w, h, r) => { r = Math.min(r, w / 2, h); return `M${x},${y + h} V${y + r} Q${x},${y} ${x + r},${y} H${x + w - r} Q${x + w},${y} ${x + w},${y + r} V${y + h} Z`; };
-  /* A label wraps to two lines when it would not fit its column (about 6.5px
-     a character at 12px), split at the space nearest its middle. When even
-     the wrapped lines would not fit — six buckets on a phone — every label
-     on that chart takes its short form instead, and the tooltip and the
-     table keep the long one. */
-  const SHORT_BUCKETS = ["<3m", "3–6m", "6–12m", "1–2y", "2–5y", ">5y"];
-  const SHORT_DEBT = ["<1y", "1–2y", "2–5y", "5–10y", "10–20y", "20–30y", "30–40y", "40–50y", ">50y"];
-  const fits = (s, colW) => s.length * 6.5 <= colW - 16;   /* 8px clear each side, so neighbours never read as one */
-  const wrap = (s, colW) => { if(fits(s, colW)) return [s]; const i = s.indexOf(" ", Math.floor(s.length / 2) - 2); return i < 0 ? [s] : [s.slice(0, i), s.slice(i + 1)]; };
-  function chart(id, title, sub, data, W, unit){
-    W = W || 640; unit = unit || "deal";
-    const H = 270, L = 54, R = 12, T = 30, B = 46, pw = W - L - R, ph = H - T - B;
-    const top = niceMax(Math.max(...data.map(d => d.total), 0)), div = divisions(top);
-    const y = v => T + ph - (v / top) * ph;
-    const colW = pw / data.length, bw = Math.min(24, colW * 0.6);
-    const useShort = data.some(d => d.short && !wrap(d.label, colW).every(l => fits(l, colW)));
-    /* Selective labels when the columns are too narrow for every one: cap
-       labels go to the tallest bars first, each keeping a clear column or
-       two around it; x labels fall to every second (or third) column. The
-       tooltip and the table view still carry every value. */
-    const labels = data.map(d => useShort ? [d.short] : wrap(d.label, colW));
-    const xw = Math.max(...labels.map(ls => Math.max(...ls.map(l => l.length)))) * 6.5;
-    const xSpan = xw <= colW - 4 ? 1 : Math.ceil((xw + 6) / colW);
-    const capW = Math.max(0, ...data.filter(d => d.total > 0).map(d => mill(d.total).length)) * 8.5;
-    const capSpan = capW <= colW - 2 ? 1 : Math.ceil((capW + 4) / colW);
-    const capped = new Set();
-    data.map((d, i) => [d.total, i]).filter(x => x[0] > 0).sort((a, b) => b[0] - a[0]).forEach(([, i]) => {
-      for(let k = 1; k < capSpan; k++) if(capped.has(i - k) || capped.has(i + k)) return;
-      capped.add(i);
-    });
-    let svg = `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="${esc(title)}">`;
-    for(let k = 0; k <= div; k++){
-      const v = top * k / div, yy = y(v).toFixed(1);
-      svg += `<line class="${k ? "grid" : "base"}" x1="${L}" x2="${W - R}" y1="${yy}" y2="${yy}"/><text x="${L - 8}" y="${yy}" text-anchor="end" dominant-baseline="middle">${short(v)}</text>`;
-    }
-    data.forEach((d, i) => {
-      const cx = L + colW * (i + 0.5), x = cx - bw / 2, h = (d.total / top) * ph, yy = y(d.total);
-      const lines = labels[i];
-      svg += `<g class="col" data-i="${i}">`;
-      svg += `<rect class="hit" x="${(cx - colW / 2).toFixed(1)}" y="${T}" width="${colW.toFixed(1)}" height="${ph + B}"/>`;
-      if(d.total > 0) svg += `<path class="bar" d="${barPath(x, yy, bw, h, 4)}"/>`;
-      if(d.total > 0){ if(capped.has(i)) svg += `<text class="cap" x="${cx}" y="${(yy - 7).toFixed(1)}" text-anchor="middle">${mill(d.total)}</text>`; }
-      else if(colW >= 24) svg += `<text class="nil" x="${cx}" y="${(y(0) - 7).toFixed(1)}" text-anchor="middle">nil</text>`;
-      if(i % xSpan === 0) svg += `<text class="xl" x="${cx}" y="${T + ph + 18}" text-anchor="middle">${lines.map((l, j) => `<tspan x="${cx}" dy="${j ? 14 : 0}">${esc(l)}</tspan>`).join("")}</text>`;
-      svg += `</g>`;
-    });
-    svg += `</svg>`;
-    const table = `<table><thead><tr><th>${/ladder/.test(id) ? "Period" : "Year end"}</th><th class="n">Amount</th><th class="n">${esc(unit[0].toUpperCase() + unit.slice(1) + "s")}</th></tr></thead><tbody>` +
-      data.map(d => `<tr><td>${esc(d.label)}</td><td class="n">${REG.money(d.total)}</td><td class="n">${d.count}</td></tr>`).join("") + `</tbody></table>`;
-    return `<figure class="chart" id="c-${id}" data-unit="${esc(unit)}" data-labels='${esc(JSON.stringify(data.map(d => [d.label, Math.round(d.total), d.count])))}'><figcaption><b>${esc(title)}</b><span>${esc(sub)}</span></figcaption>${svg}${table}<div class="tip"></div><button class="tv" type="button" aria-pressed="false">Show as a table</button></figure>`;
-  }
-  function wireCharts(){
-    document.querySelectorAll("figure.chart").forEach(fig => {
-      const data = JSON.parse(fig.dataset.labels), tip = fig.querySelector(".tip"), svg = fig.querySelector("svg");
-      const show = (col) => {
-        const i = +col.dataset.i, d = data[i];
-        fig.querySelectorAll(".col.on").forEach(c => c.classList.remove("on")); col.classList.add("on");
-        tip.innerHTML = `<b>${esc(d[0])}</b><br>${REG.money(d[1])} · ${d[2]} ${esc(fig.dataset.unit)}${d[2] === 1 ? "" : "s"}`;
-        const fr = fig.getBoundingClientRect(), br = (col.querySelector(".bar") || col.querySelector(".hit")).getBoundingClientRect();
-        tip.style.left = (br.left + br.width / 2 - fr.left) + "px";
-        tip.style.top = (br.top - fr.top) + "px";
-        tip.classList.add("on");
-      };
-      const hide = () => { tip.classList.remove("on"); fig.querySelectorAll(".col.on").forEach(c => c.classList.remove("on")); };
-      svg.addEventListener("pointermove", e => { const col = e.target.closest(".col"); if(col) show(col); else hide(); });
-      svg.addEventListener("pointerleave", hide);
-      fig.querySelector(".tv").addEventListener("click", e => {
-        const on = fig.classList.toggle("table");
-        e.currentTarget.setAttribute("aria-pressed", String(on));
-        e.currentTarget.textContent = on ? "Show as a chart" : "Show as a table";
-      });
-    });
-  }
 })();
 
 </script>
