@@ -936,7 +936,6 @@ table.dtab td.wrap{white-space:normal;line-height:1.5}
    Toggled by paintFileStatus() (ui.js) off FILE_DIRTY. */
 .ribbon-btn#libfile.dirty::after{content:"";position:absolute;top:-5px;right:-5px;
   width:12px;height:12px;border-radius:99px;background:var(--orange)}
-.ribbon-btn#draftbtn.on{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
 .ribbon-btn[hidden]{display:none}
 /* THE BUTTONS THAT HAD NO STYLE OF THEIR OWN. The start screen's footer
    (Back, Continue, Start the report, Back to my report), Set up's Change /
@@ -1901,18 +1900,19 @@ td.nask{background:repeating-linear-gradient(45deg,var(--hair),var(--hair) 4px,
       </div>
       <div class="ribbon-acts">
         <button type="button" class="ribbon-btn" id="startbtn"
-          title="Home — your reports, or a different file">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-            stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V20h14V9.5"/><path d="M9.5 20v-6h5v6"/>
-          </svg><span>Home</span>
-        </button>
-        <button type="button" class="ribbon-btn" id="draftbtn" title="My report — the draft as it stands, and back">
+          title="My reports — the reports in this file">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path d="M6 3h8l5 5v13a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"/>
             <path d="M14 3v5h5"/><path d="M9 13h6"/><path d="M9 17h6"/><path d="M9 9h2"/>
-          </svg><span>My report</span>
+          </svg><span>My reports</span>
+        </button>
+        <button type="button" class="ribbon-btn" id="startscreen"
+          title="Start screen — open a file, start a new one, or the walkthrough">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V20h14V9.5"/><path d="M9.5 20v-6h5v6"/>
+          </svg><span>Start screen</span>
         </button>
         <button type="button" class="ribbon-btn" id="helpbtn"
           title="What goes in every box on this step">
@@ -13258,13 +13258,12 @@ const STEPS = [
      would have returned that one, so the new step's colour, live-render and
      status line would all have been read off the projection grid. */
   {n:7, k:"period",    t:"The period's figures", s:"limits, budget and outturn"},
-  /* THE DRAFT IS NOT A STEP. It stays in this list because the number is
-     load-bearing — render() gates on DRAFT_STEP, showStep clamps to it, the
-     panel markup carries it — but rail:false keeps it off the rail.
-     Everything else on the rail is input; this is the
-     output of all of it, reached from the ribbon (#draftbtn) from anywhere,
-     and from "See my report" at the end of the walk. */
-  {n:8, k:"draft",     t:"The draft",    s:"read and export", rail:false}
+  /* THE DRAFT IS THE LAST STEP (Phil, 2 October 2026). It was kept off the
+     rail and reached from a ribbon button, "My report", which read too
+     much like "My reports" beside it. On the rail the paper is where the
+     steps lead: the last input step's "Next step" goes to it, like every
+     other, and the ribbon is down to the four buttons that are not steps. */
+  {n:8, k:"draft",     t:"The draft",    s:"read and export"}
   /* NO STEP 9. There was a check step, and then a check without a step; both
      are gone. The number is retired, not reused, for the reason at the top of
      this list. */
@@ -13320,10 +13319,6 @@ function renderRail(){
       <span class="rt"><b>${esc(tt.t)}</b><i>${esc(tt.s)}</i></span>
     </button>`;
   }).join("");
-  /* The ribbon's Draft button is lit while the draft is what is on screen,
-     so the rail (no chip current) and the ribbon (one button current) agree. */
-  const db = $("draftbtn");
-  if(db) db.classList.toggle("on", STEP === DRAFT_STEP);
 }
 
 function showStep(n){
@@ -13448,7 +13443,7 @@ function renderNav(){
     on.dataset.go = String(next.n);
     /* "Next step – Holdings", not "Holdings": a bare title in the header read
        as the name of the step you were on, not the one the button goes to. */
-    on.innerHTML = `Next step &ndash; ${next.k === "draft" ? "see my report" : esc(stepTitle(next).t)} &rarr;`;
+    on.innerHTML = `Next step &ndash; ${esc(stepTitle(next).t)} &rarr;`;
     head.appendChild(on);
   }
   // The draft step carries the document itself, so the nav goes above it
@@ -13489,8 +13484,8 @@ function wireSteps(){
  * out, and without the skin all three are no-ops.
  * ======================================================================== */
 const TOUR_STOPS = [
-  {step:1, sel:"#rail", title:"Six steps, in any order",
-   text:"The report is built in six steps, then the draft. Click any of them at any time: nothing is locked, and nothing has to be finished before you look at the next. Next here takes you through them in order."},
+  {step:1, sel:"#rail", title:"Seven steps, in any order",
+   text:"The report is built in seven steps, and the last of them is the paper itself, assembled from the other six. Click any of them at any time: nothing is locked, and nothing has to be finished before you look at the next. Next here takes you through them in order."},
   {step:1, sel:"#setupsum", title:"What you are working on",
    text:"The authority, the report and the year. Change opens your file's list of reports and lets you start another."},
   {step:1, sel:".logocell", title:"The council's crest",
@@ -13530,8 +13525,10 @@ const TOUR_STOPS = [
    text:"Opens what goes in every box on the step you are on, in one list over the page. The ? beside each box does the same for one."},
   {sel:"[data-example]", title:"The example's figures", when: () => !S.demo,
    text:"On your own report this greys the worked example's figures into the empty boxes, so you can see what kind of number goes where. Nothing is copied."},
-  {sel:"#startbtn", title:"Home",
-   text:"Your file's reports, and the doors to open or start another. That is the walkthrough; Home brings you back to it any time."}
+  {sel:"#startbtn", title:"My reports",
+   text:"The reports in your file: open another, start the one the year asks for next, or delete one."},
+  {sel:"#startscreen", title:"Start screen",
+   text:"Where you came in: open a different file, start a new one, or take this walkthrough again. That is the walkthrough."}
 ];
 
 let TOUR = null;   // {i, stops, target} while a walkthrough is running
@@ -17799,10 +17796,10 @@ function setupSummary(){
     if(i >= 0){ if(RATE_ON.length > 1) RATE_ON.splice(i, 1); } else RATE_ON.push(k);
     renderSections(); render();
   });
-  $("draftbtn").addEventListener("click", () => {
-    if(STEP === DRAFT_STEP) showStep(LAST_WORK_STEP || 1);
-    else showStep(DRAFT_STEP);
-  });
+  /* THE START SCREEN, ONE CLICK FROM ANYWHERE. "My reports" opens the
+     file's list; the doors — open a file, start a new one, the walkthrough
+     — were a Back away from that, where nobody found them. */
+  $("startscreen").addEventListener("click", () => startOpen("doors"));
   /* Delegated: the summary is rebuilt whenever the report changes, so a
      handler bound to its button would be bound to an element already gone. */
   document.addEventListener("click", e => {
