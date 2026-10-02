@@ -3,13 +3,12 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<!-- UNLISTED. This page is published at /register/ on the GitHub Pages site
-     and linked from nowhere: not the landing page, not the tool, not
-     pwlbtoday.org. It is a prototype for one reader (Phil, 2 October 2026:
-     "I don't want to confuse my colleagues with the existing report thing").
-     noindex keeps a search engine from listing it if a link ever leaks. -->
-<meta name="robots" content="noindex,nofollow">
-<title>Deal register — PWLBreports prototype</title>
+<!-- The deal register page: published at /register/ and linked from the
+     report tool's What you hold step and the landing page since 2 October
+     2026. The same file, with a snapshot and a policy embedded where the
+     dashboard marker sits, is what the tool exports as a dashboard. -->
+<title>Deal register — PWLBreports</title>
+<!--dashboard-->
 <meta name="description" content="Point this page at your copy of the register workbook and it reads your term investments in the browser: the rows as read, a maturity ladder, and what is still out at each year end. Nothing is uploaded and nothing is written back.">
 <style>
 /* ===========================================================================
@@ -47,6 +46,24 @@ p.lede{margin:0 0 20px;max-width:720px;color:var(--muted)}
 .btn:hover{background:var(--accent-ink);border-color:var(--accent-ink)}
 .btn.sec{color:var(--accent-ink);background:var(--card);border-color:var(--line)}
 .btn.sec:hover{background:#f0f5fc}
+.btn.small{font-size:13px;padding:5px 11px}
+html.dash .doors,html.dash #regfile,html.dash .notice{display:none !important}
+html.dash .bar .acts{display:none}
+dialog.help{border:0;border-radius:14px;padding:0;width:min(720px,calc(100% - 32px));max-height:85vh;box-shadow:0 20px 60px rgba(0,0,0,.25);color:var(--ink);background:var(--card)}
+dialog.help::backdrop{background:rgba(29,39,51,.45);backdrop-filter:blur(2px)}
+.helpin{padding:22px 26px 18px;overflow:auto;max-height:85vh}
+.helpin h2{margin:0 0 10px;font-size:20px}
+.helpin h3{margin:16px 0 4px;font-size:15px}
+.helpin p{margin:0 0 8px;font-size:14.5px;line-height:1.55;color:var(--ink)}
+.helpin .helpclose{margin-top:16px;text-align:right}
+#policybody h4{margin:18px 0 6px;font-size:15px}
+#policybody table{border-collapse:collapse;width:100%;font-size:13.5px}
+#policybody th,#policybody td{padding:6px 9px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+#policybody th.num,#policybody td.num{text-align:right}
+#policybody td.ok{color:var(--ok);font-weight:600}
+#policybody td.bad{color:var(--bad);font-weight:700}
+#policybody td.na{color:var(--faint)}
+#policybody p{font-size:14px;color:var(--muted)}
 .btn:disabled{opacity:.5;cursor:default}
 .btn:focus-visible,.rtab:focus-visible,.tv:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .hint{font-size:13px;color:var(--faint)}
@@ -172,7 +189,8 @@ footer.fine{margin-top:32px;font-size:13px;color:var(--faint);max-width:720px}
 <div class="wrap">
 <header class="top">
   <h1>Deal register</h1>
-  <span class="tag">prototype · reads your workbook in the browser</span>
+  <span class="tag" id="tag">reads your workbook in the browser</span>
+  <button class="btn sec small" id="helpbtn" type="button">How it works</button>
 </header>
 <p class="lede">Keep your deals in a spreadsheet you own. Point this page at it and it reads your investments and borrowing as they stand, draws the maturity ladders and what is still out at each year end, and shows you every row as it read it. Nothing is uploaded, nothing is written back, and the page makes no request of its own.</p>
 
@@ -210,6 +228,7 @@ footer.fine{margin-top:32px;font-size:13px;color:var(--faint);max-width:720px}
 
 <nav class="rtabs" role="tablist" aria-label="What was read">
   <button class="rtab" role="tab" data-tab="figures" aria-selected="true" type="button">Figures</button>
+  <button class="rtab" role="tab" data-tab="policy" aria-selected="false" type="button" id="policytab" hidden>Policy and activity</button>
   <button class="rtab" role="tab" data-tab="term" aria-selected="false" type="button">Term investments</button>
   <button class="rtab" role="tab" data-tab="call" aria-selected="false" type="button">Call accounts &amp; MMFs</button>
   <button class="rtab" role="tab" data-tab="loans" aria-selected="false" type="button">Loans</button>
@@ -232,7 +251,14 @@ footer.fine{margin-top:32px;font-size:13px;color:var(--faint);max-width:720px}
   <div class="charts one" id="ycharts"></div>
   <h2 class="group">Activity <span class="pline"><label for="period">in</label> <select id="period"></select></span></h2>
   <div class="tiles" id="atiles"></div>
+  <div class="tiles" id="itiles"></div>
   <div class="charts" id="acharts"></div>
+  <h2 class="group" id="timehead" hidden>Over time</h2>
+  <p class="count" id="timenote" hidden></p>
+  <div class="charts" id="tcharts"></div>
+</section>
+<section class="rpanel" id="p-policy" role="tabpanel" aria-label="Policy and activity">
+  <div class="card doc" id="policybody"></div>
 </section>
 <section class="rpanel" id="p-term" role="tabpanel" aria-label="Term investments">
   <div class="card">
@@ -274,6 +300,24 @@ footer.fine{margin-top:32px;font-size:13px;color:var(--faint);max-width:720px}
   </div>
 </section>
 
+<dialog id="help" class="help" aria-labelledby="helptitle">
+  <div class="helpin">
+    <h2 id="helptitle">How the deal register works</h2>
+    <h3>Three doors</h3>
+    <p><b>Download the template</b> gives you the workbook: a Settings sheet, one sheet each for term investments, call accounts and money market funds, loans and pooled funds, and a Lists sheet holding the drop-downs. <b>Point at your copy</b> reads the workbook you have filled in, where it sits; nothing is uploaded and the file is never written. <b>Try it with the examples</b> reads the template as it comes.</p>
+    <h3>The workbook is the contract</h3>
+    <p>Each holding sheet is an Excel table with fixed headers; add rows beneath the last and the page finds them. The drop-downs are the vocabulary the page understands: a word off the list is flagged, free text is left alone. The as-at date on Settings is the date every balance is true at. HRA on Settings decides whether each loan says which fund it belongs to.</p>
+    <h3>Keep your history</h3>
+    <p>Do not delete a deal when it matures or a loan when it is repaid. A row dated on or before the as-at date is history: it is greyed in the replica, left out of the position, and read for the activity figures — what was placed and matured, raised and repaid, in the period you choose. For a loan repaid before the as-at date, Principal is the amount repaid. Money on call and in money market funds is a balance at the as-at date and never activity.</p>
+    <h3>What the figures mean</h3>
+    <p>A term deal counts at its nominal: the face value where one is given, the principal otherwise. A loan's principal is what is outstanding at the as-at date; EIP and annuity loans are run forward by their profile and backward for the instalments already paid. A LOBO is taken at its next call date. Maturity bands are counted in whole calendar months from the as-at date. Interest figures are indicative, on deal terms, actual days over 365: a figure to set against the ledger, never the ledger.</p>
+    <h3>In the report tool</h3>
+    <p>On the tool's What you hold step, Read from my register fills the debt and investment rows and both maturity grids from the same workbook, and step 3's projections run off from the dates loan by loan. The counterparty step sets each limit against what the register holds. The draft can be summary, the tables as now, or detailed, with every chart from here. A monitoring report's activity section carries the period's placed, matured, raised and repaid. Export the dashboard writes this page with your figures and your policy in it, as one file to send on.</p>
+    <h3>Privacy</h3>
+    <p>The page keeps no record of your deals, stores nothing between visits, and makes no request of its own. The report tool keeps a snapshot of the rows it read inside your own report file, and nowhere else.</p>
+    <p class="helpclose"><button class="btn" type="button" id="helpclose">Close</button></p>
+  </div>
+</dialog>
 <footer class="fine">Read-only, by design: this page keeps no record of your deals, stores nothing between visits, and is not a treasury management system. Your workbook is the record; the page is a reader for it. Browsers from 2023 on can inflate the workbook natively; an older one will say so.</footer>
 </div>
 <script>
@@ -914,6 +958,52 @@ const REG = (() => {
     return out;
   }
 
+  /* ---- indicative interest, on deal terms ----------------------------------
+     Simple interest, actual days over 365, on the principal of each term deal
+     and the balance of each loan, between two dates. A deal's own terms and
+     nothing else: no accruals, no effective-interest adjustment — a figure to
+     set against the ledger, never the ledger. A loan's balance between two
+     dates follows its schedule, backward from the as-at date and forward, so
+     an instalment paid mid-period counts for the days it was outstanding. */
+  const DAY = 86400000;
+  const overlapDays = (a0, a1, b0, b1) => Math.max(0, (Math.min(a1, b1) - Math.max(a0, b0)) / DAY);
+  /* [{from, to, balance}] for a loan across [from, to], by its schedule. */
+  function loanBalances(loan, asAt, from, to){
+    const past = pastSchedule(loan, asAt), future = loan.schedule || [];
+    const end = loanEnd(loan), start = loan.start || from;
+    const lo = new Date(Math.max(from, start)), hi = new Date(Math.min(to, end));
+    if(!(hi > lo)) return [];
+    const points = [...past, ...future].map(p => p.date).filter(d => d > lo && d < hi).sort((a, b) => a - b);
+    const edges = [lo, ...points, hi], out = [];
+    for(let i = 0; i < edges.length - 1; i++){
+      const mid = new Date((edges[i].getTime() + edges[i + 1].getTime()) / 2);
+      const bal = loan.principal + past.filter(p => p.date > mid).reduce((t, p) => t + p.amount, 0) - future.filter(p => p.date <= mid).reduce((t, p) => t + p.amount, 0);
+      out.push({from: edges[i], to: edges[i + 1], balance: Math.max(0, bal)});
+    }
+    return out;
+  }
+  function interestIn(reg, from, to){
+    const earnedRows = reg.termInvestments.filter(r => r.principal > 0 && r.start && r.maturity && r.rate != null)
+      .map(r => ({row: r, days: overlapDays(r.start, r.maturity, from, to)})).filter(x => x.days > 0)
+      .map(x => ({name: x.row.counterparty, type: x.row.type, days: x.days, amount: x.row.principal * x.row.rate * x.days / 365}));
+    const payableRows = reg.loans.filter(l => l.principal > 0 && l.maturity && l.rate != null)
+      .map(l => { const segs = loanBalances(l, reg.asAt, from, to); const days = segs.reduce((t, g) => t + (g.to - g.from) / DAY, 0);
+        return {name: l.lender, type: l.type, days, amount: segs.reduce((t, g) => t + g.balance * l.rate * (g.to - g.from) / DAY / 365, 0), balDays: segs.reduce((t, g) => t + g.balance * (g.to - g.from) / DAY, 0)}; })
+      .filter(x => x.days > 0);
+    const span = Math.max(1, (to - from) / DAY);
+    return {from, to,
+      earned: {total: earnedRows.reduce((t, x) => t + x.amount, 0), count: earnedRows.length, rows: earnedRows},
+      payable: {total: payableRows.reduce((t, x) => t + x.amount, 0), count: payableRows.length, rows: payableRows},
+      avgDebt: payableRows.reduce((t, x) => t + x.balDays, 0) / span};
+  }
+  /* To the year end from the as-at date, on what is already placed and
+     already borrowed: committed, not forecast. */
+  function interestToYearEnd(reg){
+    if(!reg.asAt) return null;
+    const ye = new Date(Date.UTC(firstYearEnd(reg.asAt), 2, 31));
+    return interestIn(reg, reg.asAt, ye);
+  }
+
   const byKey = (rows, key, amount) => { const o = {}; rows.forEach(r => { const k = r[key] || "Not on the list"; o[k] = (o[k] || 0) + amount(r); }); return o; };
   function stats(reg){
     const term = reg.termInvestments.filter(r => r.counts), call = reg.callAccounts.filter(r => r.counts), funds = reg.pooledFunds.filter(r => r.counts);
@@ -944,7 +1034,7 @@ const REG = (() => {
   }
   return {TEMPLATE_VERSION, VOCAB, BUCKETS, DEBT_BUCKETS, readRegister, schedule, ladder, yearEnds, debtLadder, debtYearEnds, stats, dmy, money, pct, bucketOf, debtBucketOf, addMonths, monthsBetween,
     ladderBy, debtLadderBy, runoffBy, calendar, exposure, yieldPoints, costPoints, snapshot, fromSnapshot,
-    TERM_BUCKETS, periods, pastSchedule, activity, activityByMonth, termAllocation};
+    TERM_BUCKETS, periods, pastSchedule, activity, activityByMonth, termAllocation, interestIn, interestToYearEnd, loanBalances};
 })();
 if(typeof module !== "undefined") module.exports = REG;
 
@@ -1242,6 +1332,33 @@ const CH = (() => {
     return frame(o, H, svg, table, [UP, DOWN]);
   }
 
+  /* ---- lines: points {label, x:Date} and series [{name, values}] ----------------
+     Two-pixel lines with eight-pixel markers ringed in the surface colour, a
+     hover column with every series' value, a legend. For a handful of dated
+     snapshots, so the x axis is the dates themselves. */
+  function lines(o){
+    const pts = o.points, keys = o.series.map(s => s.name);
+    const W = o.W, H = 290, L = 54, R = 16, T = 24, B = 46, pw = W - L - R, ph = H - T - B;
+    const vals = o.series.flatMap(s => s.values).filter(v => v != null);
+    const top = (o.niceTop || niceMax)(Math.max(...vals, 0) * 1.1), ax = yAxis(top, L, R, T, ph, W, o.yFmt || short);
+    const n = pts.length, t0 = pts[0].x.getTime(), t1 = pts[n - 1].x.getTime(), span = Math.max(1, t1 - t0);
+    const x = i => n > 1 ? L + ((pts[i].x.getTime() - t0) / span) * pw : L + pw / 2;
+    const colW = n > 1 ? pw / (n - 1) : pw, {labels, xSpan} = columns(pts, Math.max(40, colW));
+    let svg = ax.svg;
+    o.series.forEach(s => {
+      const on = pts.map((p, i) => s.values[i] == null ? null : `${x(i).toFixed(1)},${ax.y(s.values[i]).toFixed(1)}`).filter(Boolean);
+      if(on.length > 1) svg += `<polyline class="ln" fill="none" stroke="${color(s.name)}" stroke-width="2" points="${on.join(" ")}"/>`;
+      pts.forEach((p, i) => { if(s.values[i] != null) svg += `<circle class="mk" cx="${x(i).toFixed(1)}" cy="${ax.y(s.values[i]).toFixed(1)}" r="4.5" fill="${color(s.name)}"/>`; });
+    });
+    pts.forEach((p, i) => {
+      const cx = x(i), tip = tipOf(p.label, o.series.map(s => `<i class="sw" style="background:${color(s.name)}"></i>${esc(s.name)}: ${s.values[i] == null ? "—" : (o.fmt || money)(s.values[i])}`).concat(p.note ? [esc(p.note)] : []));
+      svg += `<g class="col" data-tip="${esc(tip)}"><rect class="hit" x="${(cx - colW / 2).toFixed(1)}" y="${T}" width="${colW.toFixed(1)}" height="${ph + B}"/><line class="hl" x1="${cx.toFixed(1)}" x2="${cx.toFixed(1)}" y1="${T}" y2="${T + ph}"/>` +
+        (i % xSpan === 0 ? xLabel(cx, T + ph + 18, labels[i]) : "") + `</g>`;
+    });
+    const table = tableOf([o.catName || "As at"].concat(keys), pts.map((p, i) => [p.label].concat(o.series.map(s => s.values[i] == null ? "" : (o.fmt || money)(s.values[i])))));
+    return frame(o, H, svg, table, keys);
+  }
+
   /* ---- the figures themselves: what each chart of the register shows -----------
      One list for the register page and the report draft, so the two can never
      drift. Returns html strings in five groups; o.W is the half-column width,
@@ -1308,7 +1425,16 @@ const CH = (() => {
         lalloc.some(b => b.total > 0) ? stacked({...st, id: "loanalloc", title: "Term allocation of the borrowing raised", sub: "principal raised in " + P.label + ", by the term at raising, in segments by lender type", W, rows: lalloc.map((b, i) => ({...b, short: SHORT_TERM[i]})), unit: "loan", catName: "Term"}) : ""
       ];
     }
-    return {inv, wide, debt, dwide, year, act};
+    /* ---- over time: dated snapshots {asAt, label, invested, debt, invRate, debtRate} ---- */
+    let time = [];
+    if(o.history && o.history.length > 1){
+      const H = o.history, pts = H.map(h => ({x: h.asAt, label: dmy(h.asAt), short: "Mar " + h.asAt.getUTCFullYear(), note: h.note}));
+      time = [
+        lines({...st, id: "overtime", title: "Investments and borrowing over time", sub: "treasury investments at nominal and debt outstanding at each date a report was struck", W, points: pts, series: [{name: "Investments", values: H.map(h => h.invested)}, {name: "Borrowing", values: H.map(h => h.debt)}]}),
+        lines({...st, id: "ratestime", title: "Average rates over time", sub: "the weighted average rate earned on investments and paid on debt at each date", W, points: pts, series: [{name: "Investments", values: H.map(h => h.invRate == null ? null : h.invRate * 100)}, {name: "Borrowing", values: H.map(h => h.debtRate == null ? null : h.debtRate * 100)}], yFmt: v => v.toFixed(1) + "%", fmt: v => v.toFixed(2) + "%", niceTop: v => Math.ceil(v)})
+      ];
+    }
+    return {inv, wide, debt, dwide, year, act, time};
   }
 
   /* ---- hover and the table view, for every chart under root ------------------ */
@@ -1336,7 +1462,15 @@ const CH = (() => {
       });
     });
   }
-  return {PAL, color, order, group3, stacked, grouped, hbars, timeline, scatter, area, calendar, figures, wire, mill, short, money, pct, dmy, esc, tipOf};
+  /* Positions over time, from a list of snapshots (REG.snapshot shape):
+     one point per as-at date, the latest read of a date winning. */
+  function history(snaps){
+    const by = {};
+    snaps.forEach(sn => { if(!sn || !sn.asAt) return; const k = sn.asAt; if(!by[k] || (sn.read || "") > (by[k].read || "")) by[k] = sn; });
+    return Object.keys(by).sort().map(k => { const reg = REG.fromSnapshot(by[k]), st = REG.stats(reg);
+      return {asAt: reg.asAt, invested: st.invested, debt: st.debt, invRate: st.invRate, debtRate: st.debtRate, wLife: st.wLife, debtLife: st.debtLife, note: by[k].note || ""}; });
+  }
+  return {PAL, color, order, group3, stacked, grouped, hbars, timeline, scatter, area, calendar, lines, figures, history, wire, mill, short, money, pct, dmy, esc, tipOf};
 })();
 if(typeof module !== "undefined") module.exports = CH;
 
@@ -1451,6 +1585,10 @@ if(typeof module !== "undefined") module.exports = CH;
   }
   function stopWatch(){ if(S.watch){ clearInterval(S.watch); S.watch = 0; } }
 
+  /* ---- the help dialog ---------------------------------------------------- */
+  $("helpbtn").addEventListener("click", () => { const d = $("help"); if(typeof d.showModal === "function") d.showModal(); else d.setAttribute("open", ""); });
+  $("helpclose").addEventListener("click", () => $("help").close());
+
   /* ---- tabs ------------------------------------------------------------------ */
   document.querySelectorAll(".rtab").forEach(b => b.addEventListener("click", () => showTab(b.dataset.tab)));
   function showTab(name){
@@ -1480,11 +1618,13 @@ if(typeof module !== "undefined") module.exports = CH;
     si.className = "issues" + (reg.issues.length ? "" : " none");
     si.innerHTML = reg.issues.length ? reg.issues.map(i => `<li>${esc(i)}</li>`).join("") : "<li>The settings read cleanly.</li>";
     const counts = [["TermInvestments", reg.termInvestments], ["CallAccounts", reg.callAccounts], ["Loans", reg.loans], ["PooledFunds", reg.pooledFunds]];
-    $("found").innerHTML =
+    /* A dashboard has the snapshot and no workbook: the rows, not the sheets. */
+    $("found").innerHTML = wb ?
       `<dt>Sheets</dt><dd>${wb.order.map(esc).join(", ")}</dd>` +
       `<dt>Tables</dt><dd>${wb.tables.length ? wb.tables.map(x => esc(x.name) + " (" + esc(x.sheet) + " " + esc(x.ref) + ")").join(", ") : "<i>none</i>"}</dd>` +
       `<dt>Defined names</dt><dd>${Object.keys(wb.names).length}</dd>` +
-      counts.map(([n, rows]) => `<dt>${n} rows</dt><dd>${wb.tables.some(x => x.name === n) ? rows.length : "<i>no table</i>"}</dd>`).join("");
+      counts.map(([n, rows]) => `<dt>${n} rows</dt><dd>${wb.tables.some(x => x.name === n) ? rows.length : "<i>no table</i>"}</dd>`).join("")
+      : `<dt>Source</dt><dd>the snapshot a report kept, read ${reg.read ? esc(hm(reg.read)) : ""}</dd>` + counts.map(([n, rows]) => `<dt>${n} rows</dt><dd>${rows.length}</dd>`).join("");
 
     /* the replicas */
     const sumOf = (rows, k) => { const r = rows.filter(x => x.counts && x[k] != null); return r.length ? r.reduce((s, x) => s + x[k], 0) : null; };
@@ -1558,7 +1698,9 @@ if(typeof module !== "undefined") module.exports = CH;
     if(!periods.some(p => p.key === S.period)) S.period = periods.length ? periods[0].key : null;
     sel.innerHTML = periods.map(p => `<option value="${p.key}"${p.key === S.period ? " selected" : ""}>${esc(p.label)}</option>`).join("");
     const period = periods.find(p => p.key === S.period) || null;
-    const F = CH.figures(reg, {W, Wd, period});
+    const hist0 = S.history ? S.history.map(h => ({...h, asAt: h.asAt instanceof Date ? h.asAt : new Date(h.asAt)})) : null;
+    if(hist0) S.history = hist0;
+    const F = CH.figures(reg, {W, Wd, period, history: hist0});
     $("acharts").innerHTML = F.act.join("");
     if(period){
       const A = REG.activity(reg, period.from, period.to);
@@ -1570,7 +1712,18 @@ if(typeof module !== "undefined") module.exports = CH;
         tile(REG.money(A.raised.total), `borrowing raised in ${n(A.raised.count, "loan")}` + (A.raised.rate == null ? "" : ` at ${REG.pct(A.raised.rate)}`)) +
         tile(REG.money(A.repaid.total), `principal repaid across ${n(A.repaid.count, "loan")}` + (A.repaid.rate == null ? "" : ` at ${REG.pct(A.repaid.rate)}`)) +
         tile(REG.money(A.placed.total - A.matured.total), "net new term investment, placed less matured");
-    } else { $("atiles").innerHTML = ""; }
+      const I = REG.interestIn(reg, period.from, period.to), Y = REG.interestToYearEnd(reg);
+      $("itiles").innerHTML =
+        tile(REG.money(I.earned.total), `interest earned on term deals, indicative` + (Y ? `; ${REG.money(Y.earned.total)} more to 31 March on deals already placed` : "")) +
+        tile(REG.money(I.payable.total), `interest payable on loans, indicative` + (Y ? `; ${REG.money(Y.payable.total)} more to 31 March on loans already held` : "")) +
+        tile(REG.money(I.avgDebt), "average debt outstanding over the period");
+    } else { $("atiles").innerHTML = ""; $("itiles").innerHTML = ""; }
+    const hist = S.history || null;
+    $("timehead").hidden = !(hist && hist.length > 1); $("timenote").hidden = !(hist && hist.length > 1);
+    if(hist && hist.length > 1){
+      $("timenote").textContent = `${hist.length} dates, from ${REG.dmy(hist[0].asAt)} to ${REG.dmy(hist[hist.length - 1].asAt)}, one for each report struck from the register.`;
+      $("tcharts").innerHTML = F.time.join("");
+    } else $("tcharts").innerHTML = "";
     $("charts").innerHTML = F.inv.join("");
     $("wcharts").innerHTML = F.wide.join("");
     $("dcharts").innerHTML = F.debt.join("");
@@ -1583,6 +1736,25 @@ if(typeof module !== "undefined") module.exports = CH;
   let rsz = 0;
   window.addEventListener("resize", () => { clearTimeout(rsz); rsz = setTimeout(() => { if(S.reg && document.querySelector(".wrap").clientWidth - 32 !== S.drawnAt) drawCharts(); }, 150); });
   const tile = (v, l, hero) => `<div class="tile${hero ? " hero" : ""}"><div class="v">${esc(v)}</div><div class="l">${esc(l)}</div></div>`;
+
+  /* ---- the dashboard: this page with a report's figures embedded (boots last,
+     after every helper above is defined) ----------------
+     The report tool writes this same file with window.DASHBOARD set — the
+     snapshot it kept, the position against the policy and the activity table
+     as drawn in the draft, and the positions over time from the file's
+     reports — so the page renders on open with no workbook and no doors. */
+  const DASH = window.DASHBOARD || null;
+  if(DASH && DASH.snapshot){
+    document.documentElement.classList.add("dash");
+    $("tag").textContent = "dashboard · exported from PWLBreports" + (DASH.exportedAt ? " on " + DASH.exportedAt : "");
+    try{
+      S.reg = REG.fromSnapshot(DASH.snapshot); S.name = DASH.snapshot.name || "the register"; S.history = DASH.history || null;
+      render();
+      if(DASH.positionHTML || DASH.activityHTML){ $("policytab").hidden = false; $("policybody").innerHTML = (DASH.positionHTML || "") + (DASH.activityHTML || ""); }
+      document.documentElement.classList.add("read");
+      $("fname").textContent = (DASH.authority ? DASH.authority + " · " : "") + (DASH.report || "") + (DASH.report ? " · " : "") + S.name;
+    } catch(e){ showErr("The dashboard's figures could not be read: " + esc(e.message || e)); }
+  }
 
 })();
 
