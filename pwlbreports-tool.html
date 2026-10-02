@@ -2537,11 +2537,13 @@ const REG = (() => {
   }
 
   /* What follows from a row's fields, for a row read from the workbook and
-     for one brought back from a report's snapshot alike. */
-  const deriveTerm = (o, asAt) => { o.nominal = o.faceValue > 0 ? o.faceValue : o.principal; o.counts = o.nominal > 0 && !!o.maturity && !(asAt && o.maturity <= asAt); return o; };
-  const deriveCall = o => { o.counts = o.balance > 0; return o; };
-  const deriveLoan = (o, asAt) => { o.counts = o.principal > 0 && !!o.maturity && !(asAt && o.maturity <= asAt) && !(o.profile !== "Maturity" && (!o.frequency || !o.firstRepayment)); o.schedule = o.counts && asAt ? schedule(o, asAt) : []; return o; };
-  const deriveFund = o => { o.counts = o.carryingValue > 0; return o; };
+     for one brought back from a report's snapshot alike. A deal matured, or
+     a loan repaid, on or before the as-at date is history: not a holding, not
+     a flag — it is what the activity figures are made of. */
+  const deriveTerm = (o, asAt) => { o.nominal = o.faceValue > 0 ? o.faceValue : o.principal; o.history = !!(o.maturity && asAt && o.maturity <= asAt); o.counts = o.nominal > 0 && !!o.maturity && !o.history; return o; };
+  const deriveCall = o => { o.counts = o.balance > 0; o.history = false; return o; };
+  const deriveLoan = (o, asAt) => { o.history = !!(o.maturity && asAt && o.maturity <= asAt); o.counts = o.principal > 0 && !!o.maturity && !o.history && !(o.profile !== "Maturity" && (!o.frequency || !o.firstRepayment)); o.schedule = o.counts && asAt ? schedule(o, asAt) : []; return o; };
+  const deriveFund = o => { o.counts = o.carryingValue > 0; o.history = false; return o; };
 
   function readRegister(wb){
     const issues = [];
@@ -2568,7 +2570,6 @@ const REG = (() => {
       o.start = date(r["Start date"]); if(!o.start) o.issues.push("Start date is missing or not a date");
       o.maturity = date(r["Maturity date"]); if(!o.maturity) o.issues.push("Maturity date is missing or not a date");
       if(o.start && o.maturity && o.maturity <= o.start) o.issues.push("Maturity date is not after the start date");
-      if(o.maturity && asAt && o.maturity <= asAt) o.issues.push("Matured on or before the as-at date");
       o.rate = rate(r["Rate"]); if(o.rate == null) o.issues.push("Rate is blank");
       o.faceValue = num(r["Face value"]); if(o.faceValue != null && !(o.faceValue > 0)) o.issues.push("Face value is not a positive number");
       o.carryingValue = num(r["Carrying value"]);
@@ -2595,7 +2596,6 @@ const REG = (() => {
       o.start = date(r["Start date"]);
       o.maturity = date(r["Maturity date"]); if(!o.maturity) o.issues.push("Maturity date is missing or not a date");
       if(o.start && o.maturity && o.maturity <= o.start) o.issues.push("Maturity date is not after the start date");
-      if(o.maturity && asAt && o.maturity <= asAt) o.issues.push("Matured on or before the as-at date");
       o.rate = rate(r["Rate"]); if(o.rate == null) o.issues.push("Rate is blank");
       vocab(o, r, "Profile", VOCAB.profiles, "profile", false);
       if(!o.profile && !o.profileRaw) o.profile = "Maturity";   /* blank means repaid at the end */
@@ -2850,6 +2850,79 @@ const REG = (() => {
       years: Math.max(0, years(reg.asAt, l.maturity)), rate: l.rate, amount: l.principal, maturity: l.maturity, nextCall: l.nextCall, profile: l.profile}));
   }
 
+  /* ---- activity: what was placed, matured, raised and repaid in a period ----
+     A term deal is placed on its start date and matures on its maturity date;
+     a loan is raised on its start date and repaid at maturity (a LOBO at its
+     call), or instalment by instalment for an EIP or annuity, the past
+     instalments reconstructed backward from what is outstanding now. Only
+     dates on or before the as-at date are history; the future is projection. */
+  const fyStart = d => new Date(Date.UTC(d.getUTCMonth() >= 3 ? d.getUTCFullYear() : d.getUTCFullYear() - 1, 3, 1));
+  function periods(reg){
+    if(!reg.asAt) return [];
+    const a = reg.asAt, f0 = fyStart(a), y = f0.getUTCFullYear(), fy = y => `${y}/${String(y + 1).slice(2)}`;
+    const m12 = new Date(addMonths(a, -12).getTime() + 86400000);
+    return [
+      {key: "fytd", label: `${fy(y)} to ${dmy(a)}`, from: f0, to: a},
+      {key: "prev", label: fy(y - 1), from: new Date(Date.UTC(y - 1, 3, 1)), to: new Date(Date.UTC(y, 2, 31))},
+      {key: "12m", label: `the 12 months to ${dmy(a)}`, from: m12, to: a}
+    ];
+  }
+  function pastSchedule(loan, asAt){
+    if(!loan.profile || loan.profile === "Maturity" || !loan.firstRepayment || !loan.frequency || !loan.maturity) return [];
+    const all = paymentDates(loan), past = all.filter(d => d <= asAt), future = all.filter(d => d > asAt).length;
+    if(!past.length || !future) return [];
+    if(loan.profile === "EIP"){ const each = loan.principal / future; return past.map(d => ({date: d, amount: each})); }
+    const r = (loan.rate || 0) / (PER_YEAR[loan.frequency] || 1);
+    if(!(r > 0)) return past.map(d => ({date: d, amount: loan.principal / future}));
+    const pay = loan.principal * r / (1 - Math.pow(1 + r, -future));
+    let bal = loan.principal; const out = [];
+    for(let i = past.length - 1; i >= 0; i--){ const before = (bal + pay) / (1 + r); out.unshift({date: past[i], amount: before - bal}); bal = before; }
+    return out;
+  }
+  const loanEnd = l => l.type === "LOBO" && l.nextCall && l.nextCall < l.maturity ? l.nextCall : l.maturity;
+  function activity(reg, from, to){
+    const inP = d => !!d && d >= from && d <= to;
+    const term = reg.termInvestments.filter(r => r.nominal > 0 && r.start && r.maturity);
+    const placed = term.filter(r => inP(r.start)), matured = term.filter(r => r.history && inP(r.maturity));
+    const loans = reg.loans.filter(l => l.principal > 0 && l.maturity);
+    const raised = loans.filter(l => inP(l.start));
+    const repaid = [];
+    loans.forEach(l => {
+      if(!l.profile || l.profile === "Maturity"){ const end = loanEnd(l); if(reg.asAt && end <= reg.asAt && inP(end)) repaid.push({loan: l, date: end, amount: l.principal}); }
+      else if(reg.asAt) pastSchedule(l, reg.asAt).forEach(p => { if(inP(p.date)) repaid.push({loan: l, date: p.date, amount: p.amount}); });
+    });
+    const sum = (rows, f) => rows.reduce((t, r) => t + f(r), 0);
+    const wavg = (rows, amt, val) => { const t = sum(rows, amt); return t ? sum(rows, r => amt(r) * (val(r) || 0)) / t : null; };
+    return {from, to,
+      placed:  {rows: placed,  total: sum(placed, r => r.nominal),  count: placed.length,  rate: wavg(placed, r => r.nominal, r => r.rate), months: wavg(placed, r => r.nominal, r => monthsBetween(r.start, r.maturity))},
+      matured: {rows: matured, total: sum(matured, r => r.nominal), count: matured.length, rate: wavg(matured, r => r.nominal, r => r.rate)},
+      raised:  {rows: raised,  total: sum(raised, l => l.principal), count: raised.length, rate: wavg(raised, l => l.principal, l => l.rate), years: wavg(raised, l => l.principal, l => l.start ? years(l.start, l.maturity) : 0)},
+      repaid:  {rows: repaid,  total: sum(repaid, p => p.amount), count: new Set(repaid.map(p => p.loan)).size, rate: wavg(repaid, p => p.amount, p => p.loan.rate)}};
+  }
+  /* Month by month across the period: placed and matured, raised and repaid. */
+  function activityByMonth(reg, from, to){
+    const out = [], MON = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    for(let d = new Date(Date.UTC(from.getUTCFullYear(), from.getUTCMonth(), 1)); d <= to; d = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 1)))
+      out.push({ym: d.getUTCFullYear() * 12 + d.getUTCMonth(), label: MON[d.getUTCMonth()] + " " + String(d.getUTCFullYear()).slice(2), placed: 0, matured: 0, raised: 0, repaid: 0, placedRows: [], maturedRows: [], raisedRows: [], repaidRows: []});
+    const slot = d => out.find(m => m.ym === d.getUTCFullYear() * 12 + d.getUTCMonth());
+    const A = activity(reg, from, to);
+    A.placed.rows.forEach(r => { const m = slot(r.start); if(m){ m.placed += r.nominal; m.placedRows.push(r); } });
+    A.matured.rows.forEach(r => { const m = slot(r.maturity); if(m){ m.matured += r.nominal; m.maturedRows.push(r); } });
+    A.raised.rows.forEach(l => { const m = slot(l.start); if(m){ m.raised += l.principal; m.raisedRows.push(l); } });
+    A.repaid.rows.forEach(p => { const m = slot(p.date); if(m){ m.repaid += p.amount; m.repaidRows.push(p); } });
+    return out;
+  }
+  /* Where the money placed (or raised) in the period went, by the term at
+     placement, in segments by counterparty (or lender) type. */
+  const TERM_BUCKETS = ["Under 1 month", "1 to 3 months", "3 to 6 months", "6 to 12 months", "1 to 2 years", "2 to 5 years", "Over 5 years"];
+  const termBucketOf = m => m < 1 ? 0 : m < 3 ? 1 : m < 6 ? 2 : m < 12 ? 3 : m < 24 ? 4 : m < 60 ? 5 : 6;
+  function termAllocation(reg, from, to, kind){
+    const out = catRows(TERM_BUCKETS), A = activity(reg, from, to);
+    if(kind === "raised") A.raised.rows.forEach(l => { if(l.start) addPart(out[termBucketOf(monthsBetween(l.start, l.maturity))], l.lenderType || "Not on the list", l.principal); });
+    else A.placed.rows.forEach(r => addPart(out[termBucketOf(monthsBetween(r.start, r.maturity))], r.cpType || "Not on the list", r.nominal));
+    return out;
+  }
+
   const byKey = (rows, key, amount) => { const o = {}; rows.forEach(r => { const k = r[key] || "Not on the list"; o[k] = (o[k] || 0) + amount(r); }); return o; };
   function stats(reg){
     const term = reg.termInvestments.filter(r => r.counts), call = reg.callAccounts.filter(r => r.counts), funds = reg.pooledFunds.filter(r => r.counts);
@@ -2868,17 +2941,19 @@ const REG = (() => {
     const byFund = reg.twoPools ? byKey(loans, "fund", l => l.principal) : null;
     const lobos = loans.filter(l => l.type === "LOBO");
     const flagged = [reg.termInvestments, reg.callAccounts, reg.loans, reg.pooledFunds].reduce((s, t) => s + t.filter(r => r.issues.length).length, 0);
+    const matured = reg.termInvestments.filter(r => r.history).length, repaid = reg.loans.filter(l => l.history).length;
     return {
       invested, nominal, callTotal, fundsTotal, fundsLatest: funds.reduce((s, r) => s + (r.latestValue == null ? r.carryingValue : r.latestValue), 0),
       termPrincipal: term.reduce((s, r) => s + r.principal, 0),
       deals: term.length + call.length, termDeals: term.length, callDeals: call.length, funds: funds.length, counterparties: cps,
       invRate, wLife, byType,
       debt, loans: loans.length, debtRate, debtLife, byLender, byFund, lobos: lobos.length, loboTotal: lobos.reduce((s, l) => s + l.principal, 0),
-      net: invested + fundsTotal - debt, flagged
+      net: invested + fundsTotal - debt, flagged, matured, repaid
     };
   }
   return {TEMPLATE_VERSION, VOCAB, BUCKETS, DEBT_BUCKETS, readRegister, schedule, ladder, yearEnds, debtLadder, debtYearEnds, stats, dmy, money, pct, bucketOf, debtBucketOf, addMonths, monthsBetween,
-    ladderBy, debtLadderBy, runoffBy, calendar, exposure, yieldPoints, costPoints, snapshot, fromSnapshot};
+    ladderBy, debtLadderBy, runoffBy, calendar, exposure, yieldPoints, costPoints, snapshot, fromSnapshot,
+    TERM_BUCKETS, periods, pastSchedule, activity, activityByMonth, termAllocation};
 })();
 if(typeof module !== "undefined") module.exports = REG;
 
@@ -2907,7 +2982,8 @@ const CH = (() => {
     "UK bank": 0, "Overseas bank": 1, "Building society": 2, "Local authority": 3, "UK Government": 4, "Money market fund": 5, "PWLB": 6, "Other": 7, "Pooled fund": 7, "Not on the list": 7,
     "General Fund": 0, "HRA": 1, "Unassigned": 7,
     "Banks": 0, "Public sector": 1, "Funds and other": 2,
-    "Investments": 0, "Borrowing": 1, "Maturing in": 0, "Repaid out": 7
+    "Investments": 0, "Borrowing": 1, "Maturing in": 0, "Repaid out": 7,
+    "Placed": 0, "Matured": 1, "Raised": 0, "Repaid": 1
   };
   const color = k => PAL[SLOT[k] == null ? 7 : SLOT[k]];
   const order = keys => keys.slice().sort((a, b) => (SLOT[a] == null ? 9 : SLOT[a]) - (SLOT[b] == null ? 9 : SLOT[b]) || a.localeCompare(b));
@@ -3142,28 +3218,37 @@ const CH = (() => {
     return frame(o, H, svg, table, keys);
   }
 
-  /* ---- the calendar: months {label, short, inflow, outflow, tip} ------------- */
+  /* ---- the calendar: months {label, short, inflow, outflow, tip} -------------
+     Two series around a baseline: o.up above it and o.down below (money in
+     and money out by default; placed and matured, raised and repaid for the
+     activity). */
   function calendar(o){
-    const rows = o.months, W = o.W, H = 300, L = 54, R = 12, T = 28, B = 46, pw = W - L - R, ph = H - T - B;
+    const UP = o.up || "Maturing in", DOWN = o.down || "Repaid out";
+    /* A deeper foot than the other charts: a bar that fills the down side
+       carries its cap below its end, and the month labels sit below that. */
+    const rows = o.months, W = o.W, H = 314, L = 54, R = 12, T = 28, B = 60, pw = W - L - R, ph = H - T - B;
     const upMax = niceMax(Math.max(...rows.map(r => r.inflow), 0)), dnMax = niceMax(Math.max(...rows.map(r => r.outflow), 0));
     const scale = ph / (upMax + dnMax), y0 = T + upMax * scale, y = v => y0 - v * scale;
     const colW = pw / rows.length, bw = Math.min(24, colW * 0.6), {labels, xSpan} = columns(rows, colW);
     const xs = rows.map((d, i) => L + colW * (i + 0.5));
     const capUp = caps(rows.map(r => r.inflow), rows.map(r => r.inflow > 0 ? mill(r.inflow) : ""), xs, L, W, R), capDn = caps(rows.map(r => r.outflow), rows.map(r => r.outflow > 0 ? mill(r.outflow) : ""), xs, L, W, R);
     let svg = "";
-    const ticks = (max, sign) => { const div = divisions(max); for(let k = 1; k <= div; k++){ const v = max * k / div, yy = y(sign * v).toFixed(1); svg += `<line class="grid" x1="${L}" x2="${W - R}" y1="${yy}" y2="${yy}"/><text x="${L - 8}" y="${yy}" text-anchor="end" dominant-baseline="middle">${short(v)}</text>`; } };
+    /* One step for both sides, the coarser of the two, so the axis reads as
+       one scale and a small side's labels never crowd. */
+    const step = Math.max(upMax / divisions(upMax), dnMax / divisions(dnMax));
+    const ticks = (max, sign) => { for(let v = step; v <= max + 1e-9; v += step){ const yy = y(sign * v).toFixed(1); svg += `<line class="grid" x1="${L}" x2="${W - R}" y1="${yy}" y2="${yy}"/><text x="${L - 8}" y="${yy}" text-anchor="end" dominant-baseline="middle">${short(v)}</text>`; } };
     ticks(upMax, 1); ticks(dnMax, -1);
     svg += `<line class="base" x1="${L}" x2="${W - R}" y1="${y0.toFixed(1)}" y2="${y0.toFixed(1)}"/><text x="${L - 8}" y="${y0.toFixed(1)}" text-anchor="end" dominant-baseline="middle">£0</text>`;
     rows.forEach((d, i) => {
       const cx = L + colW * (i + 0.5), x = cx - bw / 2;
       svg += `<g class="col" data-tip="${esc(d.tip)}"><rect class="hit" x="${(cx - colW / 2).toFixed(1)}" y="${T}" width="${colW.toFixed(1)}" height="${ph + B}"/>`;
-      if(d.inflow > 0){ const h = d.inflow * scale; svg += `<path class="bar" fill="${color("Maturing in")}" d="${topPath(x, y0 - h, bw, h - 1, 4)}"/>`; if(capUp.has(i)) svg += `<text class="cap" x="${capAt(capUp, i)}" y="${(y0 - h - 6).toFixed(1)}" text-anchor="middle">${mill(d.inflow)}</text>`; }
-      if(d.outflow > 0){ const h = d.outflow * scale; svg += `<path class="bar" fill="${color("Repaid out")}" d="${bottomPath(x, y0 + 1, bw, h - 1, 4)}"/>`; if(capDn.has(i)) svg += `<text class="cap" x="${capAt(capDn, i)}" y="${(y0 + h + 14).toFixed(1)}" text-anchor="middle">${mill(d.outflow)}</text>`; }
-      if(i % xSpan === 0) svg += xLabel(cx, T + ph + 18, labels[i]);
+      if(d.inflow > 0){ const h = d.inflow * scale; svg += `<path class="bar" fill="${color(UP)}" d="${topPath(x, y0 - h, bw, h - 1, 4)}"/>`; if(capUp.has(i)) svg += `<text class="cap" x="${capAt(capUp, i)}" y="${(y0 - h - 6).toFixed(1)}" text-anchor="middle">${mill(d.inflow)}</text>`; }
+      if(d.outflow > 0){ const h = d.outflow * scale; svg += `<path class="bar" fill="${color(DOWN)}" d="${bottomPath(x, y0 + 1, bw, h - 1, 4)}"/>`; if(capDn.has(i)) svg += `<text class="cap" x="${capAt(capDn, i)}" y="${(y0 + h + 14).toFixed(1)}" text-anchor="middle">${mill(d.outflow)}</text>`; }
+      if(i % xSpan === 0) svg += xLabel(cx, T + ph + 32, labels[i]);
       svg += `</g>`;
     });
-    const table = tableOf(["Month", "Maturing in", "Repaid out", "Net"], rows.map(r => [r.label, money(r.inflow), money(r.outflow), money(r.inflow - r.outflow)]));
-    return frame(o, H, svg, table, ["Maturing in", "Repaid out"]);
+    const table = tableOf(["Month", UP, DOWN, "Net"], rows.map(r => [r.label, money(r.inflow), money(r.outflow), money(r.inflow - r.outflow)]));
+    return frame(o, H, svg, table, [UP, DOWN]);
   }
 
   /* ---- the figures themselves: what each chart of the register shows -----------
@@ -3214,7 +3299,25 @@ const CH = (() => {
       grouped({...st, id: "positions", title: "Investments and borrowing at each year end", sub: "term deals still invested at nominal (money on call not counted) against debt outstanding, at 31 March", W: Wd, wide: true, rows: pos, keys: ["Investments", "Borrowing"]}),
       calendar({...st, id: "calendar", title: "The next two years, month by month", sub: "investments maturing in against loan repayments out", W: Wd, wide: true, months: cal})
     ];
-    return {inv, wide, debt, dwide, year};
+    /* ---- activity in a period (o.period: {from, to, label}) ---- */
+    let act = [];
+    if(o.period && reg.asAt){
+      const P = o.period, months = REG.activityByMonth(reg, P.from, P.to);
+      const li = (rows, f) => rows.map(f);
+      const mon = (m, upK, dnK, up, dn) => ({...m, short: m.label, inflow: m[up], outflow: m[dn],
+        tip: tipOf(m.label, li(m[up + "Rows"], r => `<i class="sw" style="background:${color(upK)}"></i>${esc(r.counterparty || r.lender)} ${money(r.nominal || r.principal)}`)
+          .concat(li(m[dn + "Rows"], r => `<i class="sw" style="background:${color(dnK)}"></i>${esc(r.counterparty || (r.loan ? r.loan.lender : r.lender))} ${money(r.nominal || r.amount || r.principal)}`))
+          .concat(m[up] || m[dn] ? [] : ["nothing"]))});
+      const alloc = REG.termAllocation(reg, P.from, P.to, "placed"), lalloc = REG.termAllocation(reg, P.from, P.to, "raised");
+      const SHORT_TERM = ["<1m", "1–3m", "3–6m", "6–12m", "1–2y", "2–5y", ">5y"];
+      act = [
+        calendar({...st, id: "placed", title: "Investments placed and matured", sub: "term deals placed above the line and matured below, month by month, " + P.label, W, up: "Placed", down: "Matured", months: months.map(m => mon(m, "Placed", "Matured", "placed", "matured"))}),
+        stacked({...st, id: "allocation", title: "Term allocation of the deals placed", sub: "nominal placed in " + P.label + ", by the term at placement, in segments by counterparty type", W, rows: alloc.map((b, i) => ({...b, short: SHORT_TERM[i]})), unit: "deal", catName: "Term"}),
+        calendar({...st, id: "raised", title: "Borrowing raised and repaid", sub: "loans raised above the line and principal repaid below, month by month, " + P.label, W, up: "Raised", down: "Repaid", months: months.map(m => mon(m, "Raised", "Repaid", "raised", "repaid"))}),
+        lalloc.some(b => b.total > 0) ? stacked({...st, id: "loanalloc", title: "Term allocation of the borrowing raised", sub: "principal raised in " + P.label + ", by the term at raising, in segments by lender type", W, rows: lalloc.map((b, i) => ({...b, short: SHORT_TERM[i]})), unit: "loan", catName: "Term"}) : ""
+      ];
+    }
+    return {inv, wide, debt, dwide, year, act};
   }
 
   /* ---- hover and the table view, for every chart under root ------------------ */
@@ -11787,6 +11890,9 @@ function docSections(){
 
    {k:"activity", n:"8", t:"Borrowing and investment activity",
     b: clausesFor("8")
+     // The deal register's own account of the period, when the report
+     // carries one (register.js): placed, matured, raised, repaid.
+     + (typeof registerActivityDraft === "function" ? registerActivityDraft() : "")
      + (t("activity_body")?para(t("activity_body")):"")
      + (t("deals")?`<h4>Individual transactions</h4>${para(t("deals"))}`:"")},
 
@@ -15155,17 +15261,45 @@ function registerPositionPanel(host){
 }
 function registerPositionDraft(){ return S.register ? registerPositionHTML() : ""; }
 
+/* ---- activity: the report's period ----------------------------------------------
+   The financial year the register's as-at date falls in, from 1 April to the
+   as-at date: what a monitoring report covers. */
+function registerPeriod(reg){
+  const P = REG.periods(reg); return P.length ? P[0] : null;
+}
+/* The activity table for section 8 of a monitoring report, whenever the
+   report carries a register: placed, matured, raised, repaid, at their rates. */
+function registerActivityDraft(){
+  if(!S.register) return "";
+  const reg = registerReg(), P = reg && registerPeriod(reg); if(!P) return "";
+  const A = REG.activity(reg, P.from, P.to), m = v => "£" + m1(v / 1e6) + "m", r = v => v == null ? "—" : REG.pct(v);
+  const n = (k, w) => `${k} ${w}${k === 1 ? "" : "s"}`;
+  return `<h4>Activity in the period, from the deal register</h4>
+    <p>From 1 April to ${esc(REG.dmy(P.to))}, by the dates in the authority's deal register: term investments placed and matured, and borrowing raised and repaid, with the weighted average rate on each.</p>
+    <div style="overflow-x:auto"><table class="otable cpact">
+      <thead><tr><th>Activity</th><th class="num">Amount</th><th>Deals</th><th class="num">Average rate</th><th class="w">Note</th></tr></thead>
+      <tbody>
+        <tr><td>Investments placed</td><td class="num">${m(A.placed.total)}</td><td>${n(A.placed.count, "deal")}</td><td class="num">${r(A.placed.rate)}</td><td class="w">${A.placed.months == null ? "" : `average term ${A.placed.months.toFixed(1)} months`}</td></tr>
+        <tr><td>Investments matured</td><td class="num">${m(A.matured.total)}</td><td>${n(A.matured.count, "deal")}</td><td class="num">${r(A.matured.rate)}</td><td class="w">${A.matured.rate != null && A.placed.rate != null ? `deals placed earned ${Math.abs(Math.round((A.placed.rate - A.matured.rate) * 1e4))} basis points ${A.placed.rate >= A.matured.rate ? "more" : "less"} than those that matured` : ""}</td></tr>
+        <tr><td>Borrowing raised</td><td class="num">${m(A.raised.total)}</td><td>${n(A.raised.count, "loan")}</td><td class="num">${r(A.raised.rate)}</td><td class="w">${A.raised.years == null ? "" : `average term ${A.raised.years.toFixed(1)} years`}</td></tr>
+        <tr><td>Principal repaid</td><td class="num">${m(A.repaid.total)}</td><td>${n(A.repaid.count, "loan")}</td><td class="num">${r(A.repaid.rate)}</td><td class="w">at maturity, at a LOBO's call, or by instalment</td></tr>
+      </tbody></table></div>
+    <p class="src">Money on call and in money market funds moves daily and is not activity here; its balance at ${esc(REG.dmy(P.to))} is in the portfolio position.</p>`;
+}
+
 /* ---- the detailed view: every chart of the register in the draft ------------- */
 function registerDraftCharts(){
   if(!S.register || S.registerView !== "detailed") return "";
   const reg = registerReg(); if(!reg) return "";
   const when = reg.asAt ? REG.dmy(reg.asAt) : "an unknown date", W = 760;
-  const F = CH.figures(reg, {W, Wd: W, static: true});
+  const P = registerPeriod(reg);
+  const F = CH.figures(reg, {W, Wd: W, static: true, period: P});
   const n = k => (S.register[k] || []).length;
   return `<h4>The investment portfolio at ${esc(when)}, from the deal register</h4>` + F.inv.join("") + F.wide.join("") +
     `<h4>The loan portfolio at ${esc(when)}</h4>` + F.debt.join("") + F.dwide.join("") +
     `<h4>Year ends and the months ahead</h4>` + F.year.join("") +
-    `<p class="src">Drawn from the authority's deal register as at ${esc(when)}: ${n("term")} term deals, ${n("call")} call accounts and money market funds, ${n("loans")} loans and ${n("funds")} pooled funds. A LOBO is taken at its next call date.</p>`;
+    (F.act.some(Boolean) ? `<h4>Activity, ${esc(P.label)}</h4>` + F.act.join("") : "") +
+    `<p class="src">Drawn from the authority's deal register as at ${esc(when)}: ${n("term")} term deals, ${n("call")} call accounts and money market funds, ${n("loans")} loans and ${n("funds")} pooled funds. A LOBO is taken at its next call date; a matured deal or a repaid loan kept in the register is history, read for the activity and nothing else.</p>`;
 }
 
 /* ---- the panel ----------------------------------------------------------- */
@@ -15183,7 +15317,9 @@ function registerStatus(){
   const n = k => (r[k] || []).length, flagged = ["term", "call", "loans", "funds"].reduce((s, k) => s + (r[k] || []).filter(x => x.issues).length, 0);
   const rv = $("regview"); if(rv){ rv.hidden = false; const v = S.registerView === "detailed" ? "detailed" : "summary"; rv.querySelectorAll("input[name=regview]").forEach(i => { i.checked = i.value === v; }); }
   const when = r.asAt ? r.asAt.split("-").reverse().join("/") : "an unknown date";
-  st.innerHTML = `Read <b>${esc(r.name || "the register")}</b> as at <b>${esc(when)}</b>: ${n("term")} term deal${n("term") === 1 ? "" : "s"}, ${n("call")} call account${n("call") === 1 ? "" : "s"} or MMF${n("call") === 1 ? "" : "s"}, ${n("loans")} loan${n("loans") === 1 ? "" : "s"}, ${n("funds")} pooled fund${n("funds") === 1 ? "" : "s"}`
+  const reg = registerReg(), hist = (rows, k) => rows.filter(x => x.history).length;
+  const mat = reg ? hist(reg.termInvestments) : 0, rep = reg ? hist(reg.loans) : 0;
+  st.innerHTML = `Read <b>${esc(r.name || "the register")}</b> as at <b>${esc(when)}</b>: ${n("term")} term deal${n("term") === 1 ? "" : "s"}${mat ? ` (${mat} matured)` : ""}, ${n("call")} call account${n("call") === 1 ? "" : "s"} or MMF${n("call") === 1 ? "" : "s"}, ${n("loans")} loan${n("loans") === 1 ? "" : "s"}${rep ? ` (${rep} repaid)` : ""}, ${n("funds")} pooled fund${n("funds") === 1 ? "" : "s"}`
     + (flagged ? ` — <b>${flagged} row${flagged === 1 ? "" : "s"} flagged</b>, see the register page` : "")
     + (r.settingsIssues && r.settingsIssues.length ? ` — <b>${esc(r.settingsIssues[0])}</b>` : "")
     + `. The rows below are yours to edit; Read again refills them from the file.`;
