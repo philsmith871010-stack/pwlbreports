@@ -1,0 +1,778 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<!-- UNLISTED. This page is published at /register/ on the GitHub Pages site
+     and linked from nowhere: not the landing page, not the tool, not
+     pwlbtoday.org. It is a prototype for one reader (Phil, 2 October 2026:
+     "I don't want to confuse my colleagues with the existing report thing").
+     noindex keeps a search engine from listing it if a link ever leaks. -->
+<meta name="robots" content="noindex,nofollow">
+<title>Deal register — PWLBreports prototype</title>
+<meta name="description" content="Point this page at your copy of the register workbook and it reads your term investments in the browser: the rows as read, a maturity ladder, and what is still out at each year end. Nothing is uploaded and nothing is written back.">
+<style>
+/* ===========================================================================
+ * The register prototype. One file, no fonts fetched, no script fetched, no
+ * request of its own: the promise the report tool makes, kept here too.
+ *
+ * Colour follows the dataviz rules the tool's charts follow: one hue for one
+ * series, text in text tokens never the series colour, hairline grid, bars no
+ * wider than 24px with 4px rounded tops, a hover tooltip and a table view
+ * behind every chart.
+ * ======================================================================== */
+:root{
+  --bg:#f6f8fa; --card:#fff; --ink:#1d2733; --muted:#5a6670; --faint:#8a95a1;
+  --line:#e3e8ee; --accent:#2a78d6; --accent-ink:#1d5fb0; --warn-bg:#fff4e0; --warn:#8a5a00;
+  --bad-bg:#fdecec; --bad:#9b1c1c; --ok-bg:#e8f5ec; --ok:#1e6b3a; --tip:#1d2733;
+  --font:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box}
+html{background:var(--bg)}
+body{margin:0;font:15px/1.5 var(--font);color:var(--ink);background:var(--bg);-webkit-text-size-adjust:100%}
+.wrap{max-width:1080px;margin:0 auto;padding:24px 16px 64px}
+header.top{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px 16px;margin-bottom:18px}
+header.top h1{font-size:22px;margin:0;font-weight:650;letter-spacing:-.01em}
+header.top .tag{font-size:12px;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:1px 9px;background:var(--card)}
+p.lede{margin:0 0 20px;max-width:720px;color:var(--muted)}
+
+/* the doors */
+.doors{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;margin-bottom:22px}
+.door{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px 18px 16px;display:flex;flex-direction:column;gap:8px}
+.door h2{font-size:16px;margin:0;font-weight:650}
+.door p{margin:0;color:var(--muted);font-size:14px}
+.door .act{margin-top:auto;padding-top:6px}
+.btn{display:inline-block;font:inherit;font-size:14px;font-weight:600;color:#fff;background:var(--accent);border:1px solid var(--accent);border-radius:8px;padding:8px 14px;cursor:pointer;text-decoration:none;line-height:1.2}
+.btn:hover{background:var(--accent-ink);border-color:var(--accent-ink)}
+.btn.sec{color:var(--accent-ink);background:var(--card);border-color:var(--line)}
+.btn.sec:hover{background:#f0f5fc}
+.btn:disabled{opacity:.5;cursor:default}
+.btn:focus-visible,.rtab:focus-visible,.tv:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.hint{font-size:13px;color:var(--faint)}
+#regfile{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+
+/* after a read: the slim status bar replaces the doors */
+.bar{display:none;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 16px;margin-bottom:16px;align-items:center;gap:8px 14px;flex-wrap:wrap}
+html.read .bar{display:flex}
+html.read .doors{display:none}
+.bar .fname{font-weight:650}
+.bar .meta{color:var(--muted);font-size:14px}
+.bar .meta span+span::before{content:"·";margin:0 7px;color:var(--faint)}
+.bar .acts{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+.notice{display:none;background:var(--warn-bg);color:var(--warn);border:1px solid #f1d9a8;border-radius:8px;padding:8px 12px;font-size:14px;margin:-6px 0 16px}
+.notice.on{display:block}
+.err{display:none;background:var(--bad-bg);color:var(--bad);border:1px solid #f0c4c4;border-radius:8px;padding:10px 14px;margin:0 0 16px}
+.err.on{display:block}
+.err code{font-family:var(--mono);font-size:13px}
+
+/* tabs and panels */
+.rtabs{display:none;gap:4px;border-bottom:1px solid var(--line);margin-bottom:16px;overflow-x:auto}
+html.read .rtabs{display:flex}
+.rtab{font:inherit;font-size:14px;font-weight:600;color:var(--muted);background:none;border:0;border-bottom:2px solid transparent;padding:8px 12px;cursor:pointer;white-space:nowrap;margin-bottom:-1px}
+.rtab[aria-selected=true]{color:var(--ink);border-bottom-color:var(--accent)}
+.rpanel{display:none}
+html.read .rpanel.on{display:block}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px;margin-bottom:16px}
+.card h2{font-size:16px;margin:0 0 4px;font-weight:650}
+.card h2 small{font-weight:500;color:var(--muted);font-size:13px;margin-left:8px}
+.card p.sub{margin:0 0 12px;color:var(--muted);font-size:14px}
+
+/* the replica */
+dl.kv{display:grid;grid-template-columns:max-content 1fr;gap:6px 18px;margin:0;font-size:14px}
+dl.kv dt{color:var(--muted)}
+dl.kv dd{margin:0;font-weight:600}
+.issues{margin:10px 0 0;padding:0;list-style:none;font-size:14px}
+.issues li{background:var(--bad-bg);color:var(--bad);border-radius:6px;padding:5px 10px;margin:4px 0}
+.issues.none li{background:var(--ok-bg);color:var(--ok)}
+.tscroll{overflow:auto;-webkit-overflow-scrolling:touch;border:1px solid var(--line);border-radius:8px}
+table.rep{border-collapse:collapse;width:100%;font-size:13px;min-width:720px}
+table.rep th,table.rep td{padding:6px 9px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap;vertical-align:top}
+table.rep th{background:#f0f3f7;font-weight:600;color:var(--muted);position:sticky;top:0}
+table.rep td.n,table.rep th.n{text-align:right;font-variant-numeric:tabular-nums}
+table.rep td.row{color:var(--faint);font-family:var(--mono);font-size:12px}
+table.rep tr.flag td{background:var(--warn-bg)}
+table.rep tr.out td{color:var(--faint)}
+table.rep td.flags{white-space:normal;max-width:280px;color:var(--warn);font-size:12px}
+table.rep tfoot td{font-weight:650;border-top:2px solid var(--line);border-bottom:0}
+.count{font-size:14px;color:var(--muted);margin:0 0 10px}
+
+/* the figures */
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px}
+.tile{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+.tile .v{font-size:24px;font-weight:650;letter-spacing:-.01em;line-height:1.15;font-variant-numeric:tabular-nums}
+.tile .l{font-size:13px;color:var(--muted);margin-top:2px}
+.tile.hero{grid-column:span 2}
+.tile.hero .v{font-size:30px}
+.charts{display:grid;grid-template-columns:repeat(auto-fit,minmax(400px,1fr));gap:16px}
+figure.chart{margin:0;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 16px 12px;position:relative}
+figure.chart figcaption{margin-bottom:8px}
+figure.chart figcaption b{font-size:15px;font-weight:650;display:block}
+figure.chart figcaption span{font-size:13px;color:var(--muted)}
+figure.chart svg{width:100%;height:auto;display:block;overflow:visible}
+figure.chart text{font-family:var(--font);fill:var(--muted);font-size:12px}
+figure.chart text.cap{fill:var(--ink);font-weight:600}
+figure.chart text.nil{fill:var(--faint)}
+figure.chart .grid{stroke:var(--line);stroke-width:1}
+figure.chart .base{stroke:#c9d1da;stroke-width:1}
+figure.chart .bar{fill:var(--accent)}
+figure.chart .hit{fill:transparent}
+figure.chart .hit:hover+.bar,figure.chart .col.on .bar{fill:var(--accent-ink)}
+.tip{position:absolute;pointer-events:none;background:var(--tip);color:#fff;font-size:12px;line-height:1.35;padding:6px 9px;border-radius:6px;white-space:nowrap;transform:translate(-50%,calc(-100% - 26px));opacity:0;transition:opacity .12s}
+.tip.on{opacity:1}
+.tip b{font-weight:650}
+.tv{font:inherit;font-size:12px;color:var(--accent-ink);background:none;border:0;padding:0;cursor:pointer;text-decoration:underline;margin-top:6px}
+figure.chart table{display:none;border-collapse:collapse;width:100%;font-size:13px;margin-top:8px}
+figure.chart.table svg,figure.chart.table .tip{display:none}
+figure.chart.table table{display:table}
+figure.chart table th,figure.chart table td{padding:5px 8px;border-bottom:1px solid var(--line);text-align:left}
+figure.chart table td.n,figure.chart table th.n{text-align:right;font-variant-numeric:tabular-nums}
+.bytype{margin-top:16px}
+.bytype table{border-collapse:collapse;font-size:14px;width:100%;max-width:520px}
+.bytype td,.bytype th{padding:6px 10px;border-bottom:1px solid var(--line);text-align:left}
+.bytype td.n,.bytype th.n{text-align:right;font-variant-numeric:tabular-nums}
+.bytype .sw{display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--accent);margin-right:8px;vertical-align:-1px}
+footer.fine{margin-top:32px;font-size:13px;color:var(--faint);max-width:720px}
+@media (min-width:900px){.tiles{grid-template-columns:repeat(7,minmax(0,1fr))}}
+@media (max-width:520px){
+  .wrap{padding:16px 16px 48px}
+  .bar .acts{margin-left:0;width:100%}
+  .tile .v{font-size:20px}.tile.hero .v{font-size:24px}
+  .tiles{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media (prefers-reduced-motion:reduce){.tip{transition:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="top">
+  <h1>Deal register</h1>
+  <span class="tag">prototype · reads your workbook in the browser</span>
+</header>
+<p class="lede">Keep your deals in a spreadsheet you own. Point this page at it and it reads the term investments as they stand, draws the maturity ladder and what is still out at each year end, and shows you every row as it read it. Nothing is uploaded, nothing is written back, and the page makes no request of its own.</p>
+
+<div class="err" id="err" role="alert"></div>
+
+<section class="doors" id="doors" aria-label="Get started">
+  <div class="door">
+    <h2>Download the template</h2>
+    <p>An Excel workbook with a <b>Settings</b> sheet and a <b>Term investments</b> sheet, with seven example deals to replace with your own. The drop-downs are the vocabulary the page understands.</p>
+    <div class="act"><a class="btn" id="dl" download="pwlb-register.xlsx" href="#">Download pwlb-register.xlsx</a></div>
+  </div>
+  <div class="door">
+    <h2>Point at your copy</h2>
+    <p>Choose the workbook you have filled in. It is read where it is — the page never keeps a copy and never changes it.</p>
+    <div class="act"><button class="btn" id="pick" type="button">Choose your workbook</button> <span class="hint" id="pickhint"></span></div>
+  </div>
+  <div class="door">
+    <h2>Try it with the examples</h2>
+    <p>Read the template as it comes, example rows and all, to see what the page does before you fill anything in.</p>
+    <div class="act"><button class="btn sec" id="demo" type="button">Read the template’s examples</button></div>
+  </div>
+</section>
+<input type="file" id="regfile" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" aria-hidden="true" tabindex="-1">
+
+<div class="bar" id="bar">
+  <span class="fname" id="fname"></span>
+  <span class="meta" id="meta"></span>
+  <span class="acts">
+    <button class="btn" id="again" type="button">Read again</button>
+    <button class="btn sec" id="another" type="button">Choose another</button>
+    <a class="btn sec" id="dl2" download="pwlb-register.xlsx" href="#">Template</a>
+  </span>
+</div>
+<div class="notice" id="changed">Your workbook has changed since it was read. <b>Read again</b> picks up the new rows.</div>
+
+<nav class="rtabs" role="tablist" aria-label="What was read">
+  <button class="rtab" role="tab" data-tab="figures" aria-selected="true" type="button">Figures</button>
+  <button class="rtab" role="tab" data-tab="term" aria-selected="false" type="button">Term investments</button>
+  <button class="rtab" role="tab" data-tab="settings" aria-selected="false" type="button">Settings</button>
+</nav>
+
+<section class="rpanel on" id="p-figures" role="tabpanel" aria-label="Figures">
+  <div class="tiles" id="tiles"></div>
+  <div class="charts" id="charts"></div>
+  <div class="card bytype" id="bytype"></div>
+</section>
+<section class="rpanel" id="p-term" role="tabpanel" aria-label="Term investments">
+  <div class="card">
+    <h2>Term investments <small>as read from the TermInvestments table</small></h2>
+    <p class="count" id="termcount"></p>
+    <div class="tscroll" id="termtable"></div>
+  </div>
+</section>
+<section class="rpanel" id="p-settings" role="tabpanel" aria-label="Settings">
+  <div class="card">
+    <h2>Settings <small>as read from the Settings sheet</small></h2>
+    <dl class="kv" id="settings"></dl>
+    <ul class="issues" id="sissues"></ul>
+  </div>
+  <div class="card">
+    <h2>What the page found</h2>
+    <dl class="kv" id="found"></dl>
+  </div>
+</section>
+
+<footer class="fine">Read-only, by design: this page keeps no record of your deals, stores nothing between visits, and is not a treasury management system. Your workbook is the record; the page is a reader for it. Browsers from 2023 on can inflate the workbook natively; an older one will say so.</footer>
+</div>
+<script>
+const TEMPLATE_B64 = "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";
+const TEMPLATE_SIZE = 17713;
+/* ===========================================================================
+ * READING THE REGISTER WORKBOOK, WITH NO LIBRARY.
+ *
+ * An .xlsx is a zip of XML. The browser inflates natively (DecompressionStream,
+ * Chrome 80, Edge 80, Safari 16.4, Firefox 113; Node 18 for the tests), and
+ * the XML Excel writes is regular enough for a small parser of its own. So
+ * the page stays what the report tool is: one file, no dependency, nothing
+ * fetched. Only the cached values are read — a workbook saved by Excel has
+ * every formula's result in it — so the file must have been saved by Excel
+ * (or LibreOffice), not written by a script that leaves formulas unevaluated.
+ *
+ * readWorkbook(bytes) -> { sheets: {name: Map<"B4", {v, kind}>}, tables: [...], names: {...} }
+ *   kind is "string" | "number" | "date" | "percent" | "bool"; a date's v is a
+ *   JS Date (UTC midnight), a percent's v the fraction (0.0425 for 4.25%).
+ * ======================================================================== */
+const XL = (() => {
+  const dec = new TextDecoder("utf-8");
+  const text = u8 => dec.decode(u8);
+  const unesc = s => s.replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'").replace(/&#(\d+);/g, (m, n) => String.fromCodePoint(+n))
+    .replace(/&#x([0-9a-f]+);/gi, (m, n) => String.fromCodePoint(parseInt(n, 16))).replace(/&amp;/g, "&");
+  const attr = (tag, name) => { const m = new RegExp("\\s" + name.replace(":", "\\:") + '="([^"]*)"').exec(tag); return m ? unesc(m[1]) : null; };
+  const tags = (xml, name) => xml.match(new RegExp("<" + name + "\\b[^>]*?(?:/>|>[\\s\\S]*?</" + name + ">)", "g")) || [];
+  const inner = (tag, name) => { const m = new RegExp("<" + name + "\\b[^>]*>([\\s\\S]*?)</" + name + ">").exec(tag); return m ? m[1] : null; };
+
+  async function inflateRaw(bytes){
+    const ds = new DecompressionStream("deflate-raw");
+    const resp = new Response(new Blob([bytes]).stream().pipeThrough(ds));
+    return new Uint8Array(await resp.arrayBuffer());
+  }
+  /* The zip: find the central directory from its end record, then each
+     entry's data through its local header. Sizes come from the central
+     directory, which is right even when the local header deferred them. */
+  async function unzip(buf){
+    const u8 = buf instanceof Uint8Array ? buf : new Uint8Array(buf);
+    const dv = new DataView(u8.buffer, u8.byteOffset, u8.byteLength);
+    let eocd = -1;
+    for(let i = u8.length - 22; i >= Math.max(0, u8.length - 65557); i--){
+      if(dv.getUint32(i, true) === 0x06054b50){ eocd = i; break; }
+    }
+    if(eocd < 0) throw new Error("This is not a zip file, so not an .xlsx");
+    const n = dv.getUint16(eocd + 10, true), cd = dv.getUint32(eocd + 16, true);
+    const out = {}; let p = cd;
+    for(let k = 0; k < n; k++){
+      if(dv.getUint32(p, true) !== 0x02014b50) throw new Error("The zip's directory is damaged");
+      const method = dv.getUint16(p + 10, true), csize = dv.getUint32(p + 20, true);
+      const nlen = dv.getUint16(p + 28, true), elen = dv.getUint16(p + 30, true), clen = dv.getUint16(p + 32, true);
+      const lho = dv.getUint32(p + 42, true);
+      const name = text(u8.subarray(p + 46, p + 46 + nlen));
+      const lnlen = dv.getUint16(lho + 26, true), lelen = dv.getUint16(lho + 28, true);
+      const start = lho + 30 + lnlen + lelen;
+      const data = u8.subarray(start, start + csize);
+      if(method === 0) out[name] = data;
+      else if(method === 8) out[name] = await inflateRaw(data);
+      else throw new Error("Unsupported compression in " + name);
+      p += 46 + nlen + elen + clen;
+    }
+    return out;
+  }
+
+  const colIndex = letters => { let n = 0; for(const ch of letters) n = n * 26 + (ch.charCodeAt(0) - 64); return n; };
+  const colLetters = n => { let s = ""; while(n > 0){ const r = (n - 1) % 26; s = String.fromCharCode(65 + r) + s; n = Math.floor((n - 1) / 26); } return s; };
+  const ref = a => { const m = /^([A-Z]+)(\d+)$/.exec(a); return m ? {col: colIndex(m[1]), row: +m[2]} : null; };
+
+  /* Which styles are dates, which percentages: the built-in number formats
+     Excel reserves, plus any custom code with a day, month or year in it. */
+  function styleKinds(stylesXml){
+    const custom = {};
+    tags(stylesXml || "", "numFmt").forEach(t => { custom[attr(t, "numFmtId")] = attr(t, "formatCode") || ""; });
+    const xfs = inner(stylesXml || "", "cellXfs") || "";
+    const kinds = tags(xfs, "xf").map(t => {
+      const id = +(attr(t, "numFmtId") || 0);
+      if((id >= 14 && id <= 22) || (id >= 27 && id <= 36) || (id >= 45 && id <= 47) || (id >= 50 && id <= 58)) return "date";
+      if(id === 9 || id === 10) return "percent";
+      const code = custom[String(id)];
+      if(code == null) return "number";
+      const bare = code.replace(/"[^"]*"/g, "").replace(/\[[^\]]*\]/g, "").replace(/\\./g, "");
+      if(/%/.test(bare)) return "percent";
+      if(/[dmyh]/i.test(bare) && !/[#0]/.test(bare)) return "date";
+      if(/[dmy]/i.test(bare)) return "date";
+      return "number";
+    });
+    return kinds;
+  }
+  const EPOCH = Date.UTC(1899, 11, 30);
+  const serialToDate = n => new Date(EPOCH + Math.round(n) * 86400000);
+
+  function sharedStrings(xml){
+    return tags(xml || "", "si").map(si =>
+      (si.match(/<t\b[^>]*>([\s\S]*?)<\/t>/g) || []).map(t => unesc(t.replace(/^<t\b[^>]*>/, "").replace(/<\/t>$/, ""))).join(""));
+  }
+
+  function parseSheet(xml, strings, kinds){
+    const cells = new Map();
+    const sd = inner(xml, "sheetData") || "";
+    tags(sd, "c").forEach(c => {
+      const a = attr(c, "r"); if(!a) return;
+      const t = attr(c, "t"), s = attr(c, "s");
+      const v = inner(c, "v");
+      let out = null;
+      if(t === "s"){ if(v != null) out = {v: strings[+v] ?? "", kind: "string"}; }
+      else if(t === "str"){ out = {v: unesc(v || ""), kind: "string"}; }
+      else if(t === "inlineStr"){ const is = inner(c, "is") || ""; out = {v: (is.match(/<t\b[^>]*>([\s\S]*?)<\/t>/g) || []).map(x => unesc(x.replace(/^<t\b[^>]*>/, "").replace(/<\/t>$/, ""))).join(""), kind: "string"}; }
+      else if(t === "b"){ if(v != null) out = {v: v === "1", kind: "bool"}; }
+      else if(t === "e"){ out = {v: unesc(v || ""), kind: "error"}; }
+      else if(v != null){
+        const n = +v, kind = s != null ? (kinds[+s] || "number") : "number";
+        out = kind === "date" ? {v: serialToDate(n), kind: "date"} : {v: n, kind};
+      }
+      if(out) cells.set(a, out);
+    });
+    return cells;
+  }
+
+  function relsOf(files, path){
+    // xl/workbook.xml -> xl/_rels/workbook.xml.rels ; xl/worksheets/sheet1.xml -> xl/worksheets/_rels/sheet1.xml.rels
+    const i = path.lastIndexOf("/");
+    const rp = path.slice(0, i) + "/_rels/" + path.slice(i + 1) + ".rels";
+    const xml = files[rp] ? text(files[rp]) : "";
+    const base = path.slice(0, i);
+    const out = {};
+    tags(xml, "Relationship").forEach(r => {
+      let target = attr(r, "Target") || "";
+      if(target.startsWith("/")) target = target.slice(1);
+      else { const parts = (base + "/" + target).split("/"); const st = []; for(const p of parts){ if(p === "..") st.pop(); else if(p !== ".") st.push(p); } target = st.join("/"); }
+      out[attr(r, "Id")] = {target, type: (attr(r, "Type") || "").split("/").pop()};
+    });
+    return out;
+  }
+
+  async function readWorkbook(bytes){
+    const files = await unzip(bytes);
+    if(!files["xl/workbook.xml"]) throw new Error("This file has no workbook in it — is it an .xlsx?");
+    const wbXml = text(files["xl/workbook.xml"]);
+    const wbRels = relsOf(files, "xl/workbook.xml");
+    const strings = sharedStrings(files["xl/sharedStrings.xml"] ? text(files["xl/sharedStrings.xml"]) : "");
+    const kinds = styleKinds(files["xl/styles.xml"] ? text(files["xl/styles.xml"]) : "");
+    const sheets = {}, tables = [], order = [];
+    tags(wbXml, "sheet").forEach(s => {
+      const name = attr(s, "name"), rid = attr(s, "r:id");
+      const rel = wbRels[rid]; if(!rel || !files[rel.target]) return;
+      const xml = text(files[rel.target]);
+      sheets[name] = parseSheet(xml, strings, kinds); order.push(name);
+      const srels = relsOf(files, rel.target);
+      Object.values(srels).filter(r => r.type === "table" && files[r.target]).forEach(r => {
+        const tx = text(files[r.target]);
+        const head = /<table\b[^>]*>/.exec(tx); if(!head) return;
+        tables.push({name: attr(head[0], "displayName") || attr(head[0], "name"), sheet: name,
+          ref: attr(head[0], "ref"), columns: tags(tx, "tableColumn").map(c => attr(c, "name"))});
+      });
+    });
+    const names = {};
+    tags(wbXml, "definedName").forEach(d => { const n = attr(d, "name"), v = inner(d, "definedName"); if(n && v) names[n] = unesc(v); });
+    return {sheets, order, tables, names};
+  }
+
+  /* A table's rows as objects keyed by header, blank rows skipped, with the
+     sheet row number kept for saying where a problem is. */
+  function tableRows(wb, tableName){
+    const t = wb.tables.find(x => x.name === tableName); if(!t) return null;
+    const cells = wb.sheets[t.sheet]; if(!cells) return null;
+    const [a, b] = t.ref.split(":"), r0 = ref(a), r1 = ref(b || a);
+    const heads = [];
+    for(let c = r0.col; c <= r1.col; c++){ const h = cells.get(colLetters(c) + r0.row); heads.push(h ? String(h.v).trim() : t.columns[c - r0.col] || ""); }
+    const rows = [];
+    for(let r = r0.row + 1; r <= r1.row; r++){
+      const o = {_row: r}; let any = false;
+      heads.forEach((h, i) => { const cell = cells.get(colLetters(r0.col + i) + r); o[h] = cell || null; if(cell && cell.v !== "" && cell.v != null) any = true; });
+      if(any) rows.push(o);
+    }
+    return {table: t, headers: heads, rows};
+  }
+  /* A defined name's single cell, e.g. AsAt -> Settings!$B$4. */
+  function named(wb, name){
+    const v = wb.names[name]; if(!v) return null;
+    const m = /^'?([^'!]+)'?!\$?([A-Z]+)\$?(\d+)$/.exec(v); if(!m) return null;
+    const cells = wb.sheets[m[1]]; if(!cells) return null;
+    return cells.get(m[2] + m[3]) || null;
+  }
+  return {readWorkbook, tableRows, named, unzip, colLetters, ref};
+})();
+if(typeof module !== "undefined") module.exports = XL;
+
+/* ===========================================================================
+ * THE REGISTER: what the workbook means, and the sums the page draws.
+ *
+ * Strict about the vocabulary (the drop-down lists in the workbook), lenient
+ * about free text. A row with a problem is kept and flagged, so the replica
+ * shows exactly what was read and where it went wrong; it is left out of the
+ * sums only when the sum could not use it (no principal, no maturity).
+ * The vocabulary here mirrors the workbook's Lists sheet: both are the
+ * contract, and a benchmarking service later would aggregate on these words.
+ * ======================================================================== */
+const REG = (() => {
+  const TEMPLATE_VERSION = 1;
+  const VOCAB = {
+    termTypes: ["Fixed deposit", "Certificate of deposit", "Treasury bill", "Gilt", "Bond", "Loan to local authority", "Other"],
+    counterpartyTypes: ["UK bank", "Overseas bank", "Building society", "Local authority", "UK Government", "Money market fund", "Pooled fund", "Other"],
+    hra: ["None", "One pool", "Two pools"]
+  };
+  const norm = s => String(s == null ? "" : s).trim().replace(/\s+/g, " ").toLowerCase();
+  const pick = (list, v) => list.find(x => norm(x) === norm(v)) || null;
+  const str = c => c && c.v != null ? String(c.v).trim() : "";
+  const num = c => c && c.kind !== "string" && typeof c.v === "number" ? c.v : (c && typeof c.v === "string" && c.v.trim() !== "" && !isNaN(+c.v.replace(/[,£%\s]/g, "")) ? +c.v.replace(/[,£%\s]/g, "") : null);
+  const date = c => {
+    if(!c) return null;
+    if(c.v instanceof Date) return c.v;
+    if(typeof c.v === "number" && c.v > 20000 && c.v < 80000) return new Date(Date.UTC(1899, 11, 30) + Math.round(c.v) * 86400000);
+    if(typeof c.v === "string"){ const m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(c.v.trim()); if(m) return new Date(Date.UTC(+m[3], +m[2] - 1, +m[1])); }
+    return null;
+  };
+  /* A rate cell: a percentage-formatted cell holds the fraction; a plain
+     number of 1 or more is taken as percent typed as a number (4.25). */
+  const rate = c => {
+    if(!c) return null;
+    if(c.kind === "percent") return c.v;
+    const n = num(c); if(n == null) return null;
+    return n >= 1 ? n / 100 : n;
+  };
+  const dmy = d => d ? `${String(d.getUTCDate()).padStart(2, "0")}/${String(d.getUTCMonth() + 1).padStart(2, "0")}/${d.getUTCFullYear()}` : "";
+  const money = n => n == null ? "" : "£" + Math.round(n).toLocaleString("en-GB");
+  const pct = r => r == null ? "" : (r * 100).toFixed(2) + "%";
+
+  function readRegister(wb){
+    const issues = [];
+    const asAt = date(XL.named(wb, "AsAt"));
+    if(!asAt) issues.push("Settings: the As at date is missing or not a date.");
+    const hraRaw = str(XL.named(wb, "HRA")), hra = pick(VOCAB.hra, hraRaw);
+    if(!hra) issues.push(`Settings: HRA is "${hraRaw || "blank"}"; it should be None, One pool or Two pools.`);
+    const vcell = XL.named(wb, "TemplateVersion"), version = vcell ? num(vcell) : null;
+    if(version !== TEMPLATE_VERSION) issues.push(`Settings: template version ${version == null ? "is missing" : "is " + version}; this page reads version ${TEMPLATE_VERSION}.`);
+
+    const t = XL.tableRows(wb, "TermInvestments");
+    const term = [];
+    if(!t) issues.push("There is no TermInvestments table — is this the register template?");
+    else t.rows.forEach(r => {
+      const o = {row: r._row, issues: []};
+      o.typeRaw = str(r["Type"]); o.type = pick(VOCAB.termTypes, o.typeRaw);
+      if(!o.type) o.issues.push(o.typeRaw ? `Type "${o.typeRaw}" is not one of the list` : "Type is blank");
+      o.counterparty = str(r["Counterparty"]); if(!o.counterparty) o.issues.push("Counterparty is blank");
+      o.cpTypeRaw = str(r["Counterparty type"]); o.cpType = pick(VOCAB.counterpartyTypes, o.cpTypeRaw);
+      if(!o.cpType) o.issues.push(o.cpTypeRaw ? `Counterparty type "${o.cpTypeRaw}" is not one of the list` : "Counterparty type is blank");
+      o.principal = num(r["Principal"]); if(o.principal == null || !(o.principal > 0)) o.issues.push("Principal is blank or not a positive number");
+      o.start = date(r["Start date"]); if(!o.start) o.issues.push("Start date is missing or not a date");
+      o.maturity = date(r["Maturity date"]); if(!o.maturity) o.issues.push("Maturity date is missing or not a date");
+      if(o.start && o.maturity && o.maturity <= o.start) o.issues.push("Maturity date is not after the start date");
+      if(o.maturity && asAt && o.maturity <= asAt) o.issues.push("Matured on or before the as-at date");
+      o.rate = rate(r["Rate"]); if(o.rate == null) o.issues.push("Rate is blank");
+      o.bookValue = num(r["Book value"]);
+      o.rating = str(r["Rating"]); o.notes = str(r["Notes"]);
+      o.counts = o.principal > 0 && !!o.maturity && !(asAt && o.maturity <= asAt);
+      term.push(o);
+    });
+    return {asAt, hra, hraRaw, version, termInvestments: term, issues, read: new Date()};
+  }
+
+  /* ---- the sums --------------------------------------------------------- */
+  const BUCKETS = ["Under 3 months", "3 to 6 months", "6 to 12 months", "1 to 2 years", "2 to 5 years", "Over 5 years"];
+  const monthsBetween = (a, b) => (b.getUTCFullYear() - a.getUTCFullYear()) * 12 + (b.getUTCMonth() - a.getUTCMonth()) - (b.getUTCDate() < a.getUTCDate() ? 1 : 0);
+  function bucketOf(asAt, maturity){
+    const m = monthsBetween(asAt, maturity);
+    if(m < 3) return 0; if(m < 6) return 1; if(m < 12) return 2; if(m < 24) return 3; if(m < 60) return 4; return 5;
+  }
+  function ladder(reg){
+    const sums = BUCKETS.map(b => ({label: b, total: 0, deals: 0}));
+    if(!reg.asAt) return sums;
+    reg.termInvestments.filter(r => r.counts).forEach(r => { const i = bucketOf(reg.asAt, r.maturity); sums[i].total += r.principal; sums[i].deals++; });
+    return sums;
+  }
+  /* Principal still out at each 31 March after the as-at date: what the
+     report's "existing investment commitments" column is made of. */
+  function yearEnds(reg, n){
+    const out = [];
+    if(!reg.asAt) return out;
+    let y = reg.asAt.getUTCFullYear(); if(reg.asAt.getUTCMonth() > 2 || (reg.asAt.getUTCMonth() === 2 && reg.asAt.getUTCDate() >= 31)) y++;
+    for(let k = 0; k < (n || 5); k++){
+      const ye = new Date(Date.UTC(y + k, 2, 31));
+      const rows = reg.termInvestments.filter(r => r.counts && r.maturity > ye);
+      out.push({label: `31 Mar ${y + k}`, fy: `${y + k - 1}/${String(y + k).slice(2)}`, date: ye, total: rows.reduce((s, r) => s + r.principal, 0), deals: rows.length});
+    }
+    return out;
+  }
+  function stats(reg){
+    const rows = reg.termInvestments.filter(r => r.counts);
+    const total = rows.reduce((s, r) => s + r.principal, 0);
+    const wRate = total ? rows.reduce((s, r) => s + r.principal * (r.rate || 0), 0) / total : null;
+    const wLife = total && reg.asAt ? rows.reduce((s, r) => s + r.principal * ((r.maturity - reg.asAt) / 86400000 / 365.25), 0) / total : null;
+    const byType = {};
+    rows.forEach(r => { const k = r.cpType || "Not on the list"; byType[k] = (byType[k] || 0) + r.principal; });
+    return {total, deals: rows.length, counterparties: new Set(rows.map(r => norm(r.counterparty))).size,
+      wRate, wLife, byType, flagged: reg.termInvestments.filter(r => r.issues.length).length};
+  }
+  return {TEMPLATE_VERSION, VOCAB, BUCKETS, readRegister, ladder, yearEnds, stats, dmy, money, pct, bucketOf};
+})();
+if(typeof module !== "undefined") module.exports = REG;
+
+/* ===========================================================================
+ * THE PAGE: three doors, one workbook, read where it is.
+ *
+ * Where the browser offers it (Chrome, Edge), the page keeps a handle to the
+ * file, so "Read again" re-reads the same file after it has been saved in
+ * Excel, and a light watch on its modified time says when that has happened.
+ * Elsewhere the file input is the door, and Read again asks for the file
+ * once more — a File from an input cannot be re-read once it has changed on
+ * disk. Both roads end in readFile(); nothing else differs.
+ *
+ * Nothing here fetches, posts or stores. The template is embedded in the page
+ * (TEMPLATE_B64, written by build.py) so even the download is a data: URL.
+ * ======================================================================== */
+(() => {
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s == null ? "" : s).replace(/[&<>"]/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]));
+  const S = {handle: null, file: null, name: "", modified: 0, wb: null, reg: null, watch: 0};
+  const canInflate = typeof DecompressionStream === "function";
+  const canPick = typeof window.showOpenFilePicker === "function";
+  const XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+
+  /* ---- the template, from the page itself -------------------------------- */
+  const templateBytes = () => { const b = atob(TEMPLATE_B64), u = new Uint8Array(b.length); for(let i = 0; i < b.length; i++) u[i] = b.charCodeAt(i); return u; };
+  const dataUrl = "data:" + XLSX_MIME + ";base64," + TEMPLATE_B64;
+  $("dl").href = dataUrl; $("dl2").href = dataUrl;
+
+  /* ---- errors and notices ------------------------------------------------ */
+  function showErr(msg){ const e = $("err"); e.innerHTML = msg; e.classList.add("on"); }
+  function clearErr(){ $("err").classList.remove("on"); $("err").innerHTML = ""; }
+  if(!canInflate){
+    showErr("This browser cannot unpack a workbook on its own (it has no DecompressionStream). Chrome 80, Edge 80, Safari 16.4 and Firefox 113 or later can.");
+    $("pick").disabled = true; $("demo").disabled = true;
+  }
+  $("pickhint").textContent = canPick ? "Chrome and Edge keep a link to the file, so Read again picks up what you save." : "Read again will ask for the file once more.";
+
+  /* ---- the doors ---------------------------------------------------------- */
+  async function pick(){
+    clearErr();
+    if(canPick){
+      let h;
+      try{ [h] = await window.showOpenFilePicker({multiple: false, types: [{description: "Excel workbook", accept: {[XLSX_MIME]: [".xlsx"]}}]}); }
+      catch(e){ if(e && e.name === "AbortError") return; showErr("Could not open the file picker: " + esc(e.message || e)); return; }
+      S.handle = h; S.file = null;
+      await readHandle();
+    } else {
+      $("regfile").value = "";
+      $("regfile").click();
+    }
+  }
+  $("regfile").addEventListener("change", async () => {
+    const f = $("regfile").files && $("regfile").files[0];
+    if(!f) return;
+    S.handle = null; S.file = f;
+    await readFile(f);
+  });
+  $("pick").addEventListener("click", pick);
+  $("another").addEventListener("click", pick);
+  $("demo").addEventListener("click", async () => {
+    clearErr();
+    S.handle = null; S.file = null;
+    await readFile(new File([templateBytes()], "pwlb-register.xlsx (the template)", {type: XLSX_MIME, lastModified: 0}));
+  });
+  $("again").addEventListener("click", async () => {
+    clearErr();
+    if(S.handle) return readHandle();
+    if(S.file){
+      /* An input's File can be re-read while the file is unchanged; once it
+         has been saved over, the read fails and the picker is the way back. */
+      try{ await readFile(S.file); return; } catch(e){ /* fall through to pick */ }
+    }
+    pick();
+  });
+
+  async function readHandle(){
+    let f;
+    try{ f = await S.handle.getFile(); }
+    catch(e){ showErr("Could not read the file: " + esc(e.message || e) + ". Choose it again."); return; }
+    await readFile(f);
+  }
+
+  /* ---- the read ------------------------------------------------------------ */
+  async function readFile(f){
+    stopWatch();
+    $("changed").classList.remove("on");
+    let wb, reg;
+    try{
+      const bytes = new Uint8Array(await f.arrayBuffer());
+      wb = await XL.readWorkbook(bytes);
+      reg = REG.readRegister(wb);
+    } catch(e){
+      showErr("<b>" + esc(f.name) + "</b> could not be read as a register workbook: " + esc(e.message || e) + ".");
+      throw e;
+    }
+    S.name = f.name; S.modified = f.lastModified; S.wb = wb; S.reg = reg;
+    render();
+    document.documentElement.classList.add("read");
+    if(S.handle) startWatch();
+  }
+
+  /* ---- the watch ------------------------------------------------------------ */
+  function startWatch(){
+    stopWatch();
+    S.watch = setInterval(async () => {
+      try{
+        const f = await S.handle.getFile();
+        if(f.lastModified !== S.modified) $("changed").classList.add("on");
+      } catch(e){ /* permission lapsed or file gone: Read again will say */ }
+    }, 2000);
+  }
+  function stopWatch(){ if(S.watch){ clearInterval(S.watch); S.watch = 0; } }
+
+  /* ---- tabs ------------------------------------------------------------------ */
+  document.querySelectorAll(".rtab").forEach(b => b.addEventListener("click", () => showTab(b.dataset.tab)));
+  function showTab(name){
+    document.querySelectorAll(".rtab").forEach(b => b.setAttribute("aria-selected", String(b.dataset.tab === name)));
+    document.querySelectorAll(".rpanel").forEach(p => p.classList.toggle("on", p.id === "p-" + name));
+  }
+
+  /* ---- rendering ------------------------------------------------------------- */
+  const hm = d => d ? String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0") + ":" + String(d.getSeconds()).padStart(2, "0") : "";
+  const mill = n => n == null ? "" : "£" + (Math.round(n / 1e4) / 100).toLocaleString("en-GB", {maximumFractionDigits: 2}) + "m";
+  const short = n => n == null ? "" : n === 0 ? "£0" : Math.abs(n) >= 1e6 ? mill(n) : Math.abs(n) >= 1e3 ? "£" + Math.round(n / 1e3).toLocaleString("en-GB") + "k" : "£" + Math.round(n);
+
+  function render(){
+    const reg = S.reg, wb = S.wb, st = REG.stats(reg);
+    $("fname").textContent = S.name;
+    $("meta").innerHTML = [
+      "As at " + (reg.asAt ? REG.dmy(reg.asAt) : "<i>missing</i>"),
+      "HRA: " + esc(reg.hra || reg.hraRaw || "blank"),
+      "template v" + (reg.version == null ? "?" : reg.version),
+      "read at " + hm(reg.read)
+    ].map(s => "<span>" + s + "</span>").join("");
+
+    /* settings */
+    $("settings").innerHTML =
+      `<dt>As at</dt><dd>${reg.asAt ? REG.dmy(reg.asAt) : "<i>missing or not a date</i>"}</dd>` +
+      `<dt>HRA</dt><dd>${esc(reg.hraRaw || "blank")}${reg.hra ? "" : " <i>(not one of None, One pool, Two pools)</i>"}</dd>` +
+      `<dt>Template version</dt><dd>${reg.version == null ? "<i>missing</i>" : esc(reg.version)}</dd>`;
+    const si = $("sissues");
+    si.className = "issues" + (reg.issues.length ? "" : " none");
+    si.innerHTML = reg.issues.length ? reg.issues.map(i => `<li>${esc(i)}</li>`).join("") : "<li>The settings read cleanly.</li>";
+    const t = wb.tables.find(x => x.name === "TermInvestments");
+    $("found").innerHTML =
+      `<dt>Sheets</dt><dd>${wb.order.map(esc).join(", ")}</dd>` +
+      `<dt>Tables</dt><dd>${wb.tables.length ? wb.tables.map(x => esc(x.name) + " (" + esc(x.sheet) + " " + esc(x.ref) + ")").join(", ") : "<i>none</i>"}</dd>` +
+      `<dt>Defined names</dt><dd>${Object.keys(wb.names).length}</dd>` +
+      `<dt>TermInvestments rows</dt><dd>${t ? reg.termInvestments.length : "<i>no table</i>"}</dd>`;
+
+    /* the replica */
+    const rows = reg.termInvestments, flagged = rows.filter(r => r.issues.length).length, out = rows.filter(r => !r.counts).length;
+    $("termcount").textContent = rows.length === 0 ? "No rows." :
+      `${rows.length} row${rows.length === 1 ? "" : "s"}` + (flagged ? `, ${flagged} flagged` : ", none flagged") + (out ? ` — ${out} left out of the figures` : "") + ".";
+    $("termtable").innerHTML = `<table class="rep"><thead><tr><th>Row</th><th>Type</th><th>Counterparty</th><th>Counterparty type</th><th class="n">Principal</th><th>Start</th><th>Maturity</th><th class="n">Rate</th><th class="n">Book value</th><th>Rating</th><th>Notes</th><th>Flags</th></tr></thead><tbody>` +
+      rows.map(r => `<tr class="${r.issues.length ? "flag" : ""}${r.counts ? "" : " out"}"><td class="row">${r.row}</td><td>${esc(r.type || r.typeRaw)}</td><td>${esc(r.counterparty)}</td><td>${esc(r.cpType || r.cpTypeRaw)}</td><td class="n">${REG.money(r.principal)}</td><td>${REG.dmy(r.start)}</td><td>${REG.dmy(r.maturity)}</td><td class="n">${REG.pct(r.rate)}</td><td class="n">${REG.money(r.bookValue)}</td><td>${esc(r.rating)}</td><td>${esc(r.notes)}</td><td class="flags">${r.issues.map(esc).join("; ")}</td></tr>`).join("") +
+      `</tbody><tfoot><tr><td></td><td colspan="3">Total of the ${st.deals} that count</td><td class="n">${REG.money(st.total)}</td><td></td><td></td><td class="n">${st.wRate == null ? "" : REG.pct(st.wRate)}</td><td class="n">${REG.money(rows.filter(r => r.counts && r.bookValue != null).reduce((s, r) => s + r.bookValue, 0) || null)}</td><td colspan="3"></td></tr></tfoot></table>`;
+
+    /* the figures */
+    $("tiles").innerHTML =
+      tile(REG.money(st.total), "principal invested", true) +
+      tile(st.deals, st.deals === 1 ? "deal" : "deals") +
+      tile(st.counterparties, st.counterparties === 1 ? "counterparty" : "counterparties") +
+      tile(st.wRate == null ? "–" : REG.pct(st.wRate), "weighted average rate") +
+      tile(st.wLife == null ? "–" : st.wLife.toFixed(2) + " yrs", "weighted average life") +
+      tile(st.flagged, st.flagged === 1 ? "row flagged" : "rows flagged");
+    drawCharts();
+    const types = Object.entries(st.byType).sort((a, b) => b[1] - a[1]);
+    $("bytype").innerHTML = `<h2>By counterparty type</h2><p class="sub">principal that counts, by the Counterparty type column</p>` +
+      (types.length ? `<table><thead><tr><th>Type</th><th class="n">Principal</th><th class="n">Share</th></tr></thead><tbody>` +
+        types.map(([k, v]) => `<tr><td><span class="sw"></span>${esc(k)}</td><td class="n">${REG.money(v)}</td><td class="n">${(100 * v / st.total).toFixed(1)}%</td></tr>`).join("") +
+        `</tbody></table>` : `<p class="sub">Nothing counts yet.</p>`);
+  }
+  /* The charts are drawn to the width of the column they sit in, so the text
+     stays 12px on a phone instead of a 640-unit viewBox shrunk to half; a
+     resize redraws them. The width is worked out from the page, not the
+     figure, so it is right even while the Figures tab is hidden. */
+  function drawCharts(){
+    const reg = S.reg; if(!reg) return;
+    const ww = document.querySelector(".wrap").clientWidth - 32;
+    const col = ww >= 2 * 400 + 16 ? (ww - 16) / 2 : ww;   /* mirrors .charts' minmax(400px,1fr) */
+    const W = Math.max(280, Math.floor(col - 34));
+    const lad = REG.ladder(reg).map((b, i) => ({...b, short: SHORT_BUCKETS[i]}));
+    const ye = REG.yearEnds(reg, 5).map(y => ({...y, short: "Mar " + y.label.slice(-2)}));
+    $("charts").innerHTML =
+      chart("ladder", "Maturity ladder", "principal by time to maturity from " + (reg.asAt ? REG.dmy(reg.asAt) : "the as-at date"), lad, W) +
+      chart("yearends", "Still invested at each year end", "principal maturing after 31 March", ye, W);
+    wireCharts();
+    S.drawnAt = ww;
+  }
+  let rsz = 0;
+  window.addEventListener("resize", () => { clearTimeout(rsz); rsz = setTimeout(() => { if(S.reg && document.querySelector(".wrap").clientWidth - 32 !== S.drawnAt) drawCharts(); }, 150); });
+  const tile = (v, l, hero) => `<div class="tile${hero ? " hero" : ""}"><div class="v">${esc(v)}</div><div class="l">${esc(l)}</div></div>`;
+
+  /* ---- a bar chart, by hand ------------------------------------------------------
+     One series, one hue. Bars at most 24px wide with 4px rounded tops anchored
+     to the baseline; cap labels in ink; hairline grid; the tooltip and the
+     table view are wired in wireCharts(). */
+  const niceMax = v => { if(!(v > 0)) return 1e6; const p = Math.pow(10, Math.floor(Math.log10(v))), m = v / p; const n = m <= 1 ? 1 : m <= 2 ? 2 : m <= 2.5 ? 2.5 : m <= 5 ? 5 : 10; return n * p; };
+  const divisions = top => { const m = top / Math.pow(10, Math.floor(Math.log10(top))); return m === 2.5 || m === 5 || m === 10 || m === 1 ? 5 : 4; };
+  const barPath = (x, y, w, h, r) => { r = Math.min(r, w / 2, h); return `M${x},${y + h} V${y + r} Q${x},${y} ${x + r},${y} H${x + w - r} Q${x + w},${y} ${x + w},${y + r} V${y + h} Z`; };
+  /* A label wraps to two lines when it would not fit its column (about 6.5px
+     a character at 12px), split at the space nearest its middle. When even
+     the wrapped lines would not fit — six buckets on a phone — every label
+     on that chart takes its short form instead, and the tooltip and the
+     table keep the long one. */
+  const SHORT_BUCKETS = ["<3m", "3–6m", "6–12m", "1–2y", "2–5y", ">5y"];
+  const fits = (s, colW) => s.length * 6.5 <= colW - 6;
+  const wrap = (s, colW) => { if(fits(s, colW)) return [s]; const i = s.indexOf(" ", Math.floor(s.length / 2) - 2); return i < 0 ? [s] : [s.slice(0, i), s.slice(i + 1)]; };
+  function chart(id, title, sub, data, W){
+    W = W || 640;
+    const H = 270, L = 54, R = 12, T = 30, B = 46, pw = W - L - R, ph = H - T - B;
+    const top = niceMax(Math.max(...data.map(d => d.total), 0)), div = divisions(top);
+    const y = v => T + ph - (v / top) * ph;
+    const colW = pw / data.length, bw = Math.min(24, colW * 0.6);
+    const useShort = data.some(d => d.short && !wrap(d.label, colW).every(l => fits(l, colW)));
+    let svg = `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="${esc(title)}">`;
+    for(let k = 0; k <= div; k++){
+      const v = top * k / div, yy = y(v).toFixed(1);
+      svg += `<line class="${k ? "grid" : "base"}" x1="${L}" x2="${W - R}" y1="${yy}" y2="${yy}"/><text x="${L - 8}" y="${yy}" text-anchor="end" dominant-baseline="middle">${short(v)}</text>`;
+    }
+    data.forEach((d, i) => {
+      const cx = L + colW * (i + 0.5), x = cx - bw / 2, h = (d.total / top) * ph, yy = y(d.total);
+      const lines = useShort ? [d.short] : wrap(d.label, colW);
+      svg += `<g class="col" data-i="${i}">`;
+      svg += `<rect class="hit" x="${(cx - colW / 2).toFixed(1)}" y="${T}" width="${colW.toFixed(1)}" height="${ph + B}"/>`;
+      if(d.total > 0) svg += `<path class="bar" d="${barPath(x, yy, bw, h, 4)}"/>`;
+      svg += d.total > 0 ? `<text class="cap" x="${cx}" y="${(yy - 7).toFixed(1)}" text-anchor="middle">${mill(d.total)}</text>`
+                         : `<text class="nil" x="${cx}" y="${(y(0) - 7).toFixed(1)}" text-anchor="middle">nil</text>`;
+      svg += `<text x="${cx}" y="${T + ph + 18}" text-anchor="middle">${lines.map((l, j) => `<tspan x="${cx}" dy="${j ? 14 : 0}">${esc(l)}</tspan>`).join("")}</text>`;
+      svg += `</g>`;
+    });
+    svg += `</svg>`;
+    const table = `<table><thead><tr><th>${id === "ladder" ? "Bucket" : "Year end"}</th><th class="n">Principal</th><th class="n">Deals</th></tr></thead><tbody>` +
+      data.map(d => `<tr><td>${esc(d.label)}</td><td class="n">${REG.money(d.total)}</td><td class="n">${d.deals}</td></tr>`).join("") + `</tbody></table>`;
+    return `<figure class="chart" id="c-${id}" data-labels='${esc(JSON.stringify(data.map(d => [d.label, d.total, d.deals])))}'><figcaption><b>${esc(title)}</b><span>${esc(sub)}</span></figcaption>${svg}${table}<div class="tip"></div><button class="tv" type="button" aria-pressed="false">Show as a table</button></figure>`;
+  }
+  function wireCharts(){
+    document.querySelectorAll("figure.chart").forEach(fig => {
+      const data = JSON.parse(fig.dataset.labels), tip = fig.querySelector(".tip"), svg = fig.querySelector("svg");
+      const show = (col) => {
+        const i = +col.dataset.i, d = data[i];
+        fig.querySelectorAll(".col.on").forEach(c => c.classList.remove("on")); col.classList.add("on");
+        tip.innerHTML = `<b>${esc(d[0])}</b><br>${REG.money(d[1])} · ${d[2]} deal${d[2] === 1 ? "" : "s"}`;
+        const fr = fig.getBoundingClientRect(), br = (col.querySelector(".bar") || col.querySelector(".hit")).getBoundingClientRect();
+        tip.style.left = (br.left + br.width / 2 - fr.left) + "px";
+        tip.style.top = (br.top - fr.top) + "px";
+        tip.classList.add("on");
+      };
+      const hide = () => { tip.classList.remove("on"); fig.querySelectorAll(".col.on").forEach(c => c.classList.remove("on")); };
+      svg.addEventListener("pointermove", e => { const col = e.target.closest(".col"); if(col) show(col); else hide(); });
+      svg.addEventListener("pointerleave", hide);
+      fig.querySelector(".tv").addEventListener("click", e => {
+        const on = fig.classList.toggle("table");
+        e.currentTarget.setAttribute("aria-pressed", String(on));
+        e.currentTarget.textContent = on ? "Show as a chart" : "Show as a table";
+      });
+    });
+  }
+})();
+
+</script>
+</body>
+</html>
