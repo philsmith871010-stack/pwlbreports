@@ -191,8 +191,13 @@ button,input,select{font:inherit;color:inherit}
    were sitting in the grid as empty flex columns, silently consuming a
    track and shifting whatever came after them into the next row. */
 .setup > div[hidden]{display:none}
-.setup > div > label{flex:1 1 auto;display:flex;flex-direction:column;margin-bottom:6px}
-.setup > div > label > .hint{margin-top:auto;padding-top:3px}
+/* A label is its text with the "?" beside it, then the unit on a line of
+   its own at the foot, so the boxes under a row of labels line up. As a
+   flex column the "?" was a line by itself under the text. */
+.setup > div > label{flex:1 1 auto;display:grid;grid-template-columns:minmax(0,max-content) auto;
+  grid-template-rows:auto 1fr;justify-content:start;align-content:start;margin-bottom:6px}
+.setup > div > label > .hq{align-self:end;margin:0 0 2px 2px}
+.setup > div > label > .hint{grid-column:1/-1;align-self:end;padding-top:3px}
 label{display:block;font-size:12px;font-weight:600;color:var(--ink2);margin-bottom:4px;
   line-height:1.4}
 label .hint{display:block;font-weight:400;color:var(--muted);font-size:11px;
@@ -232,7 +237,7 @@ select:focus,input:focus{outline:2px solid var(--accent);outline-offset:-1px}
    step — and had to be rebuilt as the page changed. Phil's call. */
 .hq{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;
   border-radius:50%;border:1px solid var(--line2);background:var(--paper);color:var(--ink2);
-  font:600 10.5px/1 var(--sans);margin-left:5px;vertical-align:middle;cursor:pointer;padding:0}
+  font:600 10.5px/1 var(--sans);margin-left:2px;vertical-align:middle;cursor:pointer;padding:0}
 .hq:hover{border-color:var(--accent);color:var(--accent)}
 th .hq{font-weight:600}
 #hpop{position:fixed;z-index:2147483000;max-width:320px;background:var(--card);border:1px solid var(--line);
@@ -1043,7 +1048,9 @@ button.rm:hover{color:var(--alert)}
 .mgrid{table-layout:fixed;margin:2px 0 0}
 .mgrid th,.mgrid td{padding:2px 8px;height:auto}
 .mgrid th{font-size:10.5px;letter-spacing:.04em;line-height:1.25;vertical-align:bottom}
-.mgrid td:first-child,.mgrid th:first-child{width:126px;font-size:12px}
+/* Wide enough for "12 months to 24 months": at 126px the label ran under
+   the box beside it. */
+.mgrid td:first-child,.mgrid th:first-child{width:176px;font-size:12px;white-space:nowrap}
 .mgrid input{width:100%;padding:3px 7px;font-family:var(--mono);font-size:12.5px;
   text-align:right;font-variant-numeric:tabular-nums;border:1px solid var(--line2);
   border-radius:var(--r-sm);background:var(--card);color:var(--ink)}
@@ -1571,7 +1578,10 @@ svg.ctip .hits rect{cursor:crosshair}
    apparently frozen. A question is always about the thing on top, so it has
    to be the thing on top. The reports panel and the start screen stay where
    they are; only the ask/notice pair and their veil move. */
-.askbox{position:fixed;inset:auto 0 0 0;margin:0 auto 24px;max-width:640px;z-index:92;
+/* In the middle of the window, where a question is looked for; it sat along
+   the bottom edge, under the fold on a short window. */
+.askbox{position:fixed;inset:0;margin:auto;width:min(640px,calc(100% - 32px));height:fit-content;
+  max-height:calc(100vh - 32px);overflow:auto;z-index:92;
   background:var(--card);border:1px solid var(--line2);border-radius:var(--r);
   padding:20px 24px;box-shadow:0 24px 60px rgba(0,0,0,.3)}
 .askbox h3{font-family:var(--sans);font-size:16px;font-weight:600;margin:0 0 10px}
@@ -4145,7 +4155,10 @@ const HELP = {
 function helpBtn(key, label){
   const t = HELP[key];
   if(!t) return "";
-  return `<button type="button" class="hq" data-help="${key}"${
+  /* A no-break space first, so the "?" stays on the line of the word it
+     follows: in a narrow column header the mark wrapped onto a line of its
+     own, and a label that stacks its parts put it under the text. */
+  return `&nbsp;<button type="button" class="hq" data-help="${key}"${
     label ? ` data-label="${esc(label)}"` : ""} aria-label="What goes here" title="What goes here">?</button>`;
 }
 /* The text behind a "?", from the one table above. The markup carries the
@@ -4525,16 +4538,15 @@ function actualRow(S, fund){
    * underpinning table then opens at one net position, closes at another, and
    * nothing says which is wrong.
    *
-   * It is ALWAYS computed. It was briefly "computed unless an entry exists",
-   * which was defensible while the field could be typed into — and became a
-   * trap the moment the ledger started showing it as derived, because a stale
-   * value from a demonstration or an older saved file then overrode the
-   * derivation and there was no longer any way to clear it. A figure the user
-   * cannot edit must not be a figure the user can override. */
+   * So it is worked out, and shown in the cell, whenever the cell is blank.
+   * A figure typed there is kept (Phil, 2 October 2026: the cell is not
+   * read-only), and the CFR walk is then the check on whether it
+   * reconciles. The cell can be cleared, so a stale figure from an older
+   * file is a figure the reader can see and remove, not a trap. */
   const cfr = n("cfr"), liq = n("liq");
   const el = n("loans"), ei = n("inv");
   const ntp = el - ei;
-  const obs = cfr - ntp;
+  const obs = n("obs") ? n("obs") : cfr - ntp;
   const hraTwoPool = fund === "hra" && S.hra === "two";
   const tib = hraTwoPool ? 0 : Math.max(liq, -ntp);
   const lb  = hraTwoPool ? ntp : ntp + tib;
@@ -13897,17 +13909,22 @@ function buildLedger(){
       .join("") + `</tr></thead><tbody>`;
   // The most recent actual year-end, which the Code asks the tables and
   // charts to commence with.
-  h += `<tr class="actualrow"><th class="yr">${fy(S.fy0-1)}<small>actual</small>${helpBtn("actualrow")}</th>` +
+  h += `<tr class="actualrow"><th class="yr">${fy(S.fy0-1)}${helpBtn("actualrow")}<small>actual</small></th>` +
     CS.map(c => {
       if(!ACTUAL_COLS.length || ACTUAL_COLS.indexOf(c.k) < 0)
         return `<td class="nask" title="not part of the closing position"></td>`;
       // Other balance sheet items are DERIVED at the opening date, as the
       // Code describes: the CFR and the principal held are known, and this is
       // what reconciles them. Shown, never typed.
-      if(c.k === "obs")
-        return `<td class="drv" data-obs="1" title="derived: the capital financing requirement
-          less the debt and investments held"></td>`;
+      /* Other balance sheet items at the opening date: worked out from the
+         CFR and what is held when the cell is blank (the derivation sits in
+         the cell as its placeholder), kept as typed otherwise — a cell like
+         the others, so the cursor runs along the row (Phil, 2 October 2026). */
       const v = (S.actual && S.actual[S.fund] || {})[c.k];
+      if(c.k === "obs")
+        return `<td class="act"><input type="text" inputmode="decimal" data-k="obs" data-i="${A_IDX}"
+          data-obs="1" value="${v ? m1(v) : ""}" placeholder="—"
+          aria-label="Other balance sheet items ${fy(S.fy0-1)} actual"></td>`;
       return `<td class="act"><input type="text" inputmode="decimal" data-k="${c.k}"
         data-i="${A_IDX}" value="${v == null ? "" : m1(v)}" placeholder="—"
         aria-label="${esc(colName(c))} ${fy(S.fy0-1)} actual"></td>`;
@@ -13958,7 +13975,7 @@ function buildLedger(){
       get: (k,i) => i === A_IDX ? actualCell(k) : S.g[S.fund][k][i],
       set: (k,i,v) => {
         if(i === A_IDX){
-          if(k !== "obs" && ACTUAL_COLS.indexOf(k) >= 0) actualCell(k, v);
+          if(ACTUAL_COLS.indexOf(k) >= 0) actualCell(k, v);
           return;
         }
         const c = COLS.find(x => x.k === k);
@@ -14020,9 +14037,13 @@ function syncLedger(force){
   const oc = $("ledger").querySelector("[data-obs]");
   if(oc){
     const a = actualRow(S, S.fund);
-    oc.textContent = a ? m1(a.obs) : "—";
-    oc.title = a ? `Derived: capital financing requirement £${m1(a.cfr)}m less the `
-      + `£${m1(a.ntp)}m of debt net of investments held` : "Enter the closing position first";
+    const typed = +((S.actual && S.actual[S.fund] || {}).obs) || 0;
+    const derived = a ? a.cfr - a.ntp : null;
+    oc.placeholder = derived == null ? "—" : m1(derived);
+    oc.title = derived == null ? "Enter the closing position first"
+      : `Worked out as the capital financing requirement £${m1(a.cfr)}m less the `
+      + `£${m1(a.ntp)}m of debt net of investments held. Type a figure to state your own.`
+      + (typed ? "" : "");
   }
   // The CFR walk is a check on their own arithmetic, never a substitute for it.
   const bad=walkCheck(S,S.fund);
@@ -17214,10 +17235,15 @@ function setupSummary(){
   function discardFirst(what, go){
     if(!FILE_DIRTY || !S.gss || S.gss === DEMO_GSS){ go(); return; }
     const who = (LB[S.gss] || {}).n || S.otherName || "This authority";
+    /* ONE BOX AT A TIME. Asked from a door, this used to open over the start
+       screen — two boxes, one on the other. The start screen steps aside
+       for the question and comes back to its doors if the answer is no. */
+    const fromStart = !$(SV.box).hidden;
+    if(fromStart) startClose();
     ask("Discard unsaved changes?",
       `<p>${esc(who)}'s reports have changes not yet saved to a file. ${esc(what)} will lose them.</p>
        <p>To keep them, press Cancel and then Save now.</p>`,
-      "Discard changes", go);
+      "Discard changes", go, () => { if(fromStart) startOpen("doors"); });
   }
   /* ONE DELEGATED LISTENER, because every view above is rebuilt from scratch
      each time it is shown — binding per render would stack a new handler on
