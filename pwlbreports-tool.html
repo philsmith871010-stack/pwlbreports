@@ -3570,6 +3570,11 @@ function excelGrid(root, o){
      column the boot-time list had never seen indexed −1 and threw. The caller
      may pass a function, and the ledger does. */
   const cols = () => (typeof o.cols === "function" ? o.cols() : o.cols), nR = () => o.rows();
+  /* THE FIRST ROW MAY BE BELOW ZERO. The ledger's actual year-end sits above
+     year 0 as row -1, and this grid clamped every row to 0: from that row,
+     Right, Left and Tab all dropped to the first projection year, and Up from
+     that year could not reach it. The caller says where the rows start. */
+  const rMin = () => (typeof o.rowMin === "function" ? o.rowMin() : 0);
   let sel = null;                   // {c0,r0,c1,r1} in index space
 
   /* Undo. Anyone trying figures out will overwrite a column and want it back,
@@ -3594,6 +3599,7 @@ function excelGrid(root, o){
     `input[data-k="${cols()[c]}"][data-i="${r}"]`);
   const idx = el => ({c: cols().indexOf(el.dataset.k), r: +el.dataset.i});
   const clamp = (v, hi) => Math.max(0, Math.min(hi, v));
+  const clampR = v => Math.max(rMin(), Math.min(nR() - 1, v));
 
   const handle = document.createElement("div");
   handle.className = "xfill";
@@ -3622,11 +3628,24 @@ function excelGrid(root, o){
     }
   }
 
-  function go(c, r, extend){
-    const el = cellAt(clamp(c, cols().length-1), clamp(r, nR()-1));
-    if(!el) return;
-    if(extend && sel){ sel.c1 = idx(el).c; sel.r1 = idx(el).r; paint(); return; }
+  /* Move to a cell. A row need not have a cell in every column (the actual
+     row has none under a derived column), so a sideways move carries on in
+     its direction to the next column that has one, and a move up or down
+     into such a gap takes the nearest cell in that row instead. Returns
+     whether it moved. */
+  function go(c, r, extend, dc, dr){
+    c = clamp(c, cols().length-1); r = clampR(r);
+    let el = cellAt(c, r);
+    if(!el && dc){
+      for(let cc = c + dc; cc >= 0 && cc < cols().length && !el; cc += dc) el = cellAt(cc, r);
+    }
+    if(!el && dr){
+      for(let d = 1; d < cols().length && !el; d++) el = cellAt(c - d, r) || cellAt(c + d, r);
+    }
+    if(!el) return false;
+    if(extend && sel){ sel.c1 = idx(el).c; sel.r1 = idx(el).r; paint(); return true; }
     el.focus(); el.select();
+    return true;
   }
   /* Extending moves the loose CORNER of the selection, not the focused cell.
      Reading the direction off the event target instead meant every shift-arrow
@@ -3635,7 +3654,7 @@ function excelGrid(root, o){
   function grow(dc, dr){
     if(!sel) return;
     sel.c1 = clamp(sel.c1 + dc, cols().length - 1);
-    sel.r1 = clamp(sel.r1 + dr, nR() - 1);
+    sel.r1 = clampR(sel.r1 + dr);
     paint();
   }
 
@@ -3718,31 +3737,32 @@ function excelGrid(root, o){
     }
 
     switch(e.key){
-      case "Enter":     e.preventDefault(); go(c, r + (e.shiftKey ? -1 : 1)); return;
+      case "Enter":     e.preventDefault(); go(c, r + (e.shiftKey ? -1 : 1), false, 0, e.shiftKey ? -1 : 1); return;
       case "ArrowDown": e.preventDefault();
-        e.shiftKey ? grow(0, 1) : go(c, r+1); return;
+        e.shiftKey ? grow(0, 1) : go(c, r+1, false, 0, 1); return;
       case "ArrowUp":   e.preventDefault();
-        e.shiftKey ? grow(0, -1) : go(c, r-1); return;
+        e.shiftKey ? grow(0, -1) : go(c, r-1, false, 0, -1); return;
       case "ArrowLeft":
         if(e.shiftKey){ e.preventDefault(); grow(-1, 0); return; }
         // The caret moves first; only at the start of the text does the cell.
         // A wholly selected value counts as the start AND the end: arriving
         // in a cell selects it, and until a key is pressed nobody is editing.
         if(SELALL(el) || (el.selectionStart === 0 && el.selectionEnd === 0)){
-          e.preventDefault(); go(c-1, r); }
+          e.preventDefault(); go(c-1, r, false, -1); }
         return;
       case "ArrowRight":
         if(e.shiftKey){ e.preventDefault(); grow(1, 0); return; }
         if(SELALL(el) || (el.selectionStart === el.value.length
                        && el.selectionEnd === el.value.length)){
-          e.preventDefault(); go(c+1, r); }
+          e.preventDefault(); go(c+1, r, false, 1); }
         return;
       case "Tab": {
         e.preventDefault();
-        const n = e.shiftKey ? c-1 : c+1;
-        if(n < 0) go(cols().length-1, r-1);
-        else if(n >= cols().length) go(0, r+1);
-        else go(n, r);
+        /* Along the row, over any gap; off the end of the row, to the start
+           of the next (or the end of the one before). */
+        const dc = e.shiftKey ? -1 : 1, n = c + dc;
+        const moved = n >= 0 && n < cols().length && go(n, r, false, dc);
+        if(!moved) dc > 0 ? go(0, r+1, false, 1) : go(cols().length-1, r-1, false, -1);
         return;
       }
       case "Delete":
@@ -13933,6 +13953,8 @@ function buildLedger(){
     excelGrid(box, {
       cols: () => colsFor(S.fund, S.hra).map(c => c.k),
       rows: () => S.years,
+      // The actual year-end is row -1 above year 0, when it takes figures.
+      rowMin: () => ACTUAL_COLS.length ? A_IDX : 0,
       get: (k,i) => i === A_IDX ? actualCell(k) : S.g[S.fund][k][i],
       set: (k,i,v) => {
         if(i === A_IDX){
