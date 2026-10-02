@@ -224,6 +224,7 @@ select:focus,input:focus{outline:2px solid var(--accent);outline-offset:-1px}
 
 /* ---- the ledger: years down, measures across ---------------------------- */
 .fundtabs{display:flex;gap:6px;margin-bottom:10px}
+.fundtabs:empty{display:none}
 .fundtabs button{padding:7px 15px;border:1px solid var(--line2);background:var(--paper);
   border-radius:var(--r-sm);cursor:pointer;font-size:12.5px}
 .fundtabs button[aria-pressed=true]{background:var(--accent);border-color:var(--accent);
@@ -2124,8 +2125,12 @@ td.nask{background:repeating-linear-gradient(45deg,var(--hair),var(--hair) 4px,
   <section class="panel" data-step="3">
     <div class="phead"><span class="n">3</span><h2>Your projections</h2></div>
     <div class="pbody">
+      <!-- The fund tabs on a row of their own, above the Excel row: in the same
+           row, a one- or two-pool authority had the tabs, the two Excel buttons
+           and (under the site's skin, which moves the minimum cash box up here)
+           the cash box all on one line, with the tabs last (Phil, 2 October 2026). -->
+      <div class="fundtabs" id="fundtabs" role="group" aria-label="Fund"></div>
       <div class="ltop">
-        <div class="fundtabs" id="fundtabs" role="group" aria-label="Fund"></div>
         <span class="sp"></span>
         <button type="button" class="xb on" id="pastex"><span class="ar">↓</span>Paste from Excel</button>
         <button type="button" class="xb" id="copyx"><span class="ar">↑</span>Copy for Excel</button>
