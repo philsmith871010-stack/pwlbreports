@@ -520,6 +520,13 @@ const REG = (() => {
     }
   }
 
+  /* What follows from a row's fields, for a row read from the workbook and
+     for one brought back from a report's snapshot alike. */
+  const deriveTerm = (o, asAt) => { o.nominal = o.faceValue > 0 ? o.faceValue : o.principal; o.counts = o.nominal > 0 && !!o.maturity && !(asAt && o.maturity <= asAt); return o; };
+  const deriveCall = o => { o.counts = o.balance > 0; return o; };
+  const deriveLoan = (o, asAt) => { o.counts = o.principal > 0 && !!o.maturity && !(asAt && o.maturity <= asAt) && !(o.profile !== "Maturity" && (!o.frequency || !o.firstRepayment)); o.schedule = o.counts && asAt ? schedule(o, asAt) : []; return o; };
+  const deriveFund = o => { o.counts = o.carryingValue > 0; return o; };
+
   function readRegister(wb){
     const issues = [];
     const asAt = date(XL.named(wb, "AsAt"));
@@ -550,8 +557,7 @@ const REG = (() => {
       o.faceValue = num(r["Face value"]); if(o.faceValue != null && !(o.faceValue > 0)) o.issues.push("Face value is not a positive number");
       o.carryingValue = num(r["Carrying value"]);
       o.rating = str(r["Rating"]); o.notes = str(r["Notes"]);
-      o.nominal = o.faceValue > 0 ? o.faceValue : o.principal;
-      o.counts = o.nominal > 0 && !!o.maturity && !(asAt && o.maturity <= asAt);
+      deriveTerm(o, asAt);
     });
 
     const callAccounts = table("CallAccounts", (o, r) => {
@@ -562,7 +568,7 @@ const REG = (() => {
       o.rate = rate(r["Rate"]); if(o.rate == null) o.issues.push("Rate is blank");
       o.noticeDays = num(r["Notice days"]);
       o.rating = str(r["Rating"]); o.notes = str(r["Notes"]);
-      o.counts = o.balance > 0;
+      deriveCall(o);
     });
 
     const loans = table("Loans", (o, r) => {
@@ -590,8 +596,7 @@ const REG = (() => {
       if(o.type === "LOBO" && !o.nextCall) o.issues.push("A LOBO needs its Next call date");
       if(o.nextCall && asAt && o.nextCall <= asAt) o.issues.push("Next call date is on or before the as-at date");
       o.notes = str(r["Notes"]);
-      o.counts = o.principal > 0 && !!o.maturity && !(asAt && o.maturity <= asAt) && !(o.profile !== "Maturity" && (!o.frequency || !o.firstRepayment));
-      o.schedule = o.counts && asAt ? schedule(o, asAt) : [];
+      deriveLoan(o, asAt);
     });
 
     const pooledFunds = table("PooledFunds", (o, r) => {
@@ -602,10 +607,52 @@ const REG = (() => {
       o.rate = rate(r["Current rate"]);
       o.purchased = date(r["Purchase date"]);
       o.notes = str(r["Notes"]);
-      o.counts = o.carryingValue > 0;
+      deriveFund(o);
     });
 
     return {asAt, hra, hraRaw, twoPools, version, termInvestments, callAccounts, loans, pooledFunds, issues, read: new Date()};
+  }
+
+  /* ---- the snapshot a report keeps ----------------------------------------
+     The vocabulary words, the amounts and the dates (ISO), row by row,
+     flagged rows included with their flags. Small, and the council's own.
+     fromSnapshot brings it back as rows with the same derived fields, so a
+     saved report draws its charts and sums exactly as the workbook did. */
+  const iso = d => d ? d.toISOString().slice(0, 10) : null;
+  const unIso = s => s ? new Date(s + "T00:00:00Z") : null;
+  function snapshot(reg, name){
+    const flags = r => r.issues.length ? {issues: r.issues.slice()} : {};
+    return {
+      v: 1, name: name || "", asAt: iso(reg.asAt), hra: reg.hra, version: reg.version, read: new Date().toISOString(),
+      settingsIssues: reg.issues.slice(),
+      term: reg.termInvestments.map(r => Object.assign({row: r.row, type: r.type || r.typeRaw, counterparty: r.counterparty, cpType: r.cpType || r.cpTypeRaw,
+        principal: r.principal, start: iso(r.start), maturity: iso(r.maturity), rate: r.rate, faceValue: r.faceValue, carryingValue: r.carryingValue, rating: r.rating}, flags(r))),
+      call: reg.callAccounts.map(r => Object.assign({row: r.row, type: r.type || r.typeRaw, counterparty: r.counterparty, cpType: r.cpType || r.cpTypeRaw,
+        balance: r.balance, rate: r.rate, noticeDays: r.noticeDays, rating: r.rating}, flags(r))),
+      loans: reg.loans.map(r => Object.assign({row: r.row, type: r.type || r.typeRaw, lender: r.lender, lenderType: r.lenderType || r.lenderTypeRaw,
+        principal: r.principal, start: iso(r.start), maturity: iso(r.maturity), rate: r.rate, profile: r.profile || r.profileRaw, frequency: r.frequency || r.frequencyRaw,
+        firstRepayment: iso(r.firstRepayment), fund: r.fund || r.fundRaw, nextCall: iso(r.nextCall)}, flags(r))),
+      funds: reg.pooledFunds.map(r => Object.assign({row: r.row, name: r.name, fundType: r.fundType || r.fundTypeRaw, carryingValue: r.carryingValue,
+        latestValue: r.latestValue, rate: r.rate, purchased: iso(r.purchased)}, flags(r)))
+    };
+  }
+  function fromSnapshot(snap){
+    const asAt = unIso(snap.asAt);
+    const base = r => ({row: r.row, issues: (r.issues || []).slice()});
+    const word = (list, v) => pick(list, v);
+    const termInvestments = (snap.term || []).map(r => deriveTerm(Object.assign(base(r), {type: word(VOCAB.termTypes, r.type), typeRaw: r.type || "", counterparty: r.counterparty || "",
+      cpType: word(VOCAB.counterpartyTypes, r.cpType), cpTypeRaw: r.cpType || "", principal: r.principal, start: unIso(r.start), maturity: unIso(r.maturity), rate: r.rate,
+      faceValue: r.faceValue == null ? null : r.faceValue, carryingValue: r.carryingValue == null ? null : r.carryingValue, rating: r.rating || "", notes: ""}), asAt));
+    const callAccounts = (snap.call || []).map(r => deriveCall(Object.assign(base(r), {type: word(VOCAB.callTypes, r.type), typeRaw: r.type || "", counterparty: r.counterparty || "",
+      cpType: word(VOCAB.counterpartyTypes, r.cpType), cpTypeRaw: r.cpType || "", balance: r.balance, rate: r.rate, noticeDays: r.noticeDays == null ? null : r.noticeDays, rating: r.rating || "", notes: ""})));
+    const loans = (snap.loans || []).map(r => deriveLoan(Object.assign(base(r), {type: word(VOCAB.loanTypes, r.type), typeRaw: r.type || "", lender: r.lender || "",
+      lenderType: word(VOCAB.lenderTypes, r.lenderType), lenderTypeRaw: r.lenderType || "", principal: r.principal, start: unIso(r.start), maturity: unIso(r.maturity), rate: r.rate,
+      profile: word(VOCAB.profiles, r.profile) || (r.profile ? null : "Maturity"), profileRaw: r.profile || "", frequency: word(VOCAB.frequencies, r.frequency), frequencyRaw: r.frequency || "",
+      firstRepayment: unIso(r.firstRepayment), fund: word(VOCAB.funds, r.fund), fundRaw: r.fund || "", nextCall: unIso(r.nextCall), notes: ""}), asAt));
+    const pooledFunds = (snap.funds || []).map(r => deriveFund(Object.assign(base(r), {name: r.name || "", fundType: word(VOCAB.fundTypes, r.fundType), fundTypeRaw: r.fundType || "",
+      carryingValue: r.carryingValue, latestValue: r.latestValue == null ? null : r.latestValue, rate: r.rate, purchased: unIso(r.purchased), notes: ""})));
+    return {asAt, hra: snap.hra || null, hraRaw: snap.hra || "", twoPools: snap.hra === "Two pools", version: snap.version, termInvestments, callAccounts, loans, pooledFunds,
+      issues: (snap.settingsIssues || []).slice(), read: snap.read ? new Date(snap.read) : new Date(), name: snap.name || "", fromSnapshot: true};
   }
 
   /* ---- loan repayment schedules ------------------------------------------
@@ -815,7 +862,7 @@ const REG = (() => {
     };
   }
   return {TEMPLATE_VERSION, VOCAB, BUCKETS, DEBT_BUCKETS, readRegister, schedule, ladder, yearEnds, debtLadder, debtYearEnds, stats, dmy, money, pct, bucketOf, debtBucketOf, addMonths, monthsBetween,
-    ladderBy, debtLadderBy, runoffBy, calendar, exposure, yieldPoints, costPoints};
+    ladderBy, debtLadderBy, runoffBy, calendar, exposure, yieldPoints, costPoints, snapshot, fromSnapshot};
 })();
 if(typeof module !== "undefined") module.exports = REG;
 
@@ -865,10 +912,27 @@ const CH = (() => {
   const bottomPath = (x, y, w, h, r) => { r = Math.min(r, w / 2, h); return `M${x},${y} V${y + h - r} Q${x},${y + h} ${x + r},${y + h} H${x + w - r} Q${x + w},${y + h} ${x + w},${y + h - r} V${y} Z`; };
   const f1 = n => (+n).toFixed(1);
 
-  /* ---- the frame every chart sits in ------------------------------------- */
+  /* ---- the frame every chart sits in -------------------------------------
+     On the register page: a figure with an HTML legend, a tooltip and a
+     table view. In a report draft (o.static): a plain block with the legend
+     drawn inside the SVG, so the picture Word gets carries it, and no
+     controls, because the paper is the paper. */
   const legend = keys => keys.length > 1 ? `<div class="legend">${keys.map(k => `<span><i style="background:${color(k)}"></i>${esc(k)}</span>`).join("")}</div>` : "";
+  function legendSvg(keys, W){
+    if(keys.length < 2) return {svg: "", h: 0};
+    let x = 4, y = 12, svg = "";
+    keys.forEach(k => { const w = k.length * 6.5 + 24; if(x + w > W - 4 && x > 4){ x = 4; y += 18; }
+      svg += `<rect x="${x}" y="${y - 9}" width="10" height="10" rx="2" fill="${color(k)}"/><text class="lg" x="${x + 15}" y="${y}">${esc(k)}</text>`; x += w; });
+    return {svg, h: y + 12};
+  }
   function frame(o, H, inner, table, keys){
-    return `<figure class="chart${o.wide ? " wide" : ""}" id="c-${o.id}"><figcaption><b>${esc(o.title)}</b><span>${esc(o.sub)}</span></figcaption>${legend(keys || [])}` +
+    keys = keys || [];
+    if(o.static){
+      const lg = legendSvg(keys, o.W);
+      return `<div class="chart static" id="c-${o.id}"><p class="chart-t"><b>${esc(o.title)}</b> <span>${esc(o.sub)}</span></p>` +
+        `<svg viewBox="0 0 ${o.W} ${H + lg.h}" width="${o.W}" height="${H + lg.h}" role="img" aria-label="${esc(o.title)}">${lg.svg}<g transform="translate(0,${lg.h})">${inner}</g></svg></div>`;
+    }
+    return `<figure class="chart${o.wide ? " wide" : ""}" id="c-${o.id}"><figcaption><b>${esc(o.title)}</b><span>${esc(o.sub)}</span></figcaption>${legend(keys)}` +
       `<svg viewBox="0 0 ${o.W} ${H}" width="${o.W}" height="${H}" role="img" aria-label="${esc(o.title)}">${inner}</svg>` +
       table + `<div class="tip"></div><button class="tv" type="button" aria-pressed="false">Show as a table</button></figure>`;
   }
@@ -1086,6 +1150,57 @@ const CH = (() => {
     return frame(o, H, svg, table, ["Maturing in", "Repaid out"]);
   }
 
+  /* ---- the figures themselves: what each chart of the register shows -----------
+     One list for the register page and the report draft, so the two can never
+     drift. Returns html strings in five groups; o.W is the half-column width,
+     o.Wd the full row; o.static for a draft. */
+  const SHORT_BUCKETS = ["call", "<3m", "3–6m", "6–12m", "1–2y", "2–5y", ">5y"];
+  const SHORT_DEBT = ["<1y", "1–2y", "2–5y", "5–10y", "10–20y", "20–30y", "30–40y", "40–50y", ">50y"];
+  function figures(reg, o){
+    const W = o.W, Wd = o.Wd || o.W, st = o.static ? {static: true} : {};
+    const asAt = reg.asAt ? dmy(reg.asAt) : "the as-at date", stats = REG.stats(reg);
+    const cpk = r => r.cpType || "Not on the list";
+    const lad = REG.ladderBy(reg).map((b, i) => ({...b, short: SHORT_BUCKETS[i]}));
+    const yp = REG.yieldPoints(reg);
+    const inv = [
+      stacked({...st, id: "ladder", title: "Maturity ladder", sub: "by counterparty type: money on call first, a notice account at its notice, term deals at nominal by time to maturity from " + asAt, W, rows: lad, unit: "deal", catName: "Period"}),
+      scatter({...st, id: "yield", title: "What each investment earns, and for how long", sub: "rate against months to maturity, sized by amount; the dashed line is the weighted average", W,
+        pts: yp.map(p => ({x: p.months, y: p.rate * 100, r: p.amount, key: group3(p.cpType), tip: tipOf(p.name, [esc(p.type) + " · " + esc(p.cpType), money(p.amount) + " at " + pct(p.rate), p.maturity ? "matures " + dmy(p.maturity) : (p.months > 0 ? Math.round(p.months * 30.4) + " days' notice" : "on call")])})),
+        xFmt: v => v === 0 ? "0" : Math.round(v) + "m", yFmt: v => v.toFixed(1) + "%", xLabel: "months to maturity", ref: stats.invRate == null ? null : stats.invRate * 100, refLabel: "average " + pct(stats.invRate),
+        all: yp, cols: ["Counterparty", "Type", "Months", "Rate", "Amount"], row: p => [p.name, p.type, p.months.toFixed(1), pct(p.rate), money(p.amount)]})
+    ];
+    const term = reg.termInvestments.filter(r => r.counts).sort((a, b) => a.maturity - b.maturity);
+    const dealRow = r => ({label: r.counterparty, sub: r.type, start: r.start, end: r.maturity, v: r.nominal, key: cpk(r), rate: r.rate,
+      tip: tipOf(r.counterparty, [esc(r.type) + " · " + esc(cpk(r)), money(r.nominal) + " at " + pct(r.rate), dmy(r.start) + " to " + dmy(r.maturity)])});
+    const shown = term.slice(0, 30);
+    const wide = [
+      term.length ? timeline({...st, id: "deals", title: "When each deal comes back", sub: "every term deal from its start to its maturity, soonest first" + (term.length > shown.length ? `; the first ${shown.length} of ${term.length}, all in the table` : "") + "; the year ends are marked", W: Wd, wide: true, asAt: reg.asAt || new Date(), rows: shown.map(dealRow), all: term.map(dealRow)}) : "",
+      hbars({...st, id: "exposure", title: "Exposure by counterparty", sub: "term deals at nominal and call balances together, largest first", W: Wd, wide: true,
+        rows: REG.exposure(reg).map(e => ({label: e.counterparty, sub: e.cpType, v: e.total, key: e.cpType, tip: tipOf(e.counterparty, [esc(e.cpType), money(e.total) + " in " + e.deals + " deal" + (e.deals === 1 ? "" : "s")])}))})
+    ];
+    const dl = REG.debtLadderBy(reg).map((b, i) => ({...b, short: SHORT_DEBT[i]}));
+    const cp = REG.costPoints(reg);
+    const debt = [
+      stacked({...st, id: "debtladder", title: "Maturity structure of borrowing", sub: "principal repaid in each period from " + asAt + ", by lender type; EIP and annuity loans by instalment, LOBOs at their next call", W, rows: dl, unit: "loan", catName: "Period"}),
+      scatter({...st, id: "cost", title: "What each loan costs, and for how long", sub: "rate against years to final maturity, sized by principal outstanding; the dashed line is the weighted average", W,
+        pts: cp.map(p => ({x: p.years, y: p.rate * 100, r: p.amount, key: group3(p.lenderType), tip: tipOf(p.name, [esc(p.type) + " · " + esc(p.profile || "Maturity") + (p.fund ? " · " + esc(p.fund) : ""), money(p.amount) + " at " + pct(p.rate), "matures " + dmy(p.maturity) + (p.nextCall ? ", next call " + dmy(p.nextCall) : "")])})),
+        xFmt: v => Math.round(v) + "y", yFmt: v => v.toFixed(1) + "%", xLabel: "years to final maturity", ref: stats.debtRate == null ? null : stats.debtRate * 100, refLabel: "average " + pct(stats.debtRate),
+        all: cp, cols: ["Lender", "Type", "Years", "Rate", "Outstanding"], row: p => [p.name, p.type, p.years.toFixed(1), pct(p.rate), money(p.amount)]})
+    ];
+    const ro = REG.runoffBy(reg, 50, reg.twoPools ? "fund" : "lenderType").map(r => ({...r, short: "Mar " + r.label.slice(-2)}));
+    const dwide = [ro.length ? area({...st, id: "runoff", title: "How the debt runs off", sub: "principal outstanding at each 31 March, " + (reg.twoPools ? "by fund" : "by lender type") + ", to the last repayment; LOBOs at their next call", W: Wd, wide: true, rows: ro, unit: "loan"}) : ""];
+    const ye = REG.yearEnds(reg, 5), dye = REG.debtYearEnds(reg, 5);
+    const pos = ye.map((y, i) => ({label: y.label, short: "Mar " + y.label.slice(-2), parts: {"Investments": y.total, "Borrowing": dye[i] ? dye[i].total : 0}}));
+    const cal = REG.calendar(reg, 24).map(m => ({...m, short: m.label, tip: tipOf(m.label, m.inDeals.map(r => `<i class="sw" style="background:${color("Maturing in")}"></i>${esc(r.counterparty)} ${money(r.nominal)}`)
+      .concat(m.outLoans.map(l => `<i class="sw" style="background:${color("Repaid out")}"></i>${esc(l.lender)} ${money(l.schedule.filter(p => p.date.getUTCFullYear() === m.year && p.date.getUTCMonth() === m.month).reduce((s, p) => s + p.amount, 0))}`))
+      .concat(m.inflow || m.outflow ? [`net ${money(m.inflow - m.outflow)}`] : ["nothing due"]))}));
+    const year = [
+      grouped({...st, id: "positions", title: "Investments and borrowing at each year end", sub: "term deals still invested at nominal (money on call not counted) against debt outstanding, at 31 March", W: Wd, wide: true, rows: pos, keys: ["Investments", "Borrowing"]}),
+      calendar({...st, id: "calendar", title: "The next two years, month by month", sub: "investments maturing in against loan repayments out", W: Wd, wide: true, months: cal})
+    ];
+    return {inv, wide, debt, dwide, year};
+  }
+
   /* ---- hover and the table view, for every chart under root ------------------ */
   function wire(root){
     root.querySelectorAll("figure.chart").forEach(fig => {
@@ -1111,7 +1226,7 @@ const CH = (() => {
       });
     });
   }
-  return {PAL, color, order, group3, stacked, grouped, hbars, timeline, scatter, area, calendar, wire, mill, short, money, pct, dmy, esc, tipOf};
+  return {PAL, color, order, group3, stacked, grouped, hbars, timeline, scatter, area, calendar, figures, wire, mill, short, money, pct, dmy, esc, tipOf};
 })();
 if(typeof module !== "undefined") module.exports = CH;
 
@@ -1324,56 +1439,17 @@ if(typeof module !== "undefined") module.exports = CH;
      stays 12px on a phone instead of a 640-unit viewBox shrunk to half; a
      resize redraws them. The width is worked out from the page, not the
      figure, so it is right even while the Figures tab is hidden. */
-  const SHORT_BUCKETS = ["call", "<3m", "3–6m", "6–12m", "1–2y", "2–5y", ">5y"];
-  const SHORT_DEBT = ["<1y", "1–2y", "2–5y", "5–10y", "10–20y", "20–30y", "30–40y", "40–50y", ">50y"];
-  const tipRow = (r, lines) => CH.tipOf(r, lines);
   function drawCharts(){
     const reg = S.reg; if(!reg) return;
     const ww = document.querySelector(".wrap").clientWidth - 32;
     const col = ww >= 2 * 400 + 16 ? (ww - 16) / 2 : ww;   /* mirrors .charts' minmax(400px,1fr) */
     const W = Math.max(280, Math.floor(col - 34)), Wd = Math.max(280, Math.floor(ww - 34));
-    const asAt = reg.asAt ? REG.dmy(reg.asAt) : "the as-at date", st = REG.stats(reg);
-    const cpk = r => r.cpType || "Not on the list", lk = l => l.lenderType || "Not on the list";
-
-    /* ---- investments ---- */
-    const lad = REG.ladderBy(reg).map((b, i) => ({...b, short: SHORT_BUCKETS[i]}));
-    const yp = REG.yieldPoints(reg);
-    $("charts").innerHTML =
-      CH.stacked({id: "ladder", title: "Maturity ladder", sub: "by counterparty type: money on call first, a notice account at its notice, term deals at nominal by time to maturity from " + asAt, W, rows: lad, unit: "deal", catName: "Period"}) +
-      CH.scatter({id: "yield", title: "What each investment earns, and for how long", sub: "rate against months to maturity, sized by amount; the dashed line is the weighted average", W,
-        pts: yp.map(p => ({x: p.months, y: p.rate * 100, r: p.amount, key: CH.group3(p.cpType), tip: tipRow(p.name, [esc(p.type) + " · " + esc(p.cpType), REG.money(p.amount) + " at " + REG.pct(p.rate), p.maturity ? "matures " + REG.dmy(p.maturity) : (p.months > 0 ? Math.round(p.months * 30.4) + " days' notice" : "on call")])})),
-        xFmt: v => v === 0 ? "0" : Math.round(v) + "m", yFmt: v => v.toFixed(1) + "%", xLabel: "months to maturity", ref: st.invRate == null ? null : st.invRate * 100, refLabel: "average " + REG.pct(st.invRate),
-        all: yp, cols: ["Counterparty", "Type", "Months", "Rate", "Amount"], row: p => [p.name, p.type, p.months.toFixed(1), REG.pct(p.rate), REG.money(p.amount)]});
-    const term = reg.termInvestments.filter(r => r.counts).sort((a, b) => a.maturity - b.maturity);
-    const dealRow = r => ({label: r.counterparty, sub: r.type, start: r.start, end: r.maturity, v: r.nominal, key: cpk(r), rate: r.rate,
-      tip: tipRow(r.counterparty, [esc(r.type) + " · " + esc(cpk(r)), REG.money(r.nominal) + " at " + REG.pct(r.rate), REG.dmy(r.start) + " to " + REG.dmy(r.maturity)])});
-    const shown = term.slice(0, 30);
-    $("wcharts").innerHTML =
-      (term.length ? CH.timeline({id: "deals", title: "When each deal comes back", sub: "every term deal from its start to its maturity, soonest first" + (term.length > shown.length ? `; the first ${shown.length} of ${term.length}, all in the table` : "") + "; the year ends are marked", W: Wd, wide: true, asAt: reg.asAt || new Date(), rows: shown.map(dealRow), all: term.map(dealRow)}) : "") +
-      CH.hbars({id: "exposure", title: "Exposure by counterparty", sub: "term deals at nominal and call balances together, largest first", W: Wd, wide: true,
-        rows: REG.exposure(reg).map(e => ({label: e.counterparty, sub: e.cpType, v: e.total, key: e.cpType, tip: tipRow(e.counterparty, [esc(e.cpType), REG.money(e.total) + " in " + e.deals + " deal" + (e.deals === 1 ? "" : "s")])}))});
-
-    /* ---- borrowing ---- */
-    const dl = REG.debtLadderBy(reg).map((b, i) => ({...b, short: SHORT_DEBT[i]}));
-    const cp = REG.costPoints(reg);
-    $("dcharts").innerHTML =
-      CH.stacked({id: "debtladder", title: "Maturity structure of borrowing", sub: "principal repaid in each period from " + asAt + ", by lender type; EIP and annuity loans by instalment, LOBOs at their next call", W, rows: dl, unit: "loan", catName: "Period"}) +
-      CH.scatter({id: "cost", title: "What each loan costs, and for how long", sub: "rate against years to final maturity, sized by principal outstanding; the dashed line is the weighted average", W,
-        pts: cp.map(p => ({x: p.years, y: p.rate * 100, r: p.amount, key: CH.group3(p.lenderType), tip: tipRow(p.name, [esc(p.type) + " · " + esc(p.profile || "Maturity") + (p.fund ? " · " + esc(p.fund) : ""), REG.money(p.amount) + " at " + REG.pct(p.rate), "matures " + REG.dmy(p.maturity) + (p.nextCall ? ", next call " + REG.dmy(p.nextCall) : "")])})),
-        xFmt: v => Math.round(v) + "y", yFmt: v => v.toFixed(1) + "%", xLabel: "years to final maturity", ref: st.debtRate == null ? null : st.debtRate * 100, refLabel: "average " + REG.pct(st.debtRate),
-        all: cp, cols: ["Lender", "Type", "Years", "Rate", "Outstanding"], row: p => [p.name, p.type, p.years.toFixed(1), REG.pct(p.rate), REG.money(p.amount)]});
-    const ro = REG.runoffBy(reg, 50, reg.twoPools ? "fund" : "lenderType").map(r => ({...r, short: "Mar " + r.label.slice(-2)}));
-    $("wdcharts").innerHTML = ro.length ? CH.area({id: "runoff", title: "How the debt runs off", sub: "principal outstanding at each 31 March, " + (reg.twoPools ? "by fund" : "by lender type") + ", to the last repayment; LOBOs at their next call", W: Wd, wide: true, rows: ro, unit: "loan"}) : "";
-
-    /* ---- year ends and the months ahead ---- */
-    const ye = REG.yearEnds(reg, 5), dye = REG.debtYearEnds(reg, 5);
-    const pos = ye.map((y, i) => ({label: y.label, short: "Mar " + y.label.slice(-2), parts: {"Investments": y.total, "Borrowing": dye[i] ? dye[i].total : 0}}));
-    const cal = REG.calendar(reg, 24).map(m => ({...m, short: m.label, tip: tipRow(m.label, m.inDeals.map(r => `<i class="sw" style="background:${CH.color("Maturing in")}"></i>${esc(r.counterparty)} ${REG.money(r.nominal)}`)
-      .concat(m.outLoans.map(l => `<i class="sw" style="background:${CH.color("Repaid out")}"></i>${esc(l.lender)} ${REG.money(l.schedule.filter(p => p.date.getUTCFullYear() === m.year && p.date.getUTCMonth() === m.month).reduce((s, p) => s + p.amount, 0))}`))
-      .concat(m.inflow || m.outflow ? [`net ${REG.money(m.inflow - m.outflow)}`] : ["nothing due"]))}));
-    $("ycharts").innerHTML =
-      CH.grouped({id: "positions", title: "Investments and borrowing at each year end", sub: "term deals still invested at nominal (money on call not counted) against debt outstanding, at 31 March", W: Wd, wide: true, rows: pos, keys: ["Investments", "Borrowing"]}) +
-      CH.calendar({id: "calendar", title: "The next two years, month by month", sub: "investments maturing in against loan repayments out", W: Wd, wide: true, months: cal});
+    const F = CH.figures(reg, {W, Wd});
+    $("charts").innerHTML = F.inv.join("");
+    $("wcharts").innerHTML = F.wide.join("");
+    $("dcharts").innerHTML = F.debt.join("");
+    $("wdcharts").innerHTML = F.dwide.join("");
+    $("ycharts").innerHTML = F.year.join("");
     CH.wire(document);
     S.drawnAt = ww;
   }

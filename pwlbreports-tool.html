@@ -403,6 +403,35 @@ table.ledger tbody tr td input:focus{background:var(--accent-soft);outline-offse
 .regbox{border:1px solid var(--line2);border-radius:var(--r-sm);padding:10px 14px 12px;margin:0 0 14px}
 .regbox .regline{margin:0;font-size:13.5px;color:var(--ink2);line-height:1.5}
 .regbox .ltools{margin-top:8px}
+.regbox .regview{margin-top:6px}
+.regbox .regview label{margin-left:10px;white-space:nowrap}
+/* The register's charts in a draft, and the position against policy. Literal
+   colours, because these are pictures of the data and the Word export copies
+   the computed styles into the SVG as it is. */
+.chart.static{margin:10px 0 18px}
+.chart.static .chart-t{margin:0 0 4px;font-family:var(--sans);font-size:13px;color:#1d2733}
+.chart.static .chart-t span{color:#5a6670;font-weight:400}
+.chart.static svg{width:100%;height:auto;display:block;overflow:visible;font-family:var(--sans)}
+.chart.static text{fill:#5a6670;font-size:12px}
+.chart.static text.cap{fill:#1d2733;font-weight:600}
+.chart.static text.nil,.chart.static text.tl,.chart.static text.axl{fill:#8a95a1;font-size:11px}
+.chart.static text.tl.ink,.chart.static text.rl{fill:#1d2733}
+.chart.static text.tl.ink{font-weight:600}
+.chart.static text.lg,.chart.static text.refl{fill:#5a6670;font-size:11px}
+.chart.static .grid{stroke:#e3e8ee;stroke-width:1}
+.chart.static .base{stroke:#c9d1da;stroke-width:1}
+.chart.static .ye{stroke:#e3e8ee}
+.chart.static .asat{stroke:#1d2733;stroke-width:1.5}
+.chart.static .hit,.chart.static .hl{fill:transparent;stroke:transparent}
+.chart.static .pt{stroke:#fff;stroke-width:2;opacity:.92}
+.chart.static .ar{opacity:.85}
+.chart.static .arl{fill:none;stroke:#fff;stroke-width:2}
+.chart.static .ref{stroke:#8a95a1;stroke-dasharray:4 3}
+.chart.static .bar:not([fill]){fill:#2a78d6}
+.cppos td.ok{color:#1e6b3a;font-weight:600}
+.cppos td.bad{color:#9b1c1c;font-weight:700}
+.cppos td.na{color:#8a95a1}
+#cpposition{margin-top:22px}
 .ltools{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:11px}
 .ltools button{padding:7px 12px;border-radius:var(--r-sm);border:1px solid var(--line2);
   background:var(--paper);font-size:12.5px;cursor:pointer}
@@ -2100,6 +2129,10 @@ td.nask{background:repeating-linear-gradient(45deg,var(--hair),var(--hair) 4px,
            report carries a snapshot — see register.js. -->
       <div class="regbox" id="regbox" hidden>
         <p class="regline"><b>Deal register</b><button type="button" class="hq" data-help="reg:box" aria-label="What is this" title="What is this">?</button> <span id="regstatus"></span></p>
+        <p class="regline regview" id="regview" hidden>In the draft:
+          <label><input type="radio" name="regview" value="summary"> Summary — the tables, as now</label>
+          <label><input type="radio" name="regview" value="detailed"> Detailed — every chart from the register</label>
+          <button type="button" class="hq" data-help="reg:view" aria-label="What is this" title="What is this">?</button></p>
         <div class="ltools">
           <button type="button" id="regpick">Read from my register</button>
           <button type="button" id="regagain" hidden>Read again</button>
@@ -2503,6 +2536,13 @@ const REG = (() => {
     }
   }
 
+  /* What follows from a row's fields, for a row read from the workbook and
+     for one brought back from a report's snapshot alike. */
+  const deriveTerm = (o, asAt) => { o.nominal = o.faceValue > 0 ? o.faceValue : o.principal; o.counts = o.nominal > 0 && !!o.maturity && !(asAt && o.maturity <= asAt); return o; };
+  const deriveCall = o => { o.counts = o.balance > 0; return o; };
+  const deriveLoan = (o, asAt) => { o.counts = o.principal > 0 && !!o.maturity && !(asAt && o.maturity <= asAt) && !(o.profile !== "Maturity" && (!o.frequency || !o.firstRepayment)); o.schedule = o.counts && asAt ? schedule(o, asAt) : []; return o; };
+  const deriveFund = o => { o.counts = o.carryingValue > 0; return o; };
+
   function readRegister(wb){
     const issues = [];
     const asAt = date(XL.named(wb, "AsAt"));
@@ -2533,8 +2573,7 @@ const REG = (() => {
       o.faceValue = num(r["Face value"]); if(o.faceValue != null && !(o.faceValue > 0)) o.issues.push("Face value is not a positive number");
       o.carryingValue = num(r["Carrying value"]);
       o.rating = str(r["Rating"]); o.notes = str(r["Notes"]);
-      o.nominal = o.faceValue > 0 ? o.faceValue : o.principal;
-      o.counts = o.nominal > 0 && !!o.maturity && !(asAt && o.maturity <= asAt);
+      deriveTerm(o, asAt);
     });
 
     const callAccounts = table("CallAccounts", (o, r) => {
@@ -2545,7 +2584,7 @@ const REG = (() => {
       o.rate = rate(r["Rate"]); if(o.rate == null) o.issues.push("Rate is blank");
       o.noticeDays = num(r["Notice days"]);
       o.rating = str(r["Rating"]); o.notes = str(r["Notes"]);
-      o.counts = o.balance > 0;
+      deriveCall(o);
     });
 
     const loans = table("Loans", (o, r) => {
@@ -2573,8 +2612,7 @@ const REG = (() => {
       if(o.type === "LOBO" && !o.nextCall) o.issues.push("A LOBO needs its Next call date");
       if(o.nextCall && asAt && o.nextCall <= asAt) o.issues.push("Next call date is on or before the as-at date");
       o.notes = str(r["Notes"]);
-      o.counts = o.principal > 0 && !!o.maturity && !(asAt && o.maturity <= asAt) && !(o.profile !== "Maturity" && (!o.frequency || !o.firstRepayment));
-      o.schedule = o.counts && asAt ? schedule(o, asAt) : [];
+      deriveLoan(o, asAt);
     });
 
     const pooledFunds = table("PooledFunds", (o, r) => {
@@ -2585,10 +2623,52 @@ const REG = (() => {
       o.rate = rate(r["Current rate"]);
       o.purchased = date(r["Purchase date"]);
       o.notes = str(r["Notes"]);
-      o.counts = o.carryingValue > 0;
+      deriveFund(o);
     });
 
     return {asAt, hra, hraRaw, twoPools, version, termInvestments, callAccounts, loans, pooledFunds, issues, read: new Date()};
+  }
+
+  /* ---- the snapshot a report keeps ----------------------------------------
+     The vocabulary words, the amounts and the dates (ISO), row by row,
+     flagged rows included with their flags. Small, and the council's own.
+     fromSnapshot brings it back as rows with the same derived fields, so a
+     saved report draws its charts and sums exactly as the workbook did. */
+  const iso = d => d ? d.toISOString().slice(0, 10) : null;
+  const unIso = s => s ? new Date(s + "T00:00:00Z") : null;
+  function snapshot(reg, name){
+    const flags = r => r.issues.length ? {issues: r.issues.slice()} : {};
+    return {
+      v: 1, name: name || "", asAt: iso(reg.asAt), hra: reg.hra, version: reg.version, read: new Date().toISOString(),
+      settingsIssues: reg.issues.slice(),
+      term: reg.termInvestments.map(r => Object.assign({row: r.row, type: r.type || r.typeRaw, counterparty: r.counterparty, cpType: r.cpType || r.cpTypeRaw,
+        principal: r.principal, start: iso(r.start), maturity: iso(r.maturity), rate: r.rate, faceValue: r.faceValue, carryingValue: r.carryingValue, rating: r.rating}, flags(r))),
+      call: reg.callAccounts.map(r => Object.assign({row: r.row, type: r.type || r.typeRaw, counterparty: r.counterparty, cpType: r.cpType || r.cpTypeRaw,
+        balance: r.balance, rate: r.rate, noticeDays: r.noticeDays, rating: r.rating}, flags(r))),
+      loans: reg.loans.map(r => Object.assign({row: r.row, type: r.type || r.typeRaw, lender: r.lender, lenderType: r.lenderType || r.lenderTypeRaw,
+        principal: r.principal, start: iso(r.start), maturity: iso(r.maturity), rate: r.rate, profile: r.profile || r.profileRaw, frequency: r.frequency || r.frequencyRaw,
+        firstRepayment: iso(r.firstRepayment), fund: r.fund || r.fundRaw, nextCall: iso(r.nextCall)}, flags(r))),
+      funds: reg.pooledFunds.map(r => Object.assign({row: r.row, name: r.name, fundType: r.fundType || r.fundTypeRaw, carryingValue: r.carryingValue,
+        latestValue: r.latestValue, rate: r.rate, purchased: iso(r.purchased)}, flags(r)))
+    };
+  }
+  function fromSnapshot(snap){
+    const asAt = unIso(snap.asAt);
+    const base = r => ({row: r.row, issues: (r.issues || []).slice()});
+    const word = (list, v) => pick(list, v);
+    const termInvestments = (snap.term || []).map(r => deriveTerm(Object.assign(base(r), {type: word(VOCAB.termTypes, r.type), typeRaw: r.type || "", counterparty: r.counterparty || "",
+      cpType: word(VOCAB.counterpartyTypes, r.cpType), cpTypeRaw: r.cpType || "", principal: r.principal, start: unIso(r.start), maturity: unIso(r.maturity), rate: r.rate,
+      faceValue: r.faceValue == null ? null : r.faceValue, carryingValue: r.carryingValue == null ? null : r.carryingValue, rating: r.rating || "", notes: ""}), asAt));
+    const callAccounts = (snap.call || []).map(r => deriveCall(Object.assign(base(r), {type: word(VOCAB.callTypes, r.type), typeRaw: r.type || "", counterparty: r.counterparty || "",
+      cpType: word(VOCAB.counterpartyTypes, r.cpType), cpTypeRaw: r.cpType || "", balance: r.balance, rate: r.rate, noticeDays: r.noticeDays == null ? null : r.noticeDays, rating: r.rating || "", notes: ""})));
+    const loans = (snap.loans || []).map(r => deriveLoan(Object.assign(base(r), {type: word(VOCAB.loanTypes, r.type), typeRaw: r.type || "", lender: r.lender || "",
+      lenderType: word(VOCAB.lenderTypes, r.lenderType), lenderTypeRaw: r.lenderType || "", principal: r.principal, start: unIso(r.start), maturity: unIso(r.maturity), rate: r.rate,
+      profile: word(VOCAB.profiles, r.profile) || (r.profile ? null : "Maturity"), profileRaw: r.profile || "", frequency: word(VOCAB.frequencies, r.frequency), frequencyRaw: r.frequency || "",
+      firstRepayment: unIso(r.firstRepayment), fund: word(VOCAB.funds, r.fund), fundRaw: r.fund || "", nextCall: unIso(r.nextCall), notes: ""}), asAt));
+    const pooledFunds = (snap.funds || []).map(r => deriveFund(Object.assign(base(r), {name: r.name || "", fundType: word(VOCAB.fundTypes, r.fundType), fundTypeRaw: r.fundType || "",
+      carryingValue: r.carryingValue, latestValue: r.latestValue == null ? null : r.latestValue, rate: r.rate, purchased: unIso(r.purchased), notes: ""})));
+    return {asAt, hra: snap.hra || null, hraRaw: snap.hra || "", twoPools: snap.hra === "Two pools", version: snap.version, termInvestments, callAccounts, loans, pooledFunds,
+      issues: (snap.settingsIssues || []).slice(), read: snap.read ? new Date(snap.read) : new Date(), name: snap.name || "", fromSnapshot: true};
   }
 
   /* ---- loan repayment schedules ------------------------------------------
@@ -2798,9 +2878,373 @@ const REG = (() => {
     };
   }
   return {TEMPLATE_VERSION, VOCAB, BUCKETS, DEBT_BUCKETS, readRegister, schedule, ladder, yearEnds, debtLadder, debtYearEnds, stats, dmy, money, pct, bucketOf, debtBucketOf, addMonths, monthsBetween,
-    ladderBy, debtLadderBy, runoffBy, calendar, exposure, yieldPoints, costPoints};
+    ladderBy, debtLadderBy, runoffBy, calendar, exposure, yieldPoints, costPoints, snapshot, fromSnapshot};
 })();
 if(typeof module !== "undefined") module.exports = REG;
+
+/* ===========================================================================
+ * THE CHART KIT: hand-drawn SVG, one set of rules.
+ *
+ * Colour does one job per chart. Identity (which counterparty type, which
+ * lender type, which fund) is a fixed slot in one eight-hue palette, assigned
+ * in vocabulary order and never cycled, validated for colour-vision
+ * deficiency on adjacent pairs (the dataviz validator, 2 October 2026: every
+ * gate passes; three hues sit under 3:1 on the surface, which is why every
+ * chart carries labels and a table view). A scatter can only hold three
+ * hues all-pairs, so its points fold to three groups. Polarity (money in,
+ * money out) is blue against red around a neutral baseline. Text is always
+ * in text tokens, never the series colour.
+ *
+ * Marks: bars no wider than 24px with 4px rounded ends away from the
+ * baseline and a 2px surface gap between stacked segments; 2px lines; points
+ * at least 8px across with a 2px surface ring. Every chart has a hover
+ * tooltip, a legend when there is more than one series, and a table view.
+ * When columns get too narrow the labels go selective rather than collide.
+ * ======================================================================== */
+const CH = (() => {
+  const PAL = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300", "#4a3aa7", "#e34948"];
+  const SLOT = {
+    "UK bank": 0, "Overseas bank": 1, "Building society": 2, "Local authority": 3, "UK Government": 4, "Money market fund": 5, "PWLB": 6, "Other": 7, "Pooled fund": 7, "Not on the list": 7,
+    "General Fund": 0, "HRA": 1, "Unassigned": 7,
+    "Banks": 0, "Public sector": 1, "Funds and other": 2,
+    "Investments": 0, "Borrowing": 1, "Maturing in": 0, "Repaid out": 7
+  };
+  const color = k => PAL[SLOT[k] == null ? 7 : SLOT[k]];
+  const order = keys => keys.slice().sort((a, b) => (SLOT[a] == null ? 9 : SLOT[a]) - (SLOT[b] == null ? 9 : SLOT[b]) || a.localeCompare(b));
+  /* The three groups a scatter can carry. */
+  const group3 = t => /bank|building/i.test(t) ? "Banks" : /authority|government|pwlb/i.test(t) ? "Public sector" : "Funds and other";
+
+  const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[c]));
+  const money = n => n == null ? "" : "£" + Math.round(n).toLocaleString("en-GB");
+  const mill = n => n == null ? "" : "£" + (Math.abs(n) >= 1e7 ? (Math.round(n / 1e5) / 10).toLocaleString("en-GB", {maximumFractionDigits: 1}) : (Math.round(n / 1e4) / 100).toLocaleString("en-GB", {maximumFractionDigits: 2})) + "m";
+  const short = n => n == null ? "" : n === 0 ? "£0" : Math.abs(n) >= 1e6 ? mill(n) : Math.abs(n) >= 1e3 ? "£" + Math.round(n / 1e3).toLocaleString("en-GB") + "k" : "£" + Math.round(n);
+  const pct = r => r == null ? "" : (r * 100).toFixed(2) + "%";
+  const dmy = d => d ? `${String(d.getUTCDate()).padStart(2, "0")}/${String(d.getUTCMonth() + 1).padStart(2, "0")}/${d.getUTCFullYear()}` : "";
+  const niceMax = v => { if(!(v > 0)) return 1e6; const p = Math.pow(10, Math.floor(Math.log10(v))), m = v / p; const n = m <= 1 ? 1 : m <= 2 ? 2 : m <= 2.5 ? 2.5 : m <= 5 ? 5 : 10; return n * p; };
+  const divisions = top => { const m = top / Math.pow(10, Math.floor(Math.log10(top))); return m === 2.5 || m === 5 || m === 10 || m === 1 ? 5 : 4; };
+  const fits = (s, colW) => s.length * 6.5 <= colW - 16;
+  const wrap = (s, colW) => { if(fits(s, colW)) return [s]; const i = s.indexOf(" ", Math.floor(s.length / 2) - 2); return i < 0 ? [s] : [s.slice(0, i), s.slice(i + 1)]; };
+  const topPath = (x, y, w, h, r) => { r = Math.min(r, w / 2, h); return `M${x},${y + h} V${y + r} Q${x},${y} ${x + r},${y} H${x + w - r} Q${x + w},${y} ${x + w},${y + r} V${y + h} Z`; };
+  const bottomPath = (x, y, w, h, r) => { r = Math.min(r, w / 2, h); return `M${x},${y} V${y + h - r} Q${x},${y + h} ${x + r},${y + h} H${x + w - r} Q${x + w},${y + h} ${x + w},${y + h - r} V${y} Z`; };
+  const f1 = n => (+n).toFixed(1);
+
+  /* ---- the frame every chart sits in -------------------------------------
+     On the register page: a figure with an HTML legend, a tooltip and a
+     table view. In a report draft (o.static): a plain block with the legend
+     drawn inside the SVG, so the picture Word gets carries it, and no
+     controls, because the paper is the paper. */
+  const legend = keys => keys.length > 1 ? `<div class="legend">${keys.map(k => `<span><i style="background:${color(k)}"></i>${esc(k)}</span>`).join("")}</div>` : "";
+  function legendSvg(keys, W){
+    if(keys.length < 2) return {svg: "", h: 0};
+    let x = 4, y = 12, svg = "";
+    keys.forEach(k => { const w = k.length * 6.5 + 24; if(x + w > W - 4 && x > 4){ x = 4; y += 18; }
+      svg += `<rect x="${x}" y="${y - 9}" width="10" height="10" rx="2" fill="${color(k)}"/><text class="lg" x="${x + 15}" y="${y}">${esc(k)}</text>`; x += w; });
+    return {svg, h: y + 12};
+  }
+  function frame(o, H, inner, table, keys){
+    keys = keys || [];
+    if(o.static){
+      const lg = legendSvg(keys, o.W);
+      return `<div class="chart static" id="c-${o.id}"><p class="chart-t"><b>${esc(o.title)}</b> <span>${esc(o.sub)}</span></p>` +
+        `<svg viewBox="0 0 ${o.W} ${H + lg.h}" width="${o.W}" height="${H + lg.h}" role="img" aria-label="${esc(o.title)}">${lg.svg}<g transform="translate(0,${lg.h})">${inner}</g></svg></div>`;
+    }
+    return `<figure class="chart${o.wide ? " wide" : ""}" id="c-${o.id}"><figcaption><b>${esc(o.title)}</b><span>${esc(o.sub)}</span></figcaption>${legend(keys)}` +
+      `<svg viewBox="0 0 ${o.W} ${H}" width="${o.W}" height="${H}" role="img" aria-label="${esc(o.title)}">${inner}</svg>` +
+      table + `<div class="tip"></div><button class="tv" type="button" aria-pressed="false">Show as a table</button></figure>`;
+  }
+  const tableOf = (heads, rows) => `<table><thead><tr>${heads.map((h, i) => `<th${i ? ' class="n"' : ""}>${esc(h)}</th>`).join("")}</tr></thead><tbody>` +
+    rows.map(r => `<tr>${r.map((c, i) => `<td${i ? ' class="n"' : ""}>${esc(c)}</td>`).join("")}</tr>`).join("") + `</tbody></table>`;
+  const tipOf = (title, lines) => `<b>${esc(title)}</b>` + lines.map(l => `<br>${l}`).join("");
+
+  /* A y axis with hairline grid from 0 to a nice top. */
+  function yAxis(top, L, R, T, ph, W, fmt){
+    const div = divisions(top), y = v => T + ph - (v / top) * ph;
+    let svg = "";
+    for(let k = 0; k <= div; k++){ const v = top * k / div, yy = y(v).toFixed(1);
+      svg += `<line class="${k ? "grid" : "base"}" x1="${L}" x2="${W - R}" y1="${yy}" y2="${yy}"/><text x="${L - 8}" y="${yy}" text-anchor="end" dominant-baseline="middle">${(fmt || short)(v)}</text>`; }
+    return {svg, y};
+  }
+  /* Column labels, wrapped or short, every column or every other. */
+  function columns(rows, colW){
+    const labels = rows.map(d => { const w = wrap(d.label, colW); return d.short && !w.every(l => fits(l, colW)) ? [d.short] : w; });
+    const useShort = rows.some(d => d.short) && labels.some((ls, i) => ls.length === 1 && ls[0] === rows[i].short);
+    if(useShort) rows.forEach((d, i) => { if(d.short) labels[i] = [d.short]; });
+    const xw = Math.max(...labels.map(ls => Math.max(...ls.map(l => l.length)))) * 6.5;
+    return {labels, xSpan: xw <= colW - 4 ? 1 : Math.ceil((xw + 6) / colW)};
+  }
+  /* Cap labels: all when they fit, else the tallest bars first, each kept
+     clear of the ones already placed. Worked in pixels, after each label has
+     been kept inside the plot (the first column's must not cross the axis),
+     so a label pushed sideways still keeps its distance. labels[i] is the
+     text for column i or "" for none; values[i] decides who goes first.
+     Returns a Map of index -> x. */
+  function caps(values, labels, xs, L, W, R){
+    const w = i => labels[i].length * 8.5, x = i => Math.max(L + w(i) / 2, Math.min(W - R - w(i) / 2, xs[i]));
+    const on = new Map();
+    values.map((v, i) => [v, i]).filter(p => p[0] > 0 && labels[p[1]]).sort((a, b) => b[0] - a[0]).forEach(([, i]) => {
+      for(const [j, xj] of on) if(Math.abs(x(i) - xj) < (w(i) + w(j)) / 2 + 4) return;
+      on.set(i, x(i));
+    });
+    return on;
+  }
+  const capAt = (on, i) => on.has(i) ? on.get(i).toFixed(1) : null;
+  const xLabel = (cx, y, lines) => `<text class="xl" x="${cx}" y="${y}" text-anchor="middle">${lines.map((l, j) => `<tspan x="${cx}" dy="${j ? 14 : 0}">${esc(l)}</tspan>`).join("")}</text>`;
+
+  /* ---- stacked bars: rows of {label, short?, parts, total, count} ---------- */
+  function stacked(o){
+    const rows = o.rows, keys = order([...new Set(rows.flatMap(r => Object.keys(r.parts)))]);
+    const W = o.W, H = 290, L = 54, R = 12, T = 30, B = 46, pw = W - L - R, ph = H - T - B;
+    const top = niceMax(Math.max(...rows.map(r => r.total), 0)), ax = yAxis(top, L, R, T, ph, W);
+    const colW = pw / rows.length, bw = Math.min(24, colW * 0.6), {labels, xSpan} = columns(rows, colW);
+    const xs = rows.map((d, i) => L + colW * (i + 0.5)), capped = caps(rows.map(r => r.total), rows.map(r => r.total > 0 ? mill(r.total) : ""), xs, L, W, R);
+    let svg = ax.svg;
+    rows.forEach((d, i) => {
+      const cx = L + colW * (i + 0.5), x = cx - bw / 2;
+      const parts = keys.filter(k => d.parts[k] > 0);
+      const tip = tipOf(d.label, parts.map(k => `<i class="sw" style="background:${color(k)}"></i>${esc(k)}: ${money(d.parts[k])}`).concat([`<b>${money(d.total)}</b> · ${d.count} ${esc(o.unit)}${d.count === 1 ? "" : "s"}`]));
+      svg += `<g class="col" data-tip="${esc(tip)}"><rect class="hit" x="${(cx - colW / 2).toFixed(1)}" y="${T}" width="${colW.toFixed(1)}" height="${ph + B}"/>`;
+      let cum = 0;
+      parts.forEach((k, j) => {
+        const y0 = ax.y(cum), y1 = ax.y(cum + d.parts[k]), last = j === parts.length - 1;
+        const yTop = y1 + (last ? 0 : 1), yBot = y0 - (j ? 1 : 0), h = Math.max(0, yBot - yTop);
+        svg += last ? `<path class="bar" fill="${color(k)}" d="${topPath(x, yTop, bw, h, 4)}"/>` : `<rect class="bar" fill="${color(k)}" x="${x}" y="${yTop.toFixed(1)}" width="${bw}" height="${h.toFixed(1)}"/>`;
+        cum += d.parts[k];
+      });
+      if(d.total > 0){ if(capped.has(i)) svg += `<text class="cap" x="${capAt(capped, i)}" y="${(ax.y(d.total) - 7).toFixed(1)}" text-anchor="middle">${mill(d.total)}</text>`; }
+      else if(colW >= 24) svg += `<text class="nil" x="${cx}" y="${(ax.y(0) - 7).toFixed(1)}" text-anchor="middle">nil</text>`;
+      if(i % xSpan === 0) svg += xLabel(cx, T + ph + 18, labels[i]);
+      svg += `</g>`;
+    });
+    const table = tableOf([o.catName || "Period"].concat(keys).concat(["Total", o.unit[0].toUpperCase() + o.unit.slice(1) + "s"]),
+      rows.map(r => [r.label].concat(keys.map(k => r.parts[k] ? money(r.parts[k]) : "")).concat([money(r.total), r.count])));
+    return frame(o, H, svg, table, keys);
+  }
+
+  /* ---- grouped bars: rows of {label, short?, parts} over o.keys ------------ */
+  function grouped(o){
+    const rows = o.rows, keys = o.keys;
+    const W = o.W, H = 290, L = 54, R = 12, T = 30, B = 46, pw = W - L - R, ph = H - T - B;
+    const top = niceMax(Math.max(...rows.flatMap(r => keys.map(k => r.parts[k] || 0)), 0)), ax = yAxis(top, L, R, T, ph, W);
+    const colW = pw / rows.length, bw = Math.min(24, (colW * 0.7 - 2 * (keys.length - 1)) / keys.length), gw = bw * keys.length + 2 * (keys.length - 1);
+    const {labels, xSpan} = columns(rows, colW);
+    /* One label over each group — "£7m · £43.9m" — because caps centred on
+       bars 2px apart would overlap each other whenever two values are close. */
+    const combined = rows.map(d => keys.every(k => !(d.parts[k] > 0)) ? "" : keys.map(k => d.parts[k] > 0 ? mill(d.parts[k]) : "nil").join(" · "));
+    const xs = rows.map((d, i) => L + colW * (i + 0.5)), capped = caps(rows.map(d => Math.max(...keys.map(k => d.parts[k] || 0))), combined, xs, L, W, R);
+    let svg = ax.svg;
+    rows.forEach((d, i) => {
+      const cx = L + colW * (i + 0.5);
+      const tip = tipOf(d.label, keys.map(k => `<i class="sw" style="background:${color(k)}"></i>${esc(k)}: ${money(d.parts[k] || 0)}`));
+      svg += `<g class="col" data-tip="${esc(tip)}"><rect class="hit" x="${(cx - colW / 2).toFixed(1)}" y="${T}" width="${colW.toFixed(1)}" height="${ph + B}"/>`;
+      keys.forEach((k, j) => {
+        const v = d.parts[k] || 0, x = cx - gw / 2 + j * (bw + 2), h = (v / top) * ph, yy = ax.y(v);
+        if(v > 0) svg += `<path class="bar" fill="${color(k)}" d="${topPath(x, yy, bw, h, 4)}"/>`;
+      });
+      if(capped.has(i)) svg += `<text class="cap" x="${capAt(capped, i)}" y="${(ax.y(Math.max(...keys.map(k => d.parts[k] || 0))) - 7).toFixed(1)}" text-anchor="middle">${combined[i]}</text>`;
+      if(keys.every(k => !(d.parts[k] > 0)) && colW >= 24) svg += `<text class="nil" x="${cx}" y="${(ax.y(0) - 7).toFixed(1)}" text-anchor="middle">nil</text>`;
+      if(i % xSpan === 0) svg += xLabel(cx, T + ph + 18, labels[i]);
+      svg += `</g>`;
+    });
+    const table = tableOf([o.catName || "Year end"].concat(keys), rows.map(r => [r.label].concat(keys.map(k => money(r.parts[k] || 0)))));
+    return frame(o, H, svg, table, keys);
+  }
+
+  /* ---- horizontal bars: rows of {label, sub, v, key, tip} ------------------ */
+  function hbars(o){
+    const rows = o.rows, W = o.W, L = Math.min(190, Math.max(120, W * 0.28)), R = 70, T = 8, rh = 26, H = T + rows.length * rh + 28;
+    const pw = W - L - R, top = niceMax(Math.max(...rows.map(r => r.v), 0)), div = divisions(top), x = v => L + (v / top) * pw;
+    const total = rows.reduce((s, r) => s + r.v, 0), keys = order([...new Set(rows.map(r => r.key))]);
+    let svg = "";
+    const tickW = short(top).length * 6.5 + 8, every = Math.max(1, Math.ceil(tickW / (pw / div)));
+    for(let k = 0; k <= div; k++){ const v = top * k / div, xx = x(v).toFixed(1);
+      svg += `<line class="${k ? "grid" : "base"}" x1="${xx}" x2="${xx}" y1="${T}" y2="${T + rows.length * rh}"/>` + (k % every === 0 ? `<text x="${xx}" y="${T + rows.length * rh + 16}" text-anchor="middle">${short(v)}</text>` : ""); }
+    const maxChars = Math.floor((L - 14) / 6.5);
+    rows.forEach((r, i) => {
+      const y = T + i * rh, bh = 16, tip = r.tip || tipOf(r.label, [money(r.v)]);
+      const lab = r.label.length > maxChars ? r.label.slice(0, maxChars - 1) + "…" : r.label;
+      svg += `<g class="row" data-tip="${esc(tip)}"><rect class="hit" x="0" y="${y}" width="${W}" height="${rh}"/>` +
+        `<text class="rl" x="${L - 10}" y="${y + rh / 2}" text-anchor="end" dominant-baseline="middle">${esc(lab)}</text>` +
+        (r.v > 0 ? `<path class="bar" fill="${color(r.key)}" d="${(() => { const w = x(r.v) - L, rr = Math.min(4, w / 2); return `M${L},${y + 5} H${(L + w - rr).toFixed(1)} Q${(L + w).toFixed(1)},${y + 5} ${(L + w).toFixed(1)},${y + 5 + rr} V${y + 5 + bh - rr} Q${(L + w).toFixed(1)},${y + 5 + bh} ${(L + w - rr).toFixed(1)},${y + 5 + bh} H${L} Z`; })()}"/>` : "") +
+        `<text class="cap" x="${(x(r.v) + 6).toFixed(1)}" y="${y + rh / 2}" dominant-baseline="middle">${mill(r.v)}${total ? ` <tspan class="muted">${(100 * r.v / total).toFixed(0)}%</tspan>` : ""}</text></g>`;
+    });
+    const table = tableOf([o.catName || "Counterparty", "Type", "Amount", "Share"], rows.map(r => [r.label, r.sub || "", money(r.v), total ? (100 * r.v / total).toFixed(1) + "%" : ""]));
+    return frame(o, H, svg, table, keys);
+  }
+
+  /* ---- a timeline: rows of {label, start, end, v, key, tip}, dates --------- */
+  function timeline(o){
+    const rows = o.rows, W = o.W, L = Math.min(170, Math.max(110, W * 0.25)), R = 76, T = 26, rh = 22, H = T + rows.length * rh + 30;
+    const t0 = Math.min(o.asAt.getTime(), ...rows.map(r => r.start ? r.start.getTime() : Infinity)), t1 = Math.max(o.asAt.getTime() + 30 * 86400000, ...rows.map(r => r.end.getTime()));
+    const span = t1 - t0, pad = span * 0.03, x = t => L + ((t - (t0 - pad)) / (span + 2 * pad)) * (W - L - R);
+    const keys = order([...new Set(rows.map(r => r.key))]);
+    let svg = "";
+    /* year-end lines, labelled below */
+    const y0 = new Date(t0).getUTCFullYear(), y1 = new Date(t1).getUTCFullYear() + 1;
+    const yes = []; for(let y = y0; y <= y1; y++){ const d = Date.UTC(y, 2, 31); if(d >= t0 - pad && d <= t1 + pad) yes.push(d); }
+    const every = Math.max(1, Math.ceil(yes.length * 62 / (W - L - R)));
+    yes.forEach((d, i) => { const xx = x(d).toFixed(1); svg += `<line class="ye" x1="${xx}" x2="${xx}" y1="${T - 4}" y2="${T + rows.length * rh}"/>`; if(i % every === 0) svg += `<text class="tl" x="${xx}" y="${T + rows.length * rh + 16}" text-anchor="middle">31 Mar ${new Date(d).getUTCFullYear()}</text>`; });
+    const maxChars = Math.floor((L - 14) / 6.5);
+    rows.forEach((r, i) => {
+      const y = T + i * rh, xs = x(Math.max(r.start ? r.start.getTime() : t0, t0 - pad)), xe = x(r.end.getTime()), w = Math.max(3, xe - xs);
+      const lab = r.label.length > maxChars ? r.label.slice(0, maxChars - 1) + "…" : r.label;
+      svg += `<g class="row" data-tip="${esc(r.tip)}"><rect class="hit" x="0" y="${y}" width="${W}" height="${rh}"/>` +
+        `<text class="rl" x="${L - 10}" y="${y + rh / 2}" text-anchor="end" dominant-baseline="middle">${esc(lab)}</text>` +
+        `<rect class="bar" fill="${color(r.key)}" x="${xs.toFixed(1)}" y="${y + 5}" width="${w.toFixed(1)}" height="12" rx="3"/>` +
+        `<text class="cap" x="${(xe + 6).toFixed(1)}" y="${y + rh / 2}" dominant-baseline="middle">${mill(r.v)}</text></g>`;
+    });
+    const xa = x(o.asAt.getTime()).toFixed(1);
+    svg += `<line class="asat" x1="${xa}" x2="${xa}" y1="${T - 10}" y2="${T + rows.length * rh}"/><text class="tl ink" x="${xa}" y="${T - 14}" text-anchor="middle">as at ${dmy(o.asAt)}</text>`;
+    const table = tableOf([o.catName || "Counterparty", "Type", "Start", "Maturity", "Amount", "Rate"], (o.all || rows).map(r => [r.label, r.sub || "", dmy(r.start), dmy(r.end), money(r.v), r.rate == null ? "" : pct(r.rate)]));
+    return frame(o, H, svg, table, keys);
+  }
+
+  /* ---- a scatter: points {x, y, r, key, tip}; r in £ -------------------------- */
+  function scatter(o){
+    const pts = o.pts, W = o.W, H = 300, L = 54, R = 16, T = 24, B = 46, pw = W - L - R, ph = H - T - B;
+    const xmax = o.xMax || niceMax(Math.max(...pts.map(p => p.x), 0) * 1.08), ymax = niceMax(Math.max(...pts.map(p => p.y), 0) * 1.15);
+    const xdiv = divisions(xmax), ydiv = divisions(ymax);
+    const x = v => L + (v / xmax) * pw, y = v => T + ph - (v / ymax) * ph;
+    const rmax = Math.max(...pts.map(p => p.r), 1), rad = v => 4 + 14 * Math.sqrt(v / rmax);
+    const keys = order([...new Set(pts.map(p => p.key))]);
+    let svg = "";
+    for(let k = 0; k <= ydiv; k++){ const v = ymax * k / ydiv, yy = y(v).toFixed(1); svg += `<line class="${k ? "grid" : "base"}" x1="${L}" x2="${W - R}" y1="${yy}" y2="${yy}"/><text x="${L - 8}" y="${yy}" text-anchor="end" dominant-baseline="middle">${o.yFmt(v)}</text>`; }
+    for(let k = 0; k <= xdiv; k++){ const v = xmax * k / xdiv, xx = x(v).toFixed(1); svg += `<line class="grid" x1="${xx}" x2="${xx}" y1="${T}" y2="${T + ph}"/><text x="${xx}" y="${T + ph + 18}" text-anchor="middle">${o.xFmt(v)}</text>`; }
+    svg += `<text class="axl" x="${W - R}" y="${T + ph + 36}" text-anchor="end">${esc(o.xLabel)}</text>`;
+    if(o.ref != null) svg += `<line class="ref" x1="${L}" x2="${W - R}" y1="${y(o.ref).toFixed(1)}" y2="${y(o.ref).toFixed(1)}"/><text class="refl" x="${W - R}" y="${(y(o.ref) - 5).toFixed(1)}" text-anchor="end">${esc(o.refLabel)}</text>`;
+    pts.slice().sort((a, b) => b.r - a.r).forEach(p => {
+      svg += `<circle class="pt" data-tip="${esc(p.tip)}" cx="${x(p.x).toFixed(1)}" cy="${y(p.y).toFixed(1)}" r="${rad(p.r).toFixed(1)}" fill="${color(p.key)}"/>`;
+    });
+    const table = tableOf(o.cols, (o.all || pts).map(o.row));
+    return frame(o, H, svg, table, keys);
+  }
+
+  /* ---- stacked area: rows of {label, parts, total} in order ------------------- */
+  function area(o){
+    const rows = o.rows, keys = order([...new Set(rows.flatMap(r => Object.keys(r.parts)))]);
+    const W = o.W, H = 290, L = 54, R = 16, T = 24, B = 46, pw = W - L - R, ph = H - T - B;
+    const top = niceMax(Math.max(...rows.map(r => r.total), 0)), ax = yAxis(top, L, R, T, ph, W);
+    const n = rows.length, x = i => n > 1 ? L + (i / (n - 1)) * pw : L + pw / 2, colW = n > 1 ? pw / (n - 1) : pw;
+    const {labels, xSpan} = columns(rows, colW);
+    let svg = ax.svg, base = rows.map(() => 0);
+    keys.forEach(k => {
+      const tops = rows.map((r, i) => base[i] + (r.parts[k] || 0));
+      const up = rows.map((r, i) => `${x(i).toFixed(1)},${ax.y(tops[i]).toFixed(1)}`), down = rows.map((r, i) => `${x(i).toFixed(1)},${ax.y(base[i]).toFixed(1)}`).reverse();
+      svg += `<path class="ar" fill="${color(k)}" d="M${up.join(" L")} L${down.join(" L")} Z"/><polyline class="arl" points="${up.join(" ")}"/>`;
+      base = tops;
+    });
+    rows.forEach((r, i) => {
+      const cx = x(i), parts = keys.filter(k => r.parts[k] > 0);
+      const tip = tipOf(r.label, parts.map(k => `<i class="sw" style="background:${color(k)}"></i>${esc(k)}: ${money(r.parts[k])}`).concat([`<b>${money(r.total)}</b>` + (r.count ? ` · ${r.count} ${esc(o.unit || "loan")}${r.count === 1 ? "" : "s"}` : "")]));
+      svg += `<g class="col" data-tip="${esc(tip)}"><rect class="hit" x="${(cx - colW / 2).toFixed(1)}" y="${T}" width="${colW.toFixed(1)}" height="${ph + B}"/><line class="hl" x1="${cx.toFixed(1)}" x2="${cx.toFixed(1)}" y1="${ax.y(r.total).toFixed(1)}" y2="${T + ph}"/>` +
+        (i % xSpan === 0 ? xLabel(cx, T + ph + 18, labels[i]) : "") + `</g>`;
+    });
+    const table = tableOf([o.catName || "Year end"].concat(keys).concat(["Total"]), rows.map(r => [r.label].concat(keys.map(k => r.parts[k] ? money(r.parts[k]) : "")).concat([money(r.total)])));
+    return frame(o, H, svg, table, keys);
+  }
+
+  /* ---- the calendar: months {label, short, inflow, outflow, tip} ------------- */
+  function calendar(o){
+    const rows = o.months, W = o.W, H = 300, L = 54, R = 12, T = 28, B = 46, pw = W - L - R, ph = H - T - B;
+    const upMax = niceMax(Math.max(...rows.map(r => r.inflow), 0)), dnMax = niceMax(Math.max(...rows.map(r => r.outflow), 0));
+    const scale = ph / (upMax + dnMax), y0 = T + upMax * scale, y = v => y0 - v * scale;
+    const colW = pw / rows.length, bw = Math.min(24, colW * 0.6), {labels, xSpan} = columns(rows, colW);
+    const xs = rows.map((d, i) => L + colW * (i + 0.5));
+    const capUp = caps(rows.map(r => r.inflow), rows.map(r => r.inflow > 0 ? mill(r.inflow) : ""), xs, L, W, R), capDn = caps(rows.map(r => r.outflow), rows.map(r => r.outflow > 0 ? mill(r.outflow) : ""), xs, L, W, R);
+    let svg = "";
+    const ticks = (max, sign) => { const div = divisions(max); for(let k = 1; k <= div; k++){ const v = max * k / div, yy = y(sign * v).toFixed(1); svg += `<line class="grid" x1="${L}" x2="${W - R}" y1="${yy}" y2="${yy}"/><text x="${L - 8}" y="${yy}" text-anchor="end" dominant-baseline="middle">${short(v)}</text>`; } };
+    ticks(upMax, 1); ticks(dnMax, -1);
+    svg += `<line class="base" x1="${L}" x2="${W - R}" y1="${y0.toFixed(1)}" y2="${y0.toFixed(1)}"/><text x="${L - 8}" y="${y0.toFixed(1)}" text-anchor="end" dominant-baseline="middle">£0</text>`;
+    rows.forEach((d, i) => {
+      const cx = L + colW * (i + 0.5), x = cx - bw / 2;
+      svg += `<g class="col" data-tip="${esc(d.tip)}"><rect class="hit" x="${(cx - colW / 2).toFixed(1)}" y="${T}" width="${colW.toFixed(1)}" height="${ph + B}"/>`;
+      if(d.inflow > 0){ const h = d.inflow * scale; svg += `<path class="bar" fill="${color("Maturing in")}" d="${topPath(x, y0 - h, bw, h - 1, 4)}"/>`; if(capUp.has(i)) svg += `<text class="cap" x="${capAt(capUp, i)}" y="${(y0 - h - 6).toFixed(1)}" text-anchor="middle">${mill(d.inflow)}</text>`; }
+      if(d.outflow > 0){ const h = d.outflow * scale; svg += `<path class="bar" fill="${color("Repaid out")}" d="${bottomPath(x, y0 + 1, bw, h - 1, 4)}"/>`; if(capDn.has(i)) svg += `<text class="cap" x="${capAt(capDn, i)}" y="${(y0 + h + 14).toFixed(1)}" text-anchor="middle">${mill(d.outflow)}</text>`; }
+      if(i % xSpan === 0) svg += xLabel(cx, T + ph + 18, labels[i]);
+      svg += `</g>`;
+    });
+    const table = tableOf(["Month", "Maturing in", "Repaid out", "Net"], rows.map(r => [r.label, money(r.inflow), money(r.outflow), money(r.inflow - r.outflow)]));
+    return frame(o, H, svg, table, ["Maturing in", "Repaid out"]);
+  }
+
+  /* ---- the figures themselves: what each chart of the register shows -----------
+     One list for the register page and the report draft, so the two can never
+     drift. Returns html strings in five groups; o.W is the half-column width,
+     o.Wd the full row; o.static for a draft. */
+  const SHORT_BUCKETS = ["call", "<3m", "3–6m", "6–12m", "1–2y", "2–5y", ">5y"];
+  const SHORT_DEBT = ["<1y", "1–2y", "2–5y", "5–10y", "10–20y", "20–30y", "30–40y", "40–50y", ">50y"];
+  function figures(reg, o){
+    const W = o.W, Wd = o.Wd || o.W, st = o.static ? {static: true} : {};
+    const asAt = reg.asAt ? dmy(reg.asAt) : "the as-at date", stats = REG.stats(reg);
+    const cpk = r => r.cpType || "Not on the list";
+    const lad = REG.ladderBy(reg).map((b, i) => ({...b, short: SHORT_BUCKETS[i]}));
+    const yp = REG.yieldPoints(reg);
+    const inv = [
+      stacked({...st, id: "ladder", title: "Maturity ladder", sub: "by counterparty type: money on call first, a notice account at its notice, term deals at nominal by time to maturity from " + asAt, W, rows: lad, unit: "deal", catName: "Period"}),
+      scatter({...st, id: "yield", title: "What each investment earns, and for how long", sub: "rate against months to maturity, sized by amount; the dashed line is the weighted average", W,
+        pts: yp.map(p => ({x: p.months, y: p.rate * 100, r: p.amount, key: group3(p.cpType), tip: tipOf(p.name, [esc(p.type) + " · " + esc(p.cpType), money(p.amount) + " at " + pct(p.rate), p.maturity ? "matures " + dmy(p.maturity) : (p.months > 0 ? Math.round(p.months * 30.4) + " days' notice" : "on call")])})),
+        xFmt: v => v === 0 ? "0" : Math.round(v) + "m", yFmt: v => v.toFixed(1) + "%", xLabel: "months to maturity", ref: stats.invRate == null ? null : stats.invRate * 100, refLabel: "average " + pct(stats.invRate),
+        all: yp, cols: ["Counterparty", "Type", "Months", "Rate", "Amount"], row: p => [p.name, p.type, p.months.toFixed(1), pct(p.rate), money(p.amount)]})
+    ];
+    const term = reg.termInvestments.filter(r => r.counts).sort((a, b) => a.maturity - b.maturity);
+    const dealRow = r => ({label: r.counterparty, sub: r.type, start: r.start, end: r.maturity, v: r.nominal, key: cpk(r), rate: r.rate,
+      tip: tipOf(r.counterparty, [esc(r.type) + " · " + esc(cpk(r)), money(r.nominal) + " at " + pct(r.rate), dmy(r.start) + " to " + dmy(r.maturity)])});
+    const shown = term.slice(0, 30);
+    const wide = [
+      term.length ? timeline({...st, id: "deals", title: "When each deal comes back", sub: "every term deal from its start to its maturity, soonest first" + (term.length > shown.length ? `; the first ${shown.length} of ${term.length}, all in the table` : "") + "; the year ends are marked", W: Wd, wide: true, asAt: reg.asAt || new Date(), rows: shown.map(dealRow), all: term.map(dealRow)}) : "",
+      hbars({...st, id: "exposure", title: "Exposure by counterparty", sub: "term deals at nominal and call balances together, largest first", W: Wd, wide: true,
+        rows: REG.exposure(reg).map(e => ({label: e.counterparty, sub: e.cpType, v: e.total, key: e.cpType, tip: tipOf(e.counterparty, [esc(e.cpType), money(e.total) + " in " + e.deals + " deal" + (e.deals === 1 ? "" : "s")])}))})
+    ];
+    const dl = REG.debtLadderBy(reg).map((b, i) => ({...b, short: SHORT_DEBT[i]}));
+    const cp = REG.costPoints(reg);
+    const debt = [
+      stacked({...st, id: "debtladder", title: "Maturity structure of borrowing", sub: "principal repaid in each period from " + asAt + ", by lender type; EIP and annuity loans by instalment, LOBOs at their next call", W, rows: dl, unit: "loan", catName: "Period"}),
+      scatter({...st, id: "cost", title: "What each loan costs, and for how long", sub: "rate against years to final maturity, sized by principal outstanding; the dashed line is the weighted average", W,
+        pts: cp.map(p => ({x: p.years, y: p.rate * 100, r: p.amount, key: group3(p.lenderType), tip: tipOf(p.name, [esc(p.type) + " · " + esc(p.profile || "Maturity") + (p.fund ? " · " + esc(p.fund) : ""), money(p.amount) + " at " + pct(p.rate), "matures " + dmy(p.maturity) + (p.nextCall ? ", next call " + dmy(p.nextCall) : "")])})),
+        xFmt: v => Math.round(v) + "y", yFmt: v => v.toFixed(1) + "%", xLabel: "years to final maturity", ref: stats.debtRate == null ? null : stats.debtRate * 100, refLabel: "average " + pct(stats.debtRate),
+        all: cp, cols: ["Lender", "Type", "Years", "Rate", "Outstanding"], row: p => [p.name, p.type, p.years.toFixed(1), pct(p.rate), money(p.amount)]})
+    ];
+    const ro = REG.runoffBy(reg, 50, reg.twoPools ? "fund" : "lenderType").map(r => ({...r, short: "Mar " + r.label.slice(-2)}));
+    const dwide = [ro.length ? area({...st, id: "runoff", title: "How the debt runs off", sub: "principal outstanding at each 31 March, " + (reg.twoPools ? "by fund" : "by lender type") + ", to the last repayment; LOBOs at their next call", W: Wd, wide: true, rows: ro, unit: "loan"}) : ""];
+    const ye = REG.yearEnds(reg, 5), dye = REG.debtYearEnds(reg, 5);
+    const pos = ye.map((y, i) => ({label: y.label, short: "Mar " + y.label.slice(-2), parts: {"Investments": y.total, "Borrowing": dye[i] ? dye[i].total : 0}}));
+    const cal = REG.calendar(reg, 24).map(m => ({...m, short: m.label, tip: tipOf(m.label, m.inDeals.map(r => `<i class="sw" style="background:${color("Maturing in")}"></i>${esc(r.counterparty)} ${money(r.nominal)}`)
+      .concat(m.outLoans.map(l => `<i class="sw" style="background:${color("Repaid out")}"></i>${esc(l.lender)} ${money(l.schedule.filter(p => p.date.getUTCFullYear() === m.year && p.date.getUTCMonth() === m.month).reduce((s, p) => s + p.amount, 0))}`))
+      .concat(m.inflow || m.outflow ? [`net ${money(m.inflow - m.outflow)}`] : ["nothing due"]))}));
+    const year = [
+      grouped({...st, id: "positions", title: "Investments and borrowing at each year end", sub: "term deals still invested at nominal (money on call not counted) against debt outstanding, at 31 March", W: Wd, wide: true, rows: pos, keys: ["Investments", "Borrowing"]}),
+      calendar({...st, id: "calendar", title: "The next two years, month by month", sub: "investments maturing in against loan repayments out", W: Wd, wide: true, months: cal})
+    ];
+    return {inv, wide, debt, dwide, year};
+  }
+
+  /* ---- hover and the table view, for every chart under root ------------------ */
+  function wire(root){
+    root.querySelectorAll("figure.chart").forEach(fig => {
+      if(fig._wired) return; fig._wired = true;
+      const tip = fig.querySelector(".tip"), svg = fig.querySelector("svg");
+      let cur = null;
+      const show = el => {
+        if(cur === el) return; cur = el;
+        fig.querySelectorAll(".on").forEach(c => c.classList.remove("on")); el.classList.add("on");
+        tip.innerHTML = el.dataset.tip;
+        const fr = fig.getBoundingClientRect(), mark = el.querySelector(".bar, .pt") || el, br = mark.getBoundingClientRect();
+        const left = Math.max(70, Math.min(fr.width - 70, br.left + br.width / 2 - fr.left));
+        tip.style.left = left + "px"; tip.style.top = (br.top - fr.top) + "px";
+        tip.classList.add("on");
+      };
+      const hide = () => { cur = null; tip.classList.remove("on"); fig.querySelectorAll(".on").forEach(c => c.classList.remove("on")); };
+      svg.addEventListener("pointermove", e => { const el = e.target.closest("[data-tip]"); if(el) show(el); else hide(); });
+      svg.addEventListener("pointerleave", hide);
+      fig.querySelector(".tv").addEventListener("click", e => {
+        const on = fig.classList.toggle("table");
+        e.currentTarget.setAttribute("aria-pressed", String(on));
+        e.currentTarget.textContent = on ? "Show as a chart" : "Show as a table";
+      });
+    });
+  }
+  return {PAL, color, order, group3, stacked, grouped, hbars, timeline, scatter, area, calendar, figures, wire, mill, short, money, pct, dmy, esc, tipOf};
+})();
+if(typeof module !== "undefined") module.exports = CH;
 
 const PWLB_AS_AT = "";
 /* ===========================================================================
@@ -4654,6 +5098,8 @@ const HELP = {
   whoami:   "Your name, saved with the file so colleagues can see who last worked on it.",
   logo:     "Optional. A PNG or JPG of the council's crest, printed on the front of the draft.",
   // ---- what you hold: debt and investments ----
+  "reg:view":   "Summary keeps the draft as it is: the tables. Detailed adds every chart of the register to the current portfolio section — the ladders, every deal on a timeline, exposure by counterparty, what each deal earns or costs, how the debt runs off, the year ends and the months ahead — and they go into the Word export as pictures.",
+  "reg:position": "Each limit on this step set against what the register actually holds: the largest single counterparty against the per-counterparty limit, the longest deal against the months, the lowest rating against the minimum, the share outside the UK, and the non-specified total. A breach is marked. The table goes into the draft under the counterparty policy.",
   "reg:box":    "If you keep your deals in the register workbook, read it here: every loan and investment is grouped into the rows below with a weighted rate, and both maturity grids are filled from the dates. The file is read on your computer and never changed; the report keeps a snapshot of the rows it read.",
   "loan:name":  "Who the money is borrowed from: PWLB, a bank, another council. One line per lender or type of loan.",
   "loan:amt":   "The principal still outstanding, in £ millions. From the loans register or the balance sheet note on borrowing.",
@@ -10457,6 +10903,9 @@ function cpRenderDraw(){
 
     ${/* THE QUOTED PASSAGES ARE GONE. See the note in cpSurveyHTML. */""}
   `;
+  /* The deal register's position against these limits, under the panel,
+     whenever the report carries a register (register.js). */
+  if(typeof registerPositionPanel === "function") registerPositionPanel(host);
 }
 
 /* One place that reads the form back into state, so a field added to the
@@ -11180,7 +11629,10 @@ function docSections(){
       // portfolio if one is on call and the other is out to twelve months.
       + (() => { const L = invLadder(); return L.rows.length
          ? `<h4>When the investments come back</h4>` + ladderChart(L, "inv") + ladderNote(L, "inv")
-         : ""; })()},
+         : ""; })()
+      // The detailed view: every chart of the deal register, when the report
+      // carries one and the author elected the detail (register.js).
+      + (typeof registerDraftCharts === "function" ? registerDraftCharts() : "")},
 
    {k:"borrow", n:"4", t:"Borrowing strategy",
     b: (!F ? figGap("the borrowing requirement") : peakNeed.need>0.05
@@ -11216,7 +11668,10 @@ function docSections(){
      + ((S.portfolio||[]).length ? barChart(groupHoldings(S.portfolio), "inv") : "")},
 
    {k:"counterparty", n:"5a", t:"Investment counterparty policy and limits",
-    b: cpSectionHTML() || gap("the counterparty limits, credit criteria and country policy")},
+    b: (cpSectionHTML() || gap("the counterparty limits, credit criteria and country policy"))
+       // The position against those limits, from the deal register, when the
+       // report carries one (register.js).
+       + (typeof registerPositionDraft === "function" ? registerPositionDraft() : "")},
 
    {k:"corefunds", n:"5b", t:"Core funds and expected investment balances",
     b: (!F ? figGap("core funds and expected investment balances")
@@ -11262,6 +11717,11 @@ function docSections(){
 
    {k:"compliance", n:"7b", t:"Compliance with treasury and prudential limits",
     b: clausesFor("7b") + complianceTable()
+      // A monitoring report has no policy section of its own, so the deal
+      // register's position against the policy sits with the other
+      // compliance tables (register.js). Never twice: 5a is forward-looking
+      // only and this section backward-looking only.
+      + (typeof registerPositionDraft === "function" ? registerPositionDraft() : "")
       + (t("compliance_body")?para(t("compliance_body")):"")},
 
    {k:"indmon", n:"7e", t:"Indicators against the approved strategy",
@@ -14576,7 +15036,9 @@ function registerApply(reg, name){
   S.loans = dRows; S.portfolio = iRows;
   S.mat = S.mat || {d: {}, i: {}};
   if(asAt){ S.mat.d = md; S.mat.i = mi; }
-  S.register = registerSnapshot(reg, name);
+  S.register = registerSnapshot(reg, name); S._regCache = null;
+  if(!S.registerView) S.registerView = "summary";
+  if(typeof cpRender === "function") cpRender();
   if(typeof loanRows === "function") loanRows();
   if(typeof applyLoans === "function") applyLoans();
   if(typeof autoSave === "function") autoSave();
@@ -14584,22 +15046,126 @@ function registerApply(reg, name){
 }
 
 /* The snapshot: the vocabulary words, the amounts and the dates, row by row,
-   flagged rows included with their flags. Small, and theirs. */
-function registerSnapshot(reg, name){
-  const flags = r => r.issues.length ? {issues: r.issues.slice()} : {};
-  return {
-    v: 1, name: name || "", asAt: regIso(reg.asAt), hra: reg.hra, version: reg.version, read: new Date().toISOString(),
-    settingsIssues: reg.issues.slice(),
-    term: reg.termInvestments.map(r => Object.assign({row: r.row, type: r.type || r.typeRaw, counterparty: r.counterparty, cpType: r.cpType || r.cpTypeRaw,
-      principal: r.principal, start: regIso(r.start), maturity: regIso(r.maturity), rate: r.rate, faceValue: r.faceValue, carryingValue: r.carryingValue, rating: r.rating}, flags(r))),
-    call: reg.callAccounts.map(r => Object.assign({row: r.row, type: r.type || r.typeRaw, counterparty: r.counterparty, cpType: r.cpType || r.cpTypeRaw,
-      balance: r.balance, rate: r.rate, noticeDays: r.noticeDays, rating: r.rating}, flags(r))),
-    loans: reg.loans.map(r => Object.assign({row: r.row, type: r.type || r.typeRaw, lender: r.lender, lenderType: r.lenderType || r.lenderTypeRaw,
-      principal: r.principal, start: regIso(r.start), maturity: regIso(r.maturity), rate: r.rate, profile: r.profile || r.profileRaw, frequency: r.frequency || r.frequencyRaw,
-      firstRepayment: regIso(r.firstRepayment), fund: r.fund || r.fundRaw, nextCall: regIso(r.nextCall)}, flags(r))),
-    funds: reg.pooledFunds.map(r => Object.assign({row: r.row, name: r.name, fundType: r.fundType || r.fundTypeRaw, carryingValue: r.carryingValue,
-      latestValue: r.latestValue, rate: r.rate, purchased: regIso(r.purchased)}, flags(r)))
-  };
+   flagged rows included with their flags. Small, and theirs. The shape is the
+   register model's (REG.snapshot), so REG.fromSnapshot brings it back whole. */
+function registerSnapshot(reg, name){ return REG.snapshot(reg, name); }
+
+/* The register as rows again, from the snapshot the report carries; cached
+   on the snapshot's read stamp, because the draft redraws often. */
+function registerReg(){
+  if(!S.register) return null;
+  if(S._regCache && S._regCache.key === S.register.read) return S._regCache.reg;
+  const reg = REG.fromSnapshot(S.register);
+  S._regCache = {key: S.register.read, reg};
+  return reg;
+}
+
+/* ---- position against policy ----------------------------------------------
+ * Each limit on step 5, set against what the register actually holds. A
+ * sector's holdings are the register rows whose counterparty type maps to it;
+ * the per-counterparty limit is tested against the largest single name, the
+ * aggregate against the sector total only when its basis is the sector (a
+ * group or manager limit cannot be judged from the register), the months
+ * against the longest deal, the minimum rating against the lowest rating
+ * given. A sum and a share both stated: the lower binds, as the policy says.
+ * A verdict is only given where the register can give one; where it cannot
+ * (country ratings, group ownership) the position is shown and the cell
+ * says so. */
+const REG_SECTOR = {"UK Government": "gov", "Local authority": "la", "UK bank": "bank", "Overseas bank": "bank", "Building society": "bs", "Money market fund": "mmf", "Pooled fund": "pool"};
+function regRatingRank(v){
+  const scale = (typeof CP_RATINGS !== "undefined" ? CP_RATINGS : []).map(x => x[0]).filter(x => /^[A-C]/.test(x));
+  const t = String(v || "").trim().toUpperCase().replace(/\s+/g, "").replace(/MF$|M$|\(SF\)$/, "");
+  const i = scale.indexOf(t); return i < 0 ? null : i;
+}
+const regMonthsText = m => m == null ? "" : m < 1 ? "on call" : (Math.round(m) % 12 === 0 && m >= 12 ? `${Math.round(m) / 12} year${Math.round(m) === 12 ? "" : "s"}` : `${Math.round(m)} months`);
+function registerPosition(reg, c){
+  const stats = REG.stats(reg), asAt = reg.asAt;
+  const invested = stats.invested + stats.fundsLatest;
+  const monthsOf = r => r.maturity ? Math.max(0, REG.monthsBetween(asAt, r.maturity)) : (r.noticeDays > 0 ? r.noticeDays / 30.436875 : 0);
+  const H = [];
+  reg.termInvestments.filter(r => r.counts).forEach(r => H.push({sector: REG_SECTOR[r.cpType] || null, type: r.cpType || "Not on the list", name: r.counterparty, v: r.nominal, months: monthsOf(r), rating: r.rating, overseas: r.cpType === "Overseas bank", pooled: false}));
+  reg.callAccounts.filter(r => r.counts).forEach(r => H.push({sector: REG_SECTOR[r.cpType] || null, type: r.cpType || "Not on the list", name: r.counterparty, v: r.balance, months: monthsOf(r), rating: r.rating, overseas: r.cpType === "Overseas bank", pooled: false}));
+  reg.pooledFunds.filter(r => r.counts).forEach(r => H.push({sector: "pool", type: "Pooled fund", name: r.name, v: r.latestValue == null ? r.carryingValue : r.latestValue, months: null, rating: "", overseas: false, pooled: true}));
+  const fig = (k, f) => { const v = String((c.sec[k] || {})[f] || "").trim(); if(v) return v; const sd = CP_SECTORS.find(x => x.k === k); const d = sd ? cpDefault(sd.b, f) : "\u2014"; return d === "\u2014" ? "" : d; };
+  const limitText = (cash, pctv) => { const a = cash ? `£${cash}m` : "", b = pctv ? `${pctv}%` : ""; return a && b ? `${a} or ${b}, whichever is lower` : (a || b); };
+  const rows = CP_SECTORS.filter(x => (c.sec[x.k] || {}).on).map(x => {
+    const hs = H.filter(h => h.sector === x.k), total = hs.reduce((a, h) => a + h.v, 0);
+    const byName = {}; hs.forEach(h => { byName[h.name] = (byName[h.name] || 0) + h.v; });
+    const largest = Object.entries(byName).sort((a, b) => b[1] - a[1])[0] || null;
+    const longest = hs.filter(h => h.months != null).sort((a, b) => b.months - a.months)[0] || null;
+    const rated = hs.filter(h => regRatingRank(h.rating) != null), unrated = hs.length - rated.length;
+    const lowest = rated.slice().sort((a, b) => regRatingRank(b.rating) - regRatingRank(a.rating))[0] || null;
+    const cash = +fig(x.k, "cash") || null, pctv = +fig(x.k, "pct") || null;
+    const limit = Math.min(cash ? cash * 1e6 : Infinity, pctv && invested ? pctv / 100 * invested : Infinity);
+    const basis = (c.sec[x.k] || {}).basis || "group", gcash = +fig(x.k, "gcash") || null, gpct = +fig(x.k, "gpct") || null;
+    const glimit = Math.min(gcash ? gcash * 1e6 : Infinity, gpct && invested ? gpct / 100 * invested : Infinity);
+    const mo = +fig(x.k, "months") || null, rating = (c.sec[x.k] || {}).rating || "";
+    const checks = [];
+    if(isFinite(limit)) checks.push({what: "per counterparty", policy: limitText(cash, pctv), actual: largest ? `${largest[0]}, ${REG.money(largest[1])}` : "nothing held", ok: !largest || largest[1] <= limit + 0.5});
+    if(isFinite(glimit)) checks.push({what: basis === "sector" ? "across the sector" : `across the ${basis === "manager" ? "fund manager" : "ownership group"}`, policy: limitText(gcash, gpct),
+      actual: basis === "sector" ? REG.money(total) + " across the sector" : REG.money(total) + " across the sector; groups are not in the register", ok: basis === "sector" ? total <= glimit + 0.5 : null});
+    if(mo) checks.push({what: "longest deal", policy: regMonthsText(mo), actual: longest ? `${longest.name}, ${regMonthsText(longest.months)}` : (hs.length ? "none with a term" : "nothing held"), ok: !longest || longest.months <= mo + 1e-9});
+    if(rating && rating !== "none" && regRatingRank(rating) != null) checks.push({what: "minimum rating", policy: rating, actual: lowest ? `${lowest.name}, ${lowest.rating}` + (unrated ? `; ${unrated} not rated in the register` : "") : (hs.length ? "none rated in the register" : "nothing held"), ok: !lowest ? null : regRatingRank(lowest.rating) <= regRatingRank(rating)});
+    return {k: x.k, t: x.t, held: total, n: hs.length, checks};
+  });
+  const covered = new Set(rows.map(r => r.k));
+  const uncovered = H.filter(h => !h.sector || !covered.has(h.sector));
+  const overseas = H.filter(h => h.overseas).reduce((a, h) => a + h.v, 0);
+  let country = null;
+  if(c.country === "share"){ const p = +c.pct || 0; country = {what: "outside the UK", policy: `no more than ${p}% of investments`, actual: `${REG.money(overseas)}${invested ? ` (${(100 * overseas / invested).toFixed(1)}%)` : ""} with overseas banks`, ok: !invested || overseas <= p / 100 * invested + 0.5}; }
+  else if(c.country === "excluded") country = {what: "outside the UK", policy: "UK counterparties only", actual: overseas ? `${REG.money(overseas)} with overseas banks` : "none held", ok: overseas <= 0};
+  else if(c.country) country = {what: "outside the UK", policy: (CP_COUNTRY.find(o => o.k === c.country) || {}).t || c.country, actual: overseas ? `${REG.money(overseas)} with overseas banks; country ratings are not in the register` : "none held", ok: null};
+  let nonspec = null;
+  if(c.split){
+    const floor = regRatingRank(c.ltrating);
+    const ns = H.filter(h => (h.months != null && h.months > 12) || h.pooled || (floor != null && regRatingRank(h.rating) != null && regRatingRank(h.rating) > floor));
+    const total = ns.reduce((a, h) => a + h.v, 0), cap = +c.nonspec || null;
+    nonspec = {what: "non-specified investments", policy: cap ? `no more than £${cap}m in aggregate` : "classified; no cap stated", actual: `${REG.money(total)} in ${ns.length} holding${ns.length === 1 ? "" : "s"} (over a year, pooled, or below ${c.ltrating || "the floor"})`, ok: cap ? total <= cap * 1e6 + 0.5 : null};
+  }
+  const all = rows.flatMap(r => r.checks).concat(country ? [country] : [], nonspec ? [nonspec] : []);
+  return {rows, uncovered, country, nonspec, invested, asAt, breaches: all.filter(a => a.ok === false).length, checks: all.filter(a => a.ok != null).length};
+}
+function registerPositionHTML(){
+  const reg = registerReg(); if(!reg || typeof cpState !== "function") return "";
+  const P = registerPosition(reg, cpState());
+  if(!P.rows.length && !P.country && !P.nonspec) return "";
+  const when = P.asAt ? REG.dmy(P.asAt) : "an unknown date";
+  const cell = a => a.ok === true ? `<td class="ok">Within</td>` : a.ok === false ? `<td class="bad">Breach</td>` : `<td class="na">—</td>`;
+  let rows = "";
+  P.rows.forEach(r => {
+    if(!r.checks.length){ rows += `<tr><td>${esc(r.t)}</td><td colspan="2">no limit stated</td><td>${r.n ? REG.money(r.held) + " held" : "nothing held"}</td><td class="na">—</td></tr>`; return; }
+    r.checks.forEach((a, i) => { rows += `<tr>${i === 0 ? `<td rowspan="${r.checks.length}">${esc(r.t)}<br><small>${r.n ? REG.money(r.held) + " held" : "nothing held"}</small></td>` : ""}<td>${esc(a.what)}</td><td>${esc(a.policy)}</td><td>${esc(a.actual)}</td>${cell(a)}</tr>`; });
+  });
+  if(P.country) rows += `<tr><td>Country</td><td>${esc(P.country.what)}</td><td>${esc(P.country.policy)}</td><td>${esc(P.country.actual)}</td>${cell(P.country)}</tr>`;
+  if(P.nonspec) rows += `<tr><td>Classification</td><td>${esc(P.nonspec.what)}</td><td>${esc(P.nonspec.policy)}</td><td>${esc(P.nonspec.actual)}</td>${cell(P.nonspec)}</tr>`;
+  const verdict = P.checks ? (P.breaches ? `<b>${P.breaches} breach${P.breaches === 1 ? "" : "es"}</b> in ${P.checks} check${P.checks === 1 ? "" : "s"}` : `within every one of the ${P.checks} check${P.checks === 1 ? "" : "s"} the register can make`) : "no check the register can make yet";
+  return `<h4>Position against policy</h4>
+    <p class="dnote">What the authority held at ${esc(when)}, from its deal register, set against the limits above: ${verdict}.</p>
+    <div style="overflow-x:auto"><table class="otable cppos">
+      <thead><tr><th>Counterparty type</th><th>Limit</th><th>Policy</th><th class="w">Position at ${esc(when)}</th><th>Status</th></tr></thead>
+      <tbody>${rows}</tbody></table></div>` +
+    (P.uncovered.length ? `<p class="dnote">Held outside the types ticked above: ${P.uncovered.map(h => `${esc(h.name)} (${esc(h.type)}, ${REG.money(h.v)})`).join("; ")}.</p>` : "");
+}
+function registerPositionPanel(host){
+  if(!host || !S.register) return;
+  const html = registerPositionHTML(); if(!html) return;
+  const box = document.createElement("div"); box.id = "cpposition";
+  box.innerHTML = html.replace("<h4>Position against policy</h4>", `<h3 class="cph">5 · Position against policy${typeof helpBtn === "function" ? helpBtn("reg:position") : ""}</h3>`);
+  host.appendChild(box);
+}
+function registerPositionDraft(){ return S.register ? registerPositionHTML() : ""; }
+
+/* ---- the detailed view: every chart of the register in the draft ------------- */
+function registerDraftCharts(){
+  if(!S.register || S.registerView !== "detailed") return "";
+  const reg = registerReg(); if(!reg) return "";
+  const when = reg.asAt ? REG.dmy(reg.asAt) : "an unknown date", W = 760;
+  const F = CH.figures(reg, {W, Wd: W, static: true});
+  const n = k => (S.register[k] || []).length;
+  return `<h4>The investment portfolio at ${esc(when)}, from the deal register</h4>` + F.inv.join("") + F.wide.join("") +
+    `<h4>The loan portfolio at ${esc(when)}</h4>` + F.debt.join("") + F.dwide.join("") +
+    `<h4>Year ends and the months ahead</h4>` + F.year.join("") +
+    `<p class="src">Drawn from the authority's deal register as at ${esc(when)}: ${n("term")} term deals, ${n("call")} call accounts and money market funds, ${n("loans")} loans and ${n("funds")} pooled funds. A LOBO is taken at its next call date.</p>`;
 }
 
 /* ---- the panel ----------------------------------------------------------- */
@@ -14611,10 +15177,11 @@ function registerStatus(){
   const show = (id, on) => { const el = $(id); if(el) el.hidden = !on; };
   if(!r){
     st.innerHTML = "Fill both tables and both maturity grids from the workbook you keep your deals in. It is read where it is and never changed.";
-    show("regagain", false); show("regforget", false);
+    show("regagain", false); show("regforget", false); show("regview", false);
     return;
   }
   const n = k => (r[k] || []).length, flagged = ["term", "call", "loans", "funds"].reduce((s, k) => s + (r[k] || []).filter(x => x.issues).length, 0);
+  const rv = $("regview"); if(rv){ rv.hidden = false; const v = S.registerView === "detailed" ? "detailed" : "summary"; rv.querySelectorAll("input[name=regview]").forEach(i => { i.checked = i.value === v; }); }
   const when = r.asAt ? r.asAt.split("-").reverse().join("/") : "an unknown date";
   st.innerHTML = `Read <b>${esc(r.name || "the register")}</b> as at <b>${esc(when)}</b>: ${n("term")} term deal${n("term") === 1 ? "" : "s"}, ${n("call")} call account${n("call") === 1 ? "" : "s"} or MMF${n("call") === 1 ? "" : "s"}, ${n("loans")} loan${n("loans") === 1 ? "" : "s"}, ${n("funds")} pooled fund${n("funds") === 1 ? "" : "s"}`
     + (flagged ? ` — <b>${flagged} row${flagged === 1 ? "" : "s"} flagged</b>, see the register page` : "")
@@ -14655,6 +15222,12 @@ function wireRegister(){
   const box = $("regbox"); if(!box || box._wired) return;
   box._wired = true;
   $("regpick").addEventListener("click", registerPick);
+  /* Summary or detailed: which the draft shows. Saved with the report. */
+  box.querySelectorAll("input[name=regview]").forEach(i => i.addEventListener("change", () => {
+    S.registerView = i.value === "detailed" ? "detailed" : "summary";
+    if(typeof autoSave === "function") autoSave();
+    if(typeof render === "function") render();
+  }));
   $("regfile").addEventListener("change", async () => {
     const f = $("regfile").files && $("regfile").files[0];
     if(f){ S.registerHandle = null; await registerRead(f); }
@@ -14666,7 +15239,8 @@ function wireRegister(){
   /* Forget drops the snapshot and the link to the file. The rows stay: they
      are the report's now, whatever filled them. */
   $("regforget").addEventListener("click", () => {
-    S.register = null; S.registerHandle = null;
+    S.register = null; S.registerHandle = null; S._regCache = null;
+    if(typeof cpRender === "function") cpRender();
     if(typeof autoSave === "function") autoSave();
     registerStatus();
   });
@@ -15123,7 +15697,7 @@ function workPayload(){
       mat:S.mat, demoStamp:S.demoStamp, demo:S.demo,
       logo:S.logo, logoDemo:S.logoDemo, mstruct:S.mstruct, asAt:S.asAt, minliq:S.minliq, cp:S.cp, prior:S.prior,
       otherName:S.otherName, natOverride:S.natOverride,
-      register:S.register,
+      register:S.register, registerView:S.registerView,
       demoSrc:S.demoSrc, demoName:S.demoName, demoKind:S.demoKind,
       locked:S.locked, lockedAt:S.lockedAt, lockedReason:S.lockedReason, overrides:S.overrides,
       issued:S.issued, issuedAt:S.issuedAt,
@@ -15314,7 +15888,7 @@ function applyVersion(d){
     // restoring silently discarded it.
     S.cp=d.cp||null;
     // The deal register's snapshot, when the report was filled from one.
-    S.register=d.register||null; S.registerHandle=null;
+    S.register=d.register||null; S.registerHandle=null; S.registerView=d.registerView||"summary";
     if(typeof registerStatus === "function") registerStatus();
     S.locked=!!d.locked; S.lockedAt=d.lockedAt||null; S.lockedReason=d.lockedReason||null;
     S.overrides=Array.isArray(d.overrides)?d.overrides:[];
@@ -16401,7 +16975,7 @@ function setupSummary(){
        demonstration look touched and brings back the warn-every-time bug the
        comment above describes. test_coverage.js holds the two lists to each
        other. */
-    return JSON.stringify([S.gss, S.report, S.fy0, S.hra, S.years, S.loans, S.portfolio, S.register,
+    return JSON.stringify([S.gss, S.report, S.fy0, S.hra, S.years, S.loans, S.portfolio, S.register, S.registerView,
       S.g, S.text, S.limits, S.perf, S.mon, S.choices, S.actual, S.group, S.mat, S.cp,
       S.minliq, S.mstruct, S.portfolioText, S.portfolioNote, S.otherName, S.natOverride]);
   }
