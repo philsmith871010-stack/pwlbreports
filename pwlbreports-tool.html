@@ -1649,7 +1649,7 @@ svg.ctip .hits rect{cursor:crosshair}
   border:1px solid var(--line2);border-radius:var(--r-sm);background:var(--card);
   color:var(--ink2);cursor:pointer}
 .pvbig:hover{border-color:var(--muted);color:var(--ink)}
-.pvempty{font-family:var(--sans);font-size:13.5px;color:var(--muted);
+.pvempty,.pvnone{font-family:var(--sans);font-size:13.5px;color:var(--muted);
   border:1px dashed var(--line2);border-radius:var(--r-sm);padding:26px 18px;text-align:center}
 .pvbar{margin-bottom:14px}
 /* Enlarged is a state of the same element, not a second copy of it: one
@@ -11139,7 +11139,11 @@ function previewHTML(){
   const started = gf.some(r => r.cfr) || (hra || []).some(r => r.cfr);
   const body = started
     ? indicatorBlock(pick.model, pick.label, pick.cross, {only:[V.ind], fund:pick.fund, gf:pick.gf})
-    : `<p class="pvempty">Nothing to draw yet — enter a capital financing requirement
+    /* "pvnone", not "pvempty": the site's skin keys its Chart tab on the
+       latter and disables the tab while it is there, so the chart could not
+       be opened until a figure was typed. Phil (2 October 2026): the tab is
+       always available, and this message is what it shows until then. */
+    : `<p class="pvnone">Nothing to draw yet — enter a capital financing requirement
        above and the chart appears as you type.</p>`;
 
   return `<div class="picker no-print pvbar">
