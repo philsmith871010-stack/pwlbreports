@@ -225,6 +225,11 @@ select:focus,input:focus{outline:2px solid var(--accent);outline-offset:-1px}
 /* ---- the ledger: years down, measures across ---------------------------- */
 .fundtabs{display:flex;gap:6px;margin-bottom:10px}
 .fundtabs:empty{display:none}
+/* On the site skin's Chart tab (its pr-chart class on the step) the grid is
+   hidden and the chart carries its own fund pills, so the grid's tabs were
+   a second set saying the same thing (Phil, 2 October 2026). Nothing here
+   on the plain page, where the chart sits under the grid. */
+.panel.pr-chart #fundtabs{display:none}
 .fundtabs button{padding:7px 15px;border:1px solid var(--line2);background:var(--paper);
   border-radius:var(--r-sm);cursor:pointer;font-size:12.5px}
 .fundtabs button[aria-pressed=true]{background:var(--accent);border-color:var(--accent);
