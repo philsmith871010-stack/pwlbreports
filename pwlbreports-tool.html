@@ -1284,6 +1284,15 @@ button.rm:hover{color:var(--alert)}
 
 /* The hover readout. Fixed rather than absolute so it is never clipped by a
    chart sitting inside a scrolling panel. */
+/* CHART TEXT IS BLACK, AND STAYS BLACK UNDER THE SKIN. The site's skin
+   lightens any SVG text whose fill it reads as dark, without looking at
+   what is behind it, so on its white cards the axis and labels flashed
+   black and then went grey (Phil, 2 October 2026). It reads the fill as
+   rgb(); a colour written as color(srgb …) is the same black, computed and
+   reported in that form, and it leaves it be. The rgb line first, for a
+   browser that does not know the other. The draft's own charts are not
+   touched by the skin and keep their attribute. */
+.panel svg text{fill:#000;fill:color(srgb 0 0 0)}
 .charttip{position:fixed;z-index:90;display:none;pointer-events:none;
   background:var(--card);border:1px solid var(--line2);border-radius:var(--r-sm);
   box-shadow:0 8px 28px rgba(15,26,36,.16);padding:9px 11px;min-width:186px}
