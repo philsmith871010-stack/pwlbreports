@@ -1264,8 +1264,13 @@ const CH = (() => {
      marks fill the frame; and the number of divisions that reads for it. */
   const niceMax = v => { if(!(v > 0)) return 1e6; const p = Math.pow(10, Math.floor(Math.log10(v))), m = v / p; const n = m <= 1 ? 1 : m <= 2 ? 2 : m <= 2.5 ? 2.5 : m <= 3 ? 3 : m <= 4 ? 4 : m <= 5 ? 5 : m <= 6 ? 6 : m <= 8 ? 8 : 10; return n * p; };
   const divisions = top => { const m = Math.round(top / Math.pow(10, Math.floor(Math.log10(top))) * 10) / 10; return m === 3 || m === 6 ? 3 : m === 4 || m === 8 || m === 2 ? 4 : 5; };
-  const fits = (s, colW) => s.length * 6.5 <= colW - 16;
-  const wrap = (s, colW) => { if(fits(s, colW)) return [s]; const i = s.indexOf(" ", Math.floor(s.length / 2) - 2); return i < 0 ? [s] : [s.slice(0, i), s.slice(i + 1)]; };
+  /* cw is the width of a character, 6.5px unless told otherwise. The draft's
+     11px labels would allow 5.6, but the same SVG is rasterised for Word in
+     whatever sans the browser falls back to, and in DejaVu Sans every label
+     of a half-width chart ran into the next; alternate labels are the safe
+     form (the draft review, 3 October 2026). */
+  const fits = (s, colW, cw) => s.length * (cw || 6.5) <= colW - 16;
+  const wrap = (s, colW, cw) => { if(fits(s, colW, cw)) return [s]; const i = s.indexOf(" ", Math.floor(s.length / 2) - 2); return i < 0 ? [s] : [s.slice(0, i), s.slice(i + 1)]; };
   const topPath = (x, y, w, h, r) => { r = Math.min(r, w / 2, h); return `M${x},${y + h} V${y + r} Q${x},${y} ${x + r},${y} H${x + w - r} Q${x + w},${y} ${x + w},${y + r} V${y + h} Z`; };
   const bottomPath = (x, y, w, h, r) => { r = Math.min(r, w / 2, h); return `M${x},${y} V${y + h - r} Q${x},${y + h} ${x + r},${y + h} H${x + w - r} Q${x + w},${y + h} ${x + w},${y + h - r} V${y} Z`; };
   const f1 = n => (+n).toFixed(1);
@@ -1279,7 +1284,10 @@ const CH = (() => {
   function legendSvg(keys, W){
     if(keys.length < 2) return {svg: "", h: 0};
     let x = 4, y = 12, svg = "";
-    keys.forEach(k => { const w = k.length * 6.5 + 24; if(x + w > W - 4 && x > 4){ x = 4; y += 18; }
+    /* 7.6px a character: the draft's legend is rasterised for Word in whatever
+       sans the browser falls back to, and DejaVu Sans is a sixth wider than
+       Segoe or Arial, so a tighter estimate ran one name into the next. */
+    keys.forEach(k => { const w = k.length * 7.6 + 26; if(x + w > W - 4 && x > 4){ x = 4; y += 18; }
       svg += `<rect x="${x}" y="${y - 9}" width="10" height="10" rx="2" fill="${color(k)}"/><text class="lg" x="${x + 15}" y="${y}">${esc(k)}</text>`; x += w; });
     return {svg, h: y + 12};
   }
@@ -1317,11 +1325,12 @@ const CH = (() => {
     return {svg, y};
   }
   /* Column labels, wrapped or short, every column or every other. */
-  function columns(rows, colW){
-    const labels = rows.map(d => { const w = wrap(d.label, colW); return d.short && !w.every(l => fits(l, colW)) ? [d.short] : w; });
+  function columns(rows, colW, cw){
+    cw = cw || 6.5;
+    const labels = rows.map(d => { const w = wrap(d.label, colW, cw); return d.short && !w.every(l => fits(l, colW, cw)) ? [d.short] : w; });
     const useShort = rows.some(d => d.short) && labels.some((ls, i) => ls.length === 1 && ls[0] === rows[i].short);
     if(useShort) rows.forEach((d, i) => { if(d.short) labels[i] = [d.short]; });
-    const xw = Math.max(...labels.map(ls => Math.max(...ls.map(l => l.length)))) * 6.5;
+    const xw = Math.max(...labels.map(ls => Math.max(...ls.map(l => l.length)))) * cw;
     return {labels, xSpan: xw <= colW - 4 ? 1 : Math.ceil((xw + 6) / colW)};
   }
   /* Cap labels: all when they fit, else the tallest bars first, each kept
@@ -1412,14 +1421,14 @@ const CH = (() => {
 
   /* ---- horizontal bars: rows of {label, sub, v, key, tip} ------------------ */
   function hbars(o){
-    const rows = o.rows, W = o.W, L = Math.min(190, Math.max(120, W * 0.28)), R = 70, T = 8, rh = 26, H = T + rows.length * rh + 28;
+    const rows = o.rows, W = o.W, L = Math.min(290, Math.max(120, W * 0.32)), R = 70, T = 8, rh = 26, H = T + rows.length * rh + 28;
     const pw = W - L - R, top = niceMax(Math.max(...rows.map(r => r.v), 0)), div = divisions(top), x = v => L + (v / top) * pw;
     const total = rows.reduce((s, r) => s + r.v, 0), keys = order([...new Set(rows.map(r => r.key))]);
     let svg = "";
     const tickW = short(top).length * 6.5 + 8, every = Math.max(1, Math.ceil(tickW / (pw / div)));
     for(let k = 0; k <= div; k++){ const v = top * k / div, xx = x(v).toFixed(1);
       svg += `<line class="${k ? "grid" : "base"}" x1="${xx}" x2="${xx}" y1="${T}" y2="${T + rows.length * rh}"/>` + (k % every === 0 ? `<text x="${xx}" y="${T + rows.length * rh + 16}" text-anchor="middle">${short(v)}</text>` : ""); }
-    const maxChars = Math.floor((L - 14) / 6.5);
+    const maxChars = Math.floor((L - 14) / 7.5);   /* 7.5px a character: the rasterised fallback font is wider than the page's, and a name once ran off the left edge in Word */
     rows.forEach((r, i) => {
       const y = T + i * rh, bh = 16, tip = r.tip || tipOf(r.label, [money(r.v)]);
       const lab = r.label.length > maxChars ? r.label.slice(0, maxChars - 1) + "…" : r.label;
@@ -1471,7 +1480,7 @@ const CH = (() => {
     }).sort((a, b) => a.first - b.first);
   }
   function timeline(o){
-    const rows = o.rows, W = o.W, L = Math.min(220, Math.max(110, W * 0.25)), R = 76, T = 26, lh = 16, gap = 6;
+    const rows = o.rows, W = o.W, L = Math.min(240, Math.max(110, W * 0.27)), R = 76, T = 26, lh = 16, gap = 6;
     const rowH = r => r.lanes * lh + gap, body = rows.reduce((s, r) => s + rowH(r), 0), H = T + body + 30;
     const deals = rows.flatMap(r => r.deals);
     const t0 = Math.min(o.asAt.getTime(), ...deals.map(d => d.start.getTime())), t1 = Math.max(o.asAt.getTime() + 30 * 86400000, ...deals.map(d => d.end.getTime()));
@@ -1483,7 +1492,7 @@ const CH = (() => {
     const yes = []; for(let y = y0; y <= y1; y++){ const d = Date.UTC(y, 2, 31); if(d >= t0 - pad && d <= t1 + pad) yes.push(d); }
     const every = Math.max(1, Math.ceil(yes.length * 62 / (W - L - R)));
     yes.forEach((d, i) => { const xx = x(d).toFixed(1); svg += `<line class="ye" x1="${xx}" x2="${xx}" y1="${T - 4}" y2="${T + body}"/>`; if(i % every === 0) svg += `<text class="tl" x="${xx}" y="${T + body + 16}" text-anchor="middle">31 Mar ${new Date(d).getUTCFullYear()}</text>`; });
-    const maxChars = Math.floor((L - 14) / 6.5);
+    const maxChars = Math.floor((L - 14) / 7.5);   /* 7.5px a character: the rasterised fallback font is wider than the page's, and a name once ran off the left edge in Word */
     let y = T;
     rows.forEach(r => {
       const h = rowH(r), xe = x(Math.max(...r.deals.map(d => d.end.getTime())));
