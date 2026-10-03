@@ -9,7 +9,7 @@
      dashboard marker sits, is what the tool exports as a dashboard. -->
 <title>Deal register — PWLBreports</title>
 <!--dashboard-->
-<meta name="description" content="Point this page at your copy of the register workbook and it reads your term investments in the browser: the rows as read, a maturity ladder, and what is still out at each year end. Nothing is uploaded and nothing is written back.">
+<meta name="description" content="Keep your deals in a workbook you own and point this page at it: it reads your term investments, call accounts, loans and pooled funds in the browser and draws the position, the maturity ladders, the year ends, and the period's activity and income, with every row as it was read. Nothing is uploaded and nothing is written back. Read the same workbook into the PWLBreports tool and it fills the report.">
 <style>
 /* ===========================================================================
  * The register prototype. One file, no fonts fetched, no script fetched, no
@@ -35,6 +35,13 @@ header.top{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px 16px;margin-
 header.top h1{font-size:22px;margin:0;font-weight:650;letter-spacing:-.01em}
 header.top .tag{font-size:12px;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:1px 9px;background:var(--card)}
 p.lede{margin:0 0 20px;max-width:720px;color:var(--muted)}
+p.lede a{color:var(--accent)}
+nav.crumbs{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;font-size:13px;color:var(--muted);margin:0 0 10px}
+nav.crumbs a{color:var(--accent);text-decoration:none;font-weight:600}
+nav.crumbs a:hover{text-decoration:underline}
+nav.crumbs .sep{color:var(--faint)}
+nav.crumbs .tool{margin-left:auto}
+.door .act .hint{display:block;margin-top:8px}
 
 /* the doors */
 .doors{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;margin-bottom:22px}
@@ -187,12 +194,16 @@ footer.fine{margin-top:32px;font-size:13px;color:var(--faint);max-width:720px}
 </head>
 <body>
 <div class="wrap">
+<nav class="crumbs" aria-label="Where this page sits">
+  <a href="https://philsmith871010-stack.github.io/pwlbreports/">PWLBreports</a><span class="sep">›</span><span>Deal register</span>
+  <a class="tool" href="https://philsmith871010-stack.github.io/pwlbreports/pwlbreports-tool.html">Open the report tool →</a>
+</nav>
 <header class="top">
   <h1>Deal register</h1>
   <span class="tag" id="tag">reads your workbook in the browser</span>
   <button class="btn sec small" id="helpbtn" type="button">How it works</button>
 </header>
-<p class="lede">Keep your deals in a spreadsheet you own. Point this page at it and it reads your investments and borrowing as they stand, draws the maturity ladders and what is still out at each year end, and shows you every row as it read it. Nothing is uploaded, nothing is written back, and the page makes no request of its own.</p>
+<p class="lede">Keep your deals in a spreadsheet you own. Point this page at it and it reads your investments and borrowing as they stand: the position, the maturity ladders, what is still out at each year end, the period’s activity and income, and every row as it read it. Nothing is uploaded, nothing is written back, and the page makes no request of its own. Read the same workbook into the <a href="https://philsmith871010-stack.github.io/pwlbreports/pwlbreports-tool.html">report tool</a> and it fills the holdings, the projections and the draft.</p>
 
 <div class="err" id="err" role="alert"></div>
 
