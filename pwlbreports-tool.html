@@ -1,4 +1,6 @@
 <meta charset="utf-8">
+<script>if(self===top){(function(){var h=document.documentElement,u="https://pwlbtoday.org/pwlbreports-skin.js",n=0;h.className+=" skinwait";function show(){h.classList.remove("skinwait")}function again(){show();if(n<5)setTimeout(function(){var s=document.createElement("script");s.src=u;s.async=false;s.onerror=again;document.body.appendChild(s)},1000*Math.pow(2,n++))}window.pwlbSkinFail=again;document.addEventListener("DOMContentLoaded",function(){requestAnimationFrame(show)});setTimeout(show,8000);document.write('<script src="'+u+'" defer onerror="pwlbSkinFail()"><\/script>')})()}</script>
+<style>html.skinwait{background:#f7f8fa}html.skinwait body{opacity:0}</style>
 <title>PWLBreports</title>
 <!-- WITHOUT THIS A PHONE RENDERS THE PAGE AT 980px AND SCALES IT DOWN, and
      every max-width media query below is dead code that has never once run on
@@ -5411,10 +5413,10 @@ const HELP = {
   "perf:newborr":    "New loans taken in the period, in £ millions. Leave blank if none.",
   "perf:newrate":    "The average rate on the new loans, as a percentage.",
   "perf:repaid":     "Loans repaid or matured in the period, in £ millions.",
-  "perf:ratepaid":   "Interest paid over average debt. Worked out for you; type a figure to state your own.",
+  "perf:ratepaid":   "Interest paid over average debt, annualised for the period. Worked out for you; type a figure to state your own.",
   "perf:intinc":     "Interest earned on investments in the period, in £ millions.",
   "perf:avginv":     "The average balance invested across the period, in £ millions. Used to work out the return.",
-  "perf:ret":        "Income over the average balance, as a percentage. Worked out for you; type a figure to state your own.",
+  "perf:ret":        "Income over the average balance, annualised for the period, as a percentage. Worked out for you; type a figure to state your own.",
   "perf:bench":      "The rate the return is measured against, as a percentage: usually average SONIA over the period, or the compounded SONIA rate, from your treasury adviser.",
   "perf:hra":        "The part of the line that belongs to the HRA, where debt is pooled and charged to it.",
   groupon:           "Tick only if the council owns companies whose borrowing is significant. Most councils do not, and are not asked.",
@@ -9493,13 +9495,13 @@ const PERF = [
      against each other, which is what catches a transposed digit before
      members see it. The same pattern as the rate of return below. */
   {k:"ratepaid", l:"Average rate paid on debt", u:"%",
-   s:"interest payable over average debt, unless you type your own",
+   s:"interest payable over average debt, annualised, unless you type your own",
    pct:true, noBudget:true},
   {grp:"Investments"},
   {k:"intinc",  l:"Investment income",          u:"£m", s:"earned in the period"},
   {k:"avginv",  l:"Average investments held",   u:"£m", s:"average over the period",
    noBudget:true},
-  {k:"ret",     l:"Rate of return achieved",    u:"%",  s:"income over average balance, unless you type your own",
+  {k:"ret",     l:"Rate of return achieved",    u:"%",  s:"income over average balance, annualised, unless you type your own",
    pct:true},
   {k:"bench",   l:"Benchmark return",           u:"%",  s:"SONIA, 7-day, or your own measure",
    pct:true, noBudget:true}
@@ -9546,20 +9548,43 @@ const perfHraKey = c => "hra_" + c;
 
 /* A return we can compute: income over the average balance held. Only when
    both are there, and never overwriting a figure the authority entered. */
+/* THE DERIVED RATES ARE ANNUALISED. A mid-year review's income is half a
+   year's, so income over the average balance is half the rate the money
+   earned, and a member reads a rate as a yearly one (Phil, 3 October 2026:
+   "We need have annualised"). The period is the report's: 1 April to 30
+   September for a mid-year review; to the latest quarter end on or before
+   the report date (step 0) for a quarterly report; the whole year for an
+   outturn, where there is nothing to annualise. Days over 365, the way the
+   deal register counts them, so the two agree. */
+function perfPeriodDays(){
+  const fy = +S.fy0 || new Date().getUTCFullYear(), apr1 = Date.UTC(fy, 3, 1);
+  if(S.report === "mid") return (Date.UTC(fy, 8, 30) - apr1) / 864e5;
+  if(S.report === "quart"){
+    const iso = S.asAt || (typeof MKT !== "undefined" && MKT && MKT.as_at) || "", m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso);
+    const d = m ? Date.UTC(+m[1], +m[2] - 1, +m[3]) : Date.UTC(fy, 5, 30);
+    const ends = [Date.UTC(fy, 5, 30), Date.UTC(fy, 8, 30), Date.UTC(fy, 11, 31), Date.UTC(fy + 1, 2, 31)];
+    const end = ends.filter(e => e <= d).pop() || ends[0];
+    return (end - apr1) / 864e5;
+  }
+  return null;
+}
 function perfDerive(col, which){
   const P = (S.perf || {});
   /* The actual column reads the deal register's offered figure where the box
      is blank (registerPerf, register.js), so the rate derives from the same
-     numbers the draft shows in the boxes above it. */
+     numbers the draft shows in the boxes above it — exactly, over the
+     register's own period, so it is the rate the activity table shows. */
   const rp = col === "actual" && typeof registerPerf === "function" ? registerPerf() : null;
-  const g = k => { const v = P[k] && P[k][col]; if(v != null && v !== "") return +v; return rp && rp[k] != null && isFinite(rp[k]) ? rp[k] : null; };
+  const g = k => { const v = P[k] && P[k][col]; if(v != null && v !== "") return {v: +v, reg: false};
+    return rp && rp[k] != null && isFinite(rp[k]) ? {v: rp.exact && rp.exact[k] != null ? rp.exact[k] : rp[k], reg: true} : null; };
   const k = which || "ret";
   const own = P[k] && P[k][col];
   if(own != null && own !== "") return {v: +own, derived:false};
   const top = g(k === "ret" ? "intinc" : "intpay");
   const bot = g(k === "ret" ? "avginv" : "avgdebt");
-  if(top == null || !bot) return {v: null, derived:false};
-  return {v: top / bot * 100, derived:true};
+  if(!top || !bot || !bot.v) return {v: null, derived:false};
+  const days = top.reg && bot.reg && rp.days ? rp.days : perfPeriodDays();
+  return {v: top.v / bot.v * 100 * (days ? 365 / days : 1), derived:true};
 }
 
 function perfRows(){
@@ -9868,7 +9893,7 @@ function perfPanel(){
       if((r.k === "ret" || r.k === "ratepaid") && r.cells[c].derived)
         return `<td><input type="text" inputmode="decimal" data-p="${r.k}" data-pc="${c}"
           class="drvin" value="" placeholder="${r.cells[c].v.toFixed(2)}%"
-          title="${r.k === "ret" ? "income over average balance" : "interest over average debt"} — type to state your own"
+          title="${r.k === "ret" ? "income over average balance" : "interest over average debt"}, annualised — type to state your own"
           aria-label="${esc(r.k)} ${esc(c)}, derived"></td>`;
       if(r.cells[c].derived && r.cells[c].src)
         return `<td><input type="text" inputmode="decimal" data-p="${r.k}" data-pc="${c}"
@@ -14829,10 +14854,11 @@ function wireSteps(){
  * page (a strategy has no period figures beyond the group question) is
  * skipped rather than pointed at. A stop's sel may be a list: the first
  * one that is on the page and showing wins. That is how the same stops
- * fit the site's skin (pwlbreports-skin.js, loaded last), which lays the
- * figures and the counterparty policy out as tabs and cards of its own:
- * pre opens the tab, sel finds the card, post puts the tab back on the way
- * out, and without the skin all three are no-ops.
+ * fit the site's skin (pwlbreports-skin.js, fetched from the head and run
+ * after the tool's own script), which lays the figures and the counterparty
+ * policy out as tabs and cards of its own: pre opens the tab, sel finds the
+ * card, post puts the tab back on the way out, and without the skin all
+ * three are no-ops.
  * ======================================================================== */
 const TOUR_STOPS = [
   {step:1, sel:"#rail", title:"Seven steps, in any order",
@@ -15494,8 +15520,12 @@ function registerPerf(){
   if(S._perfCache && S._perfCache.key === S.register.read) return S._perfCache.v;
   const A = REG.activity(reg, P.from, P.to), I = REG.interestIn(reg, P.from, P.to);
   const r1 = v => Math.round(v / 1e5) / 10;
-  const v = {newborr: r1(A.raised.total), newrate: A.raised.rate == null ? null : Math.round(A.raised.rate * 1e4) / 100, repaid: r1(A.repaid.total), intpay: r1(I.payable.total), avgdebt: r1(I.avgDebt), asAt: REG.dmy(P.to)};
-  if(I.stated && !I.unstated){ v.intinc = r1(I.income); v.avginv = r1(I.avgInvestments); }
+  const v = {newborr: r1(A.raised.total), newrate: A.raised.rate == null ? null : Math.round(A.raised.rate * 1e4) / 100, repaid: r1(A.repaid.total), intpay: r1(I.payable.total), avgdebt: r1(I.avgDebt), asAt: REG.dmy(P.to),
+    /* The rates derived from these (perfDerive) use the exact figures over
+       the register's own period, so they are the rates the activity table
+       in the draft shows, not the ratio of two rounded boxes. */
+    days: Math.max(1, (P.to - P.from) / 864e5), exact: {intpay: I.payable.total / 1e6, avgdebt: I.avgDebt / 1e6}};
+  if(I.stated && !I.unstated){ v.intinc = r1(I.income); v.avginv = r1(I.avgInvestments); v.exact.intinc = I.income / 1e6; v.exact.avginv = I.avgInvestments / 1e6; }
   S._perfCache = {key: S.register.read, v};
   return v;
 }
@@ -19643,4 +19673,3 @@ function setupSummary(){
 
 
 </script>
-<script>if(self===top){var s=document.createElement("script");s.src="https://pwlbtoday.org/pwlbreports-skin.js";s.async=false;document.body.appendChild(s)}</script>
