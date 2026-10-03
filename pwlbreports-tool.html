@@ -497,7 +497,19 @@ table.ledger tbody tr td input:focus{background:var(--accent-soft);outline-offse
 .regpanel{background:var(--card);border:1px solid var(--line2);border-radius:var(--r);padding:14px 16px 16px;margin:0 0 14px}
 .regpanel .regline{margin:0 0 10px;font-size:13.5px;color:var(--ink2);line-height:1.5}
 /* Rows and grid amounts filled from the register: readable, not editable. */
-input.fromreg,input.fromreg:focus{background:var(--sunken);color:var(--ink2);border-color:transparent;box-shadow:none;cursor:default}
+/* LOCKED IS GREY, AND SAYS WHY (Phil, 3 October 2026: "make it very clear which
+   cells are locked and which editable - maybe grey for locked and tooltip to
+   say it came from register"). Every cell the register fills is grey with a
+   not-allowed cursor and a title saying where it came from and how to change
+   it; a white cell is theirs to type. The key under each grid says so. */
+input.fromreg,input.fromreg:focus,select.fromreg,select#hra:disabled{background:#e4e8ed!important;color:#3a4a5a!important;border-color:#cfd6de!important;box-shadow:none;cursor:not-allowed!important;opacity:1}
+/* The skin lays the Excel buttons out with its own display rule, which beat
+   the hidden attribute: hidden is hidden, whatever skin is on. */
+#pastex[hidden],#copyx[hidden],#dashdeals-row[hidden],#regfill-g[hidden],#regfill-hra[hidden],#key-locked[hidden]{display:none!important}
+.legendkey i.lockkey{background:#e4e8ed;border:1px solid #cfd6de}
+.locktip{position:absolute;z-index:60;max-width:370px;background:#0a2540;color:#fff;font-size:12.5px;line-height:1.45;padding:8px 11px;border-radius:6px;box-shadow:0 4px 14px rgba(0,0,0,.22);pointer-events:none}
+.locktip[hidden]{display:none!important}
+select#hra:disabled{pointer-events:none}
 tbody.fromreg .rm{display:none}
 .ltools[hidden]{display:none!important}   /* display:flex above would otherwise beat the attribute */
 /* The lock note lives inside the tools row: the site's skin wraps table.loans,
@@ -1852,6 +1864,10 @@ svg.ctip .hits rect{cursor:crosshair}
 .askbox p{font-family:var(--sans);font-size:13px;line-height:1.6;color:var(--ink2);margin:0 0 10px}
 .ltop{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px}
 .ltop .sp{flex:1;min-width:8px}
+/* The dashboard sits at the far right of the row, whatever order a skin gives
+   the Excel buttons (the site's skin orders them with a selector that outranks
+   an id, hence the !important). */
+.ltop #dashproj{order:10!important;margin-left:auto!important}
 /* Once the row wraps, the spacer stops separating two groups and starts
    throwing one button to each end of an empty line. Below the wrap it goes. */
 @media (max-width:640px){
@@ -2269,6 +2285,25 @@ td.nask{background:repeating-linear-gradient(45deg,var(--hair),var(--hair) 4px,
         <input type="file" id="logo" accept="image/png,image/jpeg,image/svg+xml" hidden>
       </div>
     </div>
+      <!-- The deal register. Hidden unless "register" is in the URL or the
+           report carries a snapshot — see register.js. -->
+      <!-- THE REGISTER IS ONE CHOICE ON THE SET-UP STEP (Phil, 3 October 2026:
+           "the 'register' decision should be on the set up tab"; earlier: "the
+           user choice is 'use the register' - if selected, it's a large modal
+           with blurred background with everything they need there"). The
+           panel says whether a register is in use and what it holds; the
+           dialog (#regdlg, below the start box) holds the rest: the template,
+           the example, the choosing, and once read the options. -->
+      <div class="regbox" id="regbox" hidden>
+        <div class="reghead">
+          <span class="regtitle"><b>Deal register</b><button type="button" class="hq" data-help="reg:box" aria-label="What is this" title="What is this">?</button></span>
+          <span class="regstatus" id="regstatus"></span>
+          <span class="ltools regusewrap"><button type="button" class="reguse" id="reguse">Use the deal register</button></span>
+        </div>
+        <div class="regmeta" id="regmeta" hidden></div>
+        <ul class="regnotes" id="regpnotes" hidden></ul>
+        <input type="file" id="regfile" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden aria-hidden="true" tabindex="-1">
+      </div>
     <!-- "Bring in your figures" and, later, a "Reports in this file" card
          both used to live here. Sources are offered automatically now (see
          the source-prompt banner further down) and the list of what is in
@@ -2314,20 +2349,12 @@ td.nask{background:repeating-linear-gradient(45deg,var(--hair),var(--hair) 4px,
       <p class="regtry" id="regtry"><b>See it first.</b> <button type="button" class="lnk" id="regexample">Read the example register</button> &mdash; the template as it comes, example rows and all, into this report. Remove it when you have seen enough.</p>
       <div class="regnow" id="regnow" hidden>
         <div class="regfile"><span class="regdname" id="regdname"></span><div class="regmeta" id="regdmeta"></div></div>
-        <div class="regview" id="regview">
-          <span class="lbl">In the draft<button type="button" class="hq" data-help="reg:view" aria-label="What is this" title="What is this">?</button></span>
-          <span class="seg" role="group" aria-label="How the register appears in the draft">
-            <label><input type="radio" name="regview" value="summary"><span>Summary tables</span></label>
-            <label><input type="radio" name="regview" value="detailed"><span>Detailed, with every chart</span></label>
-          </span>
-        </div>
         <div class="ltools regacts">
           <button type="button" class="primary" id="regagain" title="Picks up what you have saved in Excel since">Re-read the file</button>
-          <button type="button" id="regexport" title="One file: the charts, the position against your lending policy and the period&rsquo;s activity">Download the dashboard</button>
           <button type="button" id="regswap">Choose a different workbook</button>
           <button type="button" id="regforget" class="lnk" title="The rows stay as they are">Remove the register</button>
         </div>
-        <p class="reghint">The rows and maturity grids on this step are filled from the register and locked while it is in use: change the workbook and re-read it, or remove the register to type by hand. With a projection in the workbook the figures grid and the council housing choice on step 1 are locked the same way. The register&rsquo;s charts are on the tabs beside Debt and Investments: investments, borrowing, the year ends and the months ahead, and the period&rsquo;s activity.</p>
+        <p class="reghint">With a register in use the report is the full detail: every chart in the draft. The holdings and maturity grids on step 2 are filled from the register and locked while it is in use &mdash; change the workbook and re-read it, or remove the register to type by hand &mdash; and with a projection in the workbook the figures grid on step 3 and the council housing choice here are locked the same way. The deals dashboard is made on step 2, the projections dashboard on step 3. The register&rsquo;s charts are on the tabs beside Debt and Investments: investments, borrowing, the year ends and the months ahead, and the period&rsquo;s activity.</p>
       </div>
     </div>
     <div class="startfoot"><p>Nothing in the workbook leaves your computer. The report keeps a snapshot of the rows it read, so the file is not needed to open the report again.</p></div>
@@ -2369,24 +2396,6 @@ td.nask{background:repeating-linear-gradient(45deg,var(--hair),var(--hair) 4px,
     <div class="phead"><span class="n">2</span><h2>What you hold now</h2></div>
     <div class="pbody">
 
-      <!-- The deal register. Hidden unless "register" is in the URL or the
-           report carries a snapshot — see register.js. -->
-      <!-- THE REGISTER IS ONE CHOICE ON THIS STEP (Phil, 3 October 2026: "the
-           user choice is 'use the register' - if selected, it's a large modal
-           with blurred background with everything they need there"). The
-           panel says whether a register is in use and what it holds; the
-           dialog (#regdlg, below the start box) holds the rest: the template,
-           the example, the choosing, and once read the options. -->
-      <div class="regbox" id="regbox" hidden>
-        <div class="reghead">
-          <span class="regtitle"><b>Deal register</b><button type="button" class="hq" data-help="reg:box" aria-label="What is this" title="What is this">?</button></span>
-          <span class="regstatus" id="regstatus"></span>
-          <span class="ltools regusewrap"><button type="button" class="reguse" id="reguse">Use the deal register</button></span>
-        </div>
-        <div class="regmeta" id="regmeta" hidden></div>
-        <ul class="regnotes" id="regpnotes" hidden></ul>
-        <input type="file" id="regfile" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden aria-hidden="true" tabindex="-1">
-      </div>
 
       <!-- ONE SYSTEM. With a register in use its figures are tabs here, beside
            the rows they filled, not a page somewhere else (Phil, 3 October
@@ -2401,6 +2410,16 @@ td.nask{background:repeating-linear-gradient(45deg,var(--hair),var(--hair) 4px,
         <button type="button" data-h="rd" aria-pressed="false" class="regtab" hidden>Borrowing charts</button>
         <button type="button" data-h="ry" aria-pressed="false" class="regtab" hidden>Year ends and the months ahead</button>
         <button type="button" data-h="ra" aria-pressed="false" class="regtab" hidden>Activity in the period</button>
+      </div>
+      <!-- THE DEALS DASHBOARD IS MADE HERE AND NOWHERE ELSE (Phil, 3 October
+           2026: "the holdings page and the projections page should each be
+           where users can generate a dashboard for deals or dashboard for
+           projections - nowhere else"). One file: the register's charts, the
+           position against the lending policy and the period's activity.
+           Shown with a register in use (registerHoldTabs). -->
+      <div class="ltools dashrow" id="dashdeals-row" hidden>
+        <button type="button" id="dashdeals" title="One file: the charts, the position against your lending policy and the period&rsquo;s activity">Download the deals dashboard</button>
+        <span class="hintline">From the deal register in use. Opens anywhere; nothing is fetched.</span>
       </div>
 
       <div id="holdri" class="regpanel ck" hidden>
@@ -2464,6 +2483,10 @@ td.nask{background:repeating-linear-gradient(45deg,var(--hair),var(--hair) 4px,
         <span class="sp"></span>
         <button type="button" class="xb on" id="pastex"><span class="ar">↓</span>Paste from Excel</button>
         <button type="button" class="xb" id="copyx"><span class="ar">↑</span>Copy for Excel</button>
+        <!-- THE PROJECTIONS DASHBOARD IS MADE HERE AND NOWHERE ELSE: the
+             liability benchmark and the other indicators, every fund, as the
+             draft draws them, in one file. -->
+        <button type="button" class="xb" id="dashproj" title="One file: the liability benchmark and the other indicators for every fund, with their tables, as the draft draws them">Download the projections dashboard</button>
       </div>
       <span class="hintline" id="xhint"></span>
       <div class="pastebox" id="xpaste" hidden>
@@ -2482,6 +2505,7 @@ td.nask{background:repeating-linear-gradient(45deg,var(--hair),var(--hair) 4px,
         <span class="kt">Key</span>
         <span><i style="background:var(--cell)"></i>yours to fill in</span>
         <span><i style="border-left:3px solid var(--accent);border-radius:0"></i>your MTFP years</span>
+        <span id="key-locked" hidden><i class="lockkey"></i>from the deal register, locked</span>
       </div>
       <div class="ltools">
         <label class="minliq" for="minliq">Minimum cash to keep (liquidity allowance) £m<button type="button" class="hq" data-help="minliq" aria-label="What goes here" title="What goes here">?</button>
@@ -5989,7 +6013,6 @@ const HELP = {
   whoami:   "Your name, saved with the file so colleagues can see who last worked on it.",
   logo:     "Optional. A PNG or JPG of the council's crest, printed on the front of the draft.",
   // ---- what you hold: debt and investments ----
-  "reg:view":   "Summary keeps the draft as it is: the tables. Detailed adds every chart of the register to the current portfolio section — the ladders, each deal on a timeline by counterparty (or, for a book of more than 25 deals, what is still out month by month by type), exposure by counterparty, what each deal earns or costs, how the debt runs off, the year ends and the months ahead — and they go into the Word export as pictures.",
   "reg:tabs":   "The register's figures, drawn from the rows it holds and redrawn whenever the file is re-read: investments (the maturity ladder, what each deal earns and for how long, when the deals come back, exposure by counterparty), borrowing (the Code's maturity structure, what each loan costs, how the debt runs off), the next five year ends and the months ahead with the positions over time from the reports in this file, and the activity in a period you choose. Hover a bar or a point for its deal; Show as a table under any chart lists the figures. The same charts go into the draft when Detailed is chosen in the register options.",
   "reg:position": "Each limit on this step set against what the register actually holds: the largest single counterparty against the per-counterparty limit, the longest deal against the months, the lowest rating against the minimum, the share outside the UK, and the non-specified total. A breach is marked. Then the same limits at each month end of the period on the register's Settings, with the term deals that were out on each date, so a limit crossed mid-period and back within by the end still shows. Both tables go into the draft: under the counterparty policy in a strategy, with the compliance tables in a monitoring report.",
   "perf:reg":   "A dashed box holds a figure from the deal register. Borrowing taken, its rate and principal repaid are the year so far. Interest payable, average debt, investment income and the average invested are the year's expectation: what the deals have earned and cost from the period's start on the Settings sheet to the as-at date, plus what they will to 31 March on the deals already held, with money on call and in funds assumed to go on at its stated average. Income and the average invested are offered only when every call account, MMF and pooled fund states its average. Indicative, on deal terms. Type over it to state your own.",
@@ -8276,7 +8299,7 @@ function matGrid(which){
       <td>${esc(b)}</td>
       <td class="num"><input type="text" inputmode="decimal" data-mat="${which}"
         data-band="${esc(b)}" value="${m[b] == null || m[b] === "" ? "" : m1(m[b])}"
-        aria-label="${esc(b)}"${typeof holdLocked === "function" && holdLocked() ? ' readonly class="fromreg" tabindex="-1"' : ""}></td></tr>`).join("")}
+        aria-label="${esc(b)}"${typeof holdLocked === "function" && holdLocked() ? ` readonly class="fromreg" tabindex="-1" title="${esc(regLockTitle("From the deal register\u2019s dates"))}"` : ""}></td></tr>`).join("")}
       <tr class="key"><td>Total</td>
         <td class="num">${tot ? m1(tot) : ""}</td></tr>
     </tbody></table></div>`;
@@ -15540,6 +15563,7 @@ function renderRail(){
 }
 
 function showStep(n){
+  setTimeout(() => { if(typeof fitLedger === "function") fitLedger(); }, 60);   /* the grid to the bottom of the window, once its step shows */
   // The visible panel takes its step's colour, so the header, the rail and
   // the progress all say the same thing at once.
   document.querySelectorAll("[data-step]").forEach(el => {
@@ -15709,7 +15733,7 @@ const TOUR_STOPS = [
    text:"The authority, the report and the year. Change opens your file's list of reports and lets you start another."},
   {step:1, sel:".logocell", title:"The council's crest",
    text:"Optional. It goes on the front of the draft and travels inside the file."},
-  {step:2, sel:"#reguse", title:"Your deal register",
+  {step:1, sel:"#reguse", title:"Your deal register",
    /* The walkthrough's example opens with the example register in use; the
       same stop on a report without one says how to start. */
    text: () => (typeof S !== "undefined" && S.register)
@@ -15725,6 +15749,8 @@ const TOUR_STOPS = [
      : "Debt on one tab, investments on the other. The PWLB loans are already here from the published book; add other lenders with Add a source. With a deal register in use, four more tabs sit beside them with its charts."},
   {step:2, sel:"#loanrows", title:"Each lender, or each kind of loan",
    text:"A lender, the amount outstanding and the rate. Leave the rate blank on the PWLB line and the book's own average is used. With a deal register in use the rows are filled from it and locked: change the workbook and re-read it, or remove the register to type by hand."},
+  {step:2, sel:"#dashdeals", title:"The deals dashboard",
+   text:"One file of the register's charts, the position against your lending policy and the period's activity, to send round. It is made here, on the holdings step."},
   {step:2, sel:"#matdebt", title:"When the debt falls due",
    text:"Optional grids: how much falls due in each period, the limits members set on that, and the split between fixed and variable rates. Leave a grid blank and that indicator is simply not reported."},
   {step:3, sel:".ledgerwrap", title:"Your figures", pre: () => tourTab(".pr-projtabs [data-ptab=figures]"),
@@ -15733,6 +15759,8 @@ const TOUR_STOPS = [
      : "One row a year, one column a figure. The ? beside each column heading says what goes in it and where to find it. Type, or paste the whole thing from your spreadsheet."},
   {step:3, sel:"#pastex", title:"Paste from Excel", pre: () => tourTab(".pr-projtabs [data-ptab=figures]"),
    text:"Copy the block from your projection sheet and paste it here. A header row and a year column are read if you give them, so the columns need not be in this order."},
+  {step:3, sel:"#dashproj", title:"The projections dashboard", pre: () => tourTab(".pr-projtabs [data-ptab=figures]"),
+   text:"One file of the liability benchmark and the other indicators for every fund, with their tables, as the draft draws them. It is made here, on the projections step."},
   {step:3, sel:"#pv", title:"The chart, as you type", pre: () => tourTab(".pr-projtabs [data-ptab=chart]"),
    post: () => tourTab(".pr-projtabs [data-ptab=figures]"),
    text:"The liability benchmark and the other indicators redraw on every keystroke. This is the same chart the report will carry."},
@@ -16195,7 +16223,7 @@ function registerApply(reg, name){
      the date, the pooling, and the projection figure by figure. Said on the
      panel until the next read; not saved, because the file keeps the rows. */
   S._regChanges = prev ? registerChanges(prev, S.register) : null;
-  if(!S.registerView) S.registerView = "summary";
+  S.registerView = "detailed";   /* a register in use is the full detail: every chart in the draft, no election (Phil, 3 October 2026) */
   if(typeof cpRender === "function") cpRender();
   if(typeof loanRows === "function") loanRows();
   if(typeof buildLedger === "function" && $("ledger")) buildLedger();   /* locked or unlocked, as the snapshot now says */
@@ -16509,6 +16537,11 @@ async function registerExportDashboard(){
   const html = DASHBOARD_PAGE.replace("\x3c!--dashboard--\x3e", "\x3cscript\x3ewindow.DASHBOARD = " + json + ";\x3c/script\x3e");
   const who = (c.n || S.otherName || "authority").replace(/\W+/g, "-").toLowerCase();
   const name = `${who}-deals-dashboard-${(reg && reg.asAt) ? reg.asAt.toISOString().slice(0, 10) : "export"}.html`;
+  await downloadHTML(name, html);
+}
+/* One HTML file to the reader's computer: the file picker where the browser
+   has one, a plain download elsewhere. */
+async function downloadHTML(name, html){
   if(typeof DOWNLOADS !== "undefined" && DOWNLOADS){
     try{ await DOWNLOADS.save({filename: name, data: html}); return; } catch(e){ /* fall through to a plain download */ }
   }
@@ -16517,6 +16550,34 @@ async function registerExportDashboard(){
   a.download = name;
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
+
+/* THE PROJECTIONS DASHBOARD IS MADE ON THE PROJECTIONS STEP AND NOWHERE
+   ELSE (Phil, 3 October 2026: "the holdings page and the projections page
+   should each be where users can generate a dashboard for deals or
+   dashboard for projections - nowhere else"). One file: the liability
+   benchmark and the other indicators for every fund the report has, with
+   their tables and readouts, as the draft draws them — the page's own
+   styles carried along, the charts as the SVG the draft draws, nothing
+   fetched. Where the projection came from is said at the top when a
+   register's sheet filled it. Static: a picture to send round. */
+async function projectionsDashboard(){
+  if(typeof figuresEntered === "function" && !figuresEntered(S)){
+    if(typeof saveHint === "function") saveHint("Enter the capital financing requirement first: the dashboard is drawn from the figures on this step.");
+    return;
+  }
+  const d = buildModel(S, "gf"), hasHRA = S.hra !== "no", twoPool = S.hra === "two";
+  const hra = hasHRA ? buildModel(S, "hra") : null, all = hasHRA ? buildModel(S, "all") : d;
+  const c = LB[S.gss] || {}, who = c.n || S.otherName || "Your authority";
+  const label = typeof reportTitle === "function" ? reportTitle() : (S.report || "");
+  const today = REG.dmy(new Date(Date.UTC(new Date().getFullYear(), new Date().getMonth(), new Date().getDate())));
+  const css = [...document.querySelectorAll("style")].map(s => s.textContent).join("\n");
+  const body = indicatorSplit(d, hra, all, hasHRA, twoPool, true);
+  const html = `<!doctype html><html lang="en-GB"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>${esc(who)} \u00b7 projections dashboard</title><style>${css}
+body.dashproj{margin:0;background:#fff}body.dashproj .doc{max-width:1100px;margin:0 auto;padding:24px 28px}body.dashproj .dashhead{margin:0 0 18px;padding-bottom:12px;border-bottom:2px solid #0a2540}body.dashproj .dashhead h1{margin:0 0 4px;font-size:22px;color:#0a2540}body.dashproj .dashhead p{margin:0;color:#5a6670;font-size:13px}</style></head>
+<body class="dashproj"><div id="doc" class="doc"><div class="dashhead"><h1>${esc(who)} &middot; projections</h1><p>${esc(label)} &middot; the treasury management indicators from the figures on the projections step, exported from PWLBreports on ${esc(today)}. Figures in &pound;m.</p></div>${body}</div></body></html>`;
+  const name = `${who.replace(/\W+/g, "-").toLowerCase()}-projections-dashboard-${new Date().toISOString().slice(0, 10)}.html`;
+  await downloadHTML(name, html);
 }
 
 /* ---- the period's figures, indicatively, from the register --------------------
@@ -16616,7 +16677,7 @@ function registerPairs(list){
   return out;
 }
 function registerDraftCharts(){
-  if(!S.register || S.registerView !== "detailed") return "";
+  if(!S.register) return "";
   const reg = registerReg(); if(!reg) return "";
   const when = reg.asAt ? REG.dmy(reg.asAt) : "an unknown date", Wd = registerDraftWidth();
   /* For Word (docx.js sets DOCX_CHART_W_NOW): half charts two to a row,
@@ -16719,7 +16780,6 @@ function registerStatus(){
     return;
   }
   const n = k => (r[k] || []).length, flagged = ["term", "call", "loans", "funds"].reduce((s, k) => s + (r[k] || []).filter(x => x.issues).length, 0);
-  const rv = $("regview"); if(rv){ const v = S.registerView === "detailed" ? "detailed" : "summary"; rv.querySelectorAll("input[name=regview]").forEach(i => { i.checked = i.value === v; }); }
   const when = r.asAt ? r.asAt.split("-").reverse().join("/") : "an unknown date";
   const reg = registerReg(), hist = (rows, k) => rows.filter(x => x.history).length;
   const mat = reg ? hist(reg.termInvestments) : 0, rep = reg ? hist(reg.loans) : 0;
@@ -16744,8 +16804,10 @@ function registerStatus(){
   if(structural) items.push(`<li class="regfix">A fresh template keeps the shape: <button type="button" class="lnk" data-regtemplate>download the template</button> and paste your rows into it.</li>`);
   const changes = S._regChanges;
   if(changes) items.push(`<li class="regchg">Since the last read: ${changes.length ? esc(changes.join("; ")) + "." : "nothing changed."}</li>`);
-  const notes = items.length ? `<ul class="regnotes">${items.join("")}</ul>` : "";
   const pn = $("regpnotes"); if(pn){ pn.hidden = !items.length; pn.innerHTML = items.join(""); }
+  /* The dialog also carries what each projection block read: informational, so not on the panel. */
+  const dialogItems = items.concat((S._projNotes || []).map(n => `<li>${esc(n)}</li>`));
+  const notes = dialogItems.length ? `<ul class="regnotes">${dialogItems.join("")}</ul>` : "";
   st.innerHTML = name;
   const meta = $("regmeta"); if(meta){ meta.hidden = false; meta.innerHTML = pills; }
   if(use) use.textContent = "Register options";
@@ -16770,6 +16832,7 @@ function registerStatus(){
    register page is a reader for a workbook; this is the report tool. */
 const REG_TABS = ["ri", "rd", "ry", "ra"];
 function registerHoldTabs(on){
+  const dr = $("dashdeals-row"); if(dr) dr.hidden = !on;
   const tabs = $("holdtabs"); if(!tabs) return;
   tabs.querySelectorAll("button.regtab").forEach(b => { b.hidden = !on; });
   if(!on){
@@ -16959,15 +17022,9 @@ function wireRegister(){
   $("regtemplate").addEventListener("click", registerTemplateDownload);
   document.addEventListener("click", e => { if(e.target.closest && e.target.closest("[data-regtemplate]")) registerTemplateDownload(); });
   $("regexample").addEventListener("click", registerExample);
-  $("regexport").addEventListener("click", registerExportDashboard);
+  const dd = $("dashdeals"); if(dd) dd.addEventListener("click", registerExportDashboard);   /* on the holdings step, and nowhere else */
   const rp = $("regperiod"); if(rp) rp.addEventListener("change", () => { S._regPeriod = rp.value; registerHoldDraw(true); });
   let rsz = 0; window.addEventListener("resize", () => { clearTimeout(rsz); rsz = setTimeout(() => registerHoldDraw(), 150); });
-  /* Summary or detailed: which the draft shows. Saved with the report. */
-  dlg.querySelectorAll("input[name=regview]").forEach(i => i.addEventListener("change", () => {
-    S.registerView = i.value === "detailed" ? "detailed" : "summary";
-    if(typeof autoSave === "function") autoSave();
-    if(typeof render === "function") render();
-  }));
   $("regfile").addEventListener("change", async () => {
     const f = $("regfile").files && $("regfile").files[0];
     if(f){ S.registerHandle = null; await registerRead(f); }
@@ -17052,7 +17109,7 @@ function syncCross(k, i){
 const gridLocked = () => !!(S.register && S.register.projections);
 function buildLedger(){
   const CS = colsFor(S.fund, S.hra);
-  const locked = gridLocked(), ro = locked ? ' readonly class="fromreg" tabindex="-1"' : "";
+  const locked = gridLocked(), ro = locked ? ` readonly class="fromreg" tabindex="-1" title="${esc(regLockTitle("From the register\u2019s Projections sheet"))}"` : "";
   /* UNDER ONE POOL THE HRA HAS NO LOANS OF ITS OWN, so this column is not the
      General Fund's — it is the authority's, and the HRA's tab does not carry
      it at all. A column headed the same on both tabs, present on one and
@@ -17097,26 +17154,26 @@ function buildLedger(){
   }
   $("ledger").innerHTML = h + "</tbody>";
   $("ledger").classList.toggle("fromreg", locked);
+  requestAnimationFrame(fitLedger);
   /* Locked from the register: the paste goes away (there is nothing to
      paste into), the allowance box is read-only, and a line where the grid
      is says where the figures came from and how to change them. */
+  /* LOCKED IS SAID IN ONE LINE (Phil, 3 October 2026: "when register user,
+     hide all this ... And the excel buttons - make it clear the table is
+     locked"). Both Excel buttons go, the grey cells and their tooltips carry
+     the detail, and the notes on what each block read are in the dialog. */
   const px = $("pastex"); if(px) px.hidden = locked;
+  const cx = $("copyx"); if(cx) cx.hidden = locked;
   const xp = $("xpaste"); if(xp && locked) xp.hidden = true;
-  const ml = $("minliq"); if(ml){ ml.readOnly = locked; ml.classList.toggle("fromreg", locked); }
+  const ml = $("minliq"); if(ml){ ml.readOnly = locked; ml.classList.toggle("fromreg", locked); ml.title = locked ? regLockTitle("From the register\u2019s Projections sheet, its liquidity allowance column") : ""; }
+  const kl = $("key-locked"); if(kl) kl.hidden = true;   /* no persistent locked message (Phil, 3 October 2026): the grey and the tip on a touch say it */
   /* THE POOLING IS THE WORKBOOK'S TOO. The projection's blocks and columns
      were read under the register's Settings, so the council housing choice
      on step 1 follows it and is not offered while the register is in use. */
-  const hs = $("hra"); if(hs) hs.disabled = locked;
+  const hs = $("hra"); if(hs){ hs.disabled = locked; hs.title = locked ? regLockTitle("From the register\u2019s Settings sheet") : ""; }
   const hn = $("regfill-hra");
   if(hn){ hn.hidden = !locked; hn.textContent = locked ? `From the deal register\u2019s Settings sheet (${{no: "None", one: "One pool", two: "Two pools"}[S.hra] || S.hra}). Remove the register to change it.` : ""; }
-  const note = $("regfill-g");
-  if(note){
-    note.hidden = !locked;
-    if(locked){
-      const notes = (S._projNotes || []).map(n => esc(n)).join(" ");
-      note.innerHTML = `Filled from the deal register&rsquo;s Projections sheet (<b>${esc(S.register.name || "the register")}</b>, as at <b>${esc((S.register.asAt || "").split("-").reverse().join("/"))}</b>) and locked while it is in use. To change a figure, change the workbook and re-read it (Register options); to type by hand, remove the register or clear this step &mdash; the figures stay as they are.${notes ? " " + notes : ""}`;
-    }
-  }
+  const note = $("regfill-g"); if(note) note.hidden = true;   /* no persistent message: a locked cell is grey, and says why when touched (lockTip) */
   $("ledger").querySelectorAll("input").forEach(inp=>{
     inp.addEventListener("input", e=>{
       /* NUMBERS ONLY. These were text inputs with a decimal keyboard hint,
@@ -17206,7 +17263,11 @@ function syncLedger(force){
     if(k === "loans" || k === "inv"){
       const dv = (!typed[k] && derivedBy[k]) ? derivedBy[k][i] : null;
       inp.placeholder = dv == null ? "" : m1(dv);
-      inp.title = dv == null ? "" : (k === "loans"
+      inp.title = gridLocked()
+        ? regLockTitle(dv == null ? "From the register\u2019s Projections sheet" : (k === "loans"
+            ? "Worked out from the deal register\u2019s loans as they run off; its Projections sheet leaves this column blank"
+            : "Worked out from the deal register\u2019s investments as the term deals mature; its Projections sheet leaves this column blank"))
+        : dv == null ? "" : (k === "loans"
         ? "From the loans on step 2, as they run off. Type a figure to state your own."
         : "From the investments on step 2, as the fixed-term deals mature. Type a figure to state your own.");
     }
@@ -17280,6 +17341,53 @@ function applyLoans(){ syncLedger(true); render(); }
    members set and the fixed/variable split stay editable: they are policy,
    not holdings. */
 const holdLocked = () => !!(S.register);
+/* THE GRID FILLS THE SCREEN (Phil, 3 October 2026: "make full use of the
+   width of the page ... maximise screen area"). The ledger's scroll box
+   used to stop at 520px whatever the window; it now runs to the bottom of
+   the window from wherever its top lands — measured, so the skin's rows
+   above it make no difference — with a floor, and its header rows and
+   year column stay put as it scrolls. Re-fitted on build, on a step change
+   and on resize. */
+function fitLedger(){
+  const box = document.querySelector(".ledgerwrap"); if(!box) return;
+  const r = box.getBoundingClientRect(); if(r.width === 0) return;            /* not showing: nothing to fit */
+  const top = r.top + window.scrollY, free = window.innerHeight - (r.top < 0 ? 0 : r.top) - 28;
+  box.style.maxHeight = Math.max(380, Math.floor(free)) + "px";
+  void top;
+}
+window.addEventListener("resize", () => { clearTimeout(fitLedger._t); fitLedger._t = setTimeout(fitLedger, 120); });
+/* THE TIP ON A TOUCH (Phil, 3 October 2026: "We don't need a persistent
+   locked message... just a tooltip if someone tries to edit grid"). A click,
+   a focus or a keystroke on a locked cell shows one tip under it, with
+   where the figure came from and how to change it, for a few seconds or
+   until the next click. The native title still answers a hover. */
+function lockTip(el){
+  let t = $("locktip");
+  if(!t){ t = document.createElement("div"); t.id = "locktip"; t.className = "locktip"; t.setAttribute("role", "status"); document.body.appendChild(t); }
+  const r = el.getBoundingClientRect();
+  t.textContent = el.title || regLockTitle();
+  t.hidden = false;
+  t.style.left = Math.max(8, Math.min(window.scrollX + r.left, window.scrollX + window.innerWidth - 380)) + "px";
+  t.style.top = (window.scrollY + r.bottom + 6) + "px";
+  clearTimeout(lockTip._t); lockTip._t = setTimeout(() => { t.hidden = true; }, 4000);
+}
+document.addEventListener("mousedown", e => {
+  const t = e.target;
+  const cell = t.closest && (t.closest("input.fromreg, select.fromreg") || (t.closest("div") && t.closest("div").querySelector && t.closest("div").querySelector("select#hra:disabled") && t.closest("div").contains(t) && t.closest("div").querySelector("select#hra:disabled")));
+  const tip = $("locktip");
+  if(cell && (cell.readOnly || cell.disabled)) lockTip(cell);
+  else if(tip && !tip.hidden) tip.hidden = true;
+}, true);
+document.addEventListener("keydown", e => { const t = e.target; if(t && t.matches && t.matches("input.fromreg") && t.readOnly && !/^(Tab|Shift|Control|Alt|Meta|Escape|Arrow)/.test(e.key)) lockTip(t); }, true);
+document.addEventListener("focusin", e => { const t = e.target; if(t && t.matches && t.matches("input.fromreg") && t.readOnly && e.relatedTarget) lockTip(t); }, true);
+/* The tooltip on a locked cell: what filled it, from which file, as at
+   which date, and the two ways to change it. "The first step", not "step 1":
+   the site's skin numbers the steps from 0, so a number would point at the
+   wrong one there. */
+function regLockTitle(what){
+  const r = S.register || {}, when = (r.asAt || "").split("-").reverse().join("/");
+  return `${what || "From the deal register"} (${r.name || "the register"}, as at ${when}). Locked while the register is in use: change the workbook and re-read it (Register options, on the first step), or remove the register to type by hand.`;
+}
 function holdRow(list, L, ix, kind){
   /* EVERY row can be removed, the PWLB one included. Plenty of authorities
      hold no PWLB debt at all — a district that has never borrowed, a body
@@ -17287,7 +17395,7 @@ function holdRow(list, L, ix, kind){
      in their report about money they do not owe. Removing it is offered back
      on the button below, so it is a reversible mistake rather than a
      permanent one. */
-  const ro = holdLocked() ? ' readonly class="fromreg" tabindex="-1"' : "";
+  const ro = holdLocked() ? ` readonly class="fromreg" tabindex="-1" title="${esc(regLockTitle())}"` : "";
   return `<tr>
     <td><input type="text" data-h="${kind}" data-f="name" data-i="${ix}"
       value="${esc(L.name || "")}" aria-label="${kind === "d" ? "Lender" : "Held with"}"${ro}></td>
@@ -17316,11 +17424,7 @@ function holdRows(kind){
   const locked = holdLocked(), add = $(kind === "d" ? "addloan" : "addinv");
   host.classList.toggle("fromreg", locked);
   if(add) add.hidden = locked;
-  const note = $("regfill-" + kind);
-  if(note){
-    note.hidden = !locked;
-    if(locked) note.innerHTML = `Filled from the deal register as at <b>${esc((S.register.asAt || "").split("-").reverse().join("/"))}</b> and locked while it is in use. To change a figure, change the workbook and re-read it (Register options); to type by hand, remove the register — the rows stay as they are.`;
-  }
+  const note = $("regfill-" + kind); if(note) note.hidden = true;   /* no persistent message: grey says locked, the tip on a touch says why */
   host.querySelectorAll("input").forEach(el =>
     el.addEventListener("input", e => {
       const t = e.target, f = t.dataset.f;
@@ -17717,7 +17821,7 @@ function applyVersion(d){
     // restoring silently discarded it.
     S.cp=d.cp||null;
     // The deal register's snapshot, when the report was filled from one.
-    S.register=d.register||null; S.registerHandle=null; S.registerView=d.registerView||"summary";
+    S.register=d.register||null; S.registerHandle=null; S.registerView="detailed";   /* whatever the file says: a register in use is the full detail */
     if(typeof registerStatus === "function") registerStatus();
     S.locked=!!d.locked; S.lockedAt=d.lockedAt||null; S.lockedReason=d.lockedReason||null;
     S.overrides=Array.isArray(d.overrides)?d.overrides:[];
@@ -19366,6 +19470,7 @@ function setupSummary(){
     if(b) showStep(+b.dataset.go);
   });
   $("copyx").addEventListener("click", copyForExcel);
+  const dp = $("dashproj"); if(dp) dp.addEventListener("click", () => { if(typeof projectionsDashboard === "function") projectionsDashboard(); });
   $("pastex").addEventListener("click", ()=>{
     const b = $("xpaste"); b.hidden = !b.hidden;
     $("xhint").textContent = "";
