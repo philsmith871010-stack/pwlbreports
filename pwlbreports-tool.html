@@ -14685,19 +14685,19 @@ function renderRail(){
   const period = STEPS.find(s => s.k === "period");
   const ph = period && document.querySelector(`[data-step="${period.n}"] .phead h2`);
   if(ph){ const t = stepTitle(period).t === period.t ? period.t : "Group companies"; if(ph.textContent !== t) ph.textContent = t; }
-  /* THE NUMBER SHOWN IS THE STEP'S PLACE IN THE ROW, NOT ITS KEY. The keys
-     have gaps (no 4, no 9: retired, never reused, see the note above STEPS)
-     and a rail that read 1, 2, 3, 5 looked like a step had fallen off. The
-     chip and its panel's banner both show the place; data-go, the colour
-     ramp and everything else keep the key. */
+  /* THE NUMBER SHOWN IS THE STEP'S KEY, GAPS AND ALL (no 4, no 9: retired,
+     never reused, see the note above STEPS). Showing the step's place in the
+     row instead was tried on 3 October 2026 and undone the same day: the
+     site's skin renumbers a chip only when its text is the key, so the chips
+     under the skin read 0 1 2 4 6 5 7. The skin shows its own 0 to 6; this
+     rail is what shows when the skin is not there. */
   const RAIL = STEPS.filter(s => s.rail !== false);
-  RAIL.forEach((s, i) => { const n = document.querySelector(`[data-step="${s.n}"] .phead .n`); if(n && n.textContent !== String(i + 1)) n.textContent = String(i + 1); });
-  rail.innerHTML = RAIL.map((s, i) => {
+  rail.innerHTML = RAIL.map(s => {
     const tt = stepTitle(s);
     return `<button type="button" class="rstep ${STEP===s.n?"on":""}"
       style="--sc:var(--s${s.n})"
       data-go="${s.n}" aria-current="${STEP===s.n?"step":"false"}">
-      <span class="rn">${i + 1}</span>
+      <span class="rn">${s.n}</span>
       <span class="rt"><b>${esc(tt.t)}</b><i>${esc(tt.s)}</i></span>
     </button>`;
   }).join("");
