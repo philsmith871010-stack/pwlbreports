@@ -166,7 +166,9 @@ figure.chart .grid{stroke:var(--line);stroke-width:1}
 figure.chart .base{stroke:#c9d1da;stroke-width:1}
 figure.chart .bar:not([fill]){fill:var(--accent)}   /* every segment carries its own fill attribute; this is the fallback */
 figure.chart .hit{fill:transparent}
-figure.chart .col.on .bar,figure.chart .row.on .bar,figure.chart .pt.on{filter:brightness(.82)}
+figure.chart .col.on .bar,figure.chart .row.on .bar,figure.chart .deal.on .bar,figure.chart .pt.on{filter:brightness(.82)}
+figure.chart .deal.on{outline:0}
+figure.chart text.cap .muted{fill:var(--muted);font-weight:400}
 figure.chart .col.on .hit{fill:rgba(0,0,0,.035)}
 figure.chart .ye{stroke:var(--line)}
 figure.chart .asat{stroke:var(--ink);stroke-width:1.5}
@@ -895,6 +897,26 @@ const REG = (() => {
     }
     return out;
   }
+  /* What is still out, month by month: term deals at nominal still placed at
+     the as-at date and at each month end after it, to the last maturity, by
+     counterparty type. The form a large book takes where a timeline would be
+     a line per deal (Phil, 3 October 2026: "some clients have 100s of deals"). */
+  function invRunoff(reg, months){
+    const out = [];
+    if(!reg.asAt) return out;
+    const MON = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    const term = reg.termInvestments.filter(r => r.counts && r.maturity);
+    const last = term.reduce((m, r) => Math.max(m, r.maturity.getTime()), reg.asAt.getTime()), lastD = new Date(last);
+    const y0 = reg.asAt.getUTCFullYear(), m0 = reg.asAt.getUTCMonth();
+    const N = Math.min(months || 120, Math.max(1, (lastD.getUTCFullYear() - y0) * 12 + (lastD.getUTCMonth() - m0) + 1));
+    for(let k = 0; k < N; k++){
+      const at = k === 0 ? reg.asAt : new Date(Date.UTC(y0, m0 + k + 1, 0));
+      const row = {label: MON[at.getUTCMonth()] + " " + String(at.getUTCFullYear()).slice(2), at, parts: {}, total: 0, count: 0};
+      term.forEach(r => { if(r.maturity > at){ const kk = r.cpType || "Not on the list"; row.parts[kk] = (row.parts[kk] || 0) + r.nominal; row.total += r.nominal; row.count++; } });
+      out.push(row);
+    }
+    return out;
+  }
   /* Investments maturing in and loan repayments out, month by month from the
      month after the as-at date. */
   function calendar(reg, months){
@@ -1111,7 +1133,7 @@ const REG = (() => {
   }
   return {TEMPLATE_VERSION, VOCAB, BUCKETS, DEBT_BUCKETS, readRegister, schedule, ladder, yearEnds, debtLadder, debtYearEnds, stats, dmy, money, pct, bucketOf, debtBucketOf, addMonths, monthsBetween,
     ladderBy, debtLadderBy, runoffBy, calendar, exposure, yieldPoints, costPoints, snapshot, fromSnapshot,
-    TERM_BUCKETS, periods, settingsPeriod, LA_GROUP, pastSchedule, activity, activityByMonth, termAllocation, interestIn, interestToYearEnd, loanBalances};
+    TERM_BUCKETS, periods, settingsPeriod, LA_GROUP, invRunoff, pastSchedule, activity, activityByMonth, termAllocation, interestIn, interestToYearEnd, loanBalances};
 })();
 if(typeof module !== "undefined") module.exports = REG;
 
@@ -1154,8 +1176,11 @@ const CH = (() => {
   const short = n => n == null ? "" : n === 0 ? "£0" : Math.abs(n) >= 1e6 ? mill(n) : Math.abs(n) >= 1e3 ? "£" + Math.round(n / 1e3).toLocaleString("en-GB") + "k" : "£" + Math.round(n);
   const pct = r => r == null ? "" : (r * 100).toFixed(2) + "%";
   const dmy = d => d ? `${String(d.getUTCDate()).padStart(2, "0")}/${String(d.getUTCMonth() + 1).padStart(2, "0")}/${d.getUTCFullYear()}` : "";
-  const niceMax = v => { if(!(v > 0)) return 1e6; const p = Math.pow(10, Math.floor(Math.log10(v))), m = v / p; const n = m <= 1 ? 1 : m <= 2 ? 2 : m <= 2.5 ? 2.5 : m <= 5 ? 5 : 10; return n * p; };
-  const divisions = top => { const m = top / Math.pow(10, Math.floor(Math.log10(top))); return m === 2.5 || m === 5 || m === 10 || m === 1 ? 5 : 4; };
+  /* The axis top: the next of 1, 2, 2.5, 3, 4, 5, 10 at the data's order of
+     magnitude, so a £270m peak gets a £300m axis rather than £500m and the
+     marks fill the frame; and the number of divisions that reads for it. */
+  const niceMax = v => { if(!(v > 0)) return 1e6; const p = Math.pow(10, Math.floor(Math.log10(v))), m = v / p; const n = m <= 1 ? 1 : m <= 2 ? 2 : m <= 2.5 ? 2.5 : m <= 3 ? 3 : m <= 4 ? 4 : m <= 5 ? 5 : m <= 6 ? 6 : m <= 8 ? 8 : 10; return n * p; };
+  const divisions = top => { const m = Math.round(top / Math.pow(10, Math.floor(Math.log10(top))) * 10) / 10; return m === 3 || m === 6 ? 3 : m === 4 || m === 8 || m === 2 ? 4 : 5; };
   const fits = (s, colW) => s.length * 6.5 <= colW - 16;
   const wrap = (s, colW) => { if(fits(s, colW)) return [s]; const i = s.indexOf(" ", Math.floor(s.length / 2) - 2); return i < 0 ? [s] : [s.slice(0, i), s.slice(i + 1)]; };
   const topPath = (x, y, w, h, r) => { r = Math.min(r, w / 2, h); return `M${x},${y + h} V${y + r} Q${x},${y} ${x + r},${y} H${x + w - r} Q${x + w},${y} ${x + w},${y + r} V${y + h} Z`; };
@@ -1306,9 +1331,33 @@ const CH = (() => {
   }
 
   /* ---- a timeline: rows of {label, start, end, v, key, tip}, dates --------- */
+  /* ---- the timeline: a row per counterparty, a bar per deal ------------------
+     Rows are {label, key, deals:[{start, end, v, lane, tip}], lanes, total,
+     tip}. Deals that overlap in time take separate lanes within their row
+     (dealRows), so local authorities read as one row of several bars and
+     nothing sits on anything else. Beyond TIMELINE_MAX deals the book is
+     shown as a run-off by type instead (figures). */
+  const TIMELINE_MAX = 25;
+  function dealRows(term, cpk, asAt){
+    const by = {}, seq = [];
+    term.forEach(r => { const la = r.cpType === "Local authority", k = la ? "\u0000la" : r.counterparty;
+      if(!by[k]){ by[k] = {label: la ? REG.LA_GROUP : r.counterparty, key: cpk(r), deals: [], total: 0}; seq.push(k); }
+      by[k].deals.push(r); by[k].total += r.nominal; });
+    return seq.map(k => by[k]).map(g => {
+      const ds = g.deals.slice().sort((a, b) => (a.start || asAt) - (b.start || asAt) || a.maturity - b.maturity), ends = [];
+      const deals = ds.map(r => { const s = (r.start || asAt).getTime(); let i = ends.findIndex(e => e <= s); if(i < 0){ i = ends.length; ends.push(0); } ends[i] = r.maturity.getTime();
+        return {label: r.counterparty, start: r.start || asAt, end: r.maturity, v: r.nominal, lane: i, sub: r.type, rate: r.rate,
+          tip: tipOf(r.counterparty, [esc(r.type) + " · " + esc(cpk(r)), money(r.nominal) + " at " + pct(r.rate), dmy(r.start) + " to " + dmy(r.maturity)])}; });
+      const first = Math.min(...deals.map(d => d.end.getTime()));
+      return {label: g.label, key: g.key, deals, lanes: ends.length, total: g.total, first,
+        tip: tipOf(g.label, [esc(g.key), money(g.total) + " in " + deals.length + " deal" + (deals.length === 1 ? "" : "s"), "soonest back " + dmy(new Date(first))])};
+    }).sort((a, b) => a.first - b.first);
+  }
   function timeline(o){
-    const rows = o.rows, W = o.W, L = Math.min(170, Math.max(110, W * 0.25)), R = 76, T = 26, rh = 22, H = T + rows.length * rh + 30;
-    const t0 = Math.min(o.asAt.getTime(), ...rows.map(r => r.start ? r.start.getTime() : Infinity)), t1 = Math.max(o.asAt.getTime() + 30 * 86400000, ...rows.map(r => r.end.getTime()));
+    const rows = o.rows, W = o.W, L = Math.min(170, Math.max(110, W * 0.25)), R = 76, T = 26, lh = 16, gap = 6;
+    const rowH = r => r.lanes * lh + gap, body = rows.reduce((s, r) => s + rowH(r), 0), H = T + body + 30;
+    const deals = rows.flatMap(r => r.deals);
+    const t0 = Math.min(o.asAt.getTime(), ...deals.map(d => d.start.getTime())), t1 = Math.max(o.asAt.getTime() + 30 * 86400000, ...deals.map(d => d.end.getTime()));
     const span = t1 - t0, pad = span * 0.03, x = t => L + ((t - (t0 - pad)) / (span + 2 * pad)) * (W - L - R);
     const keys = order([...new Set(rows.map(r => r.key))]);
     let svg = "";
@@ -1316,19 +1365,22 @@ const CH = (() => {
     const y0 = new Date(t0).getUTCFullYear(), y1 = new Date(t1).getUTCFullYear() + 1;
     const yes = []; for(let y = y0; y <= y1; y++){ const d = Date.UTC(y, 2, 31); if(d >= t0 - pad && d <= t1 + pad) yes.push(d); }
     const every = Math.max(1, Math.ceil(yes.length * 62 / (W - L - R)));
-    yes.forEach((d, i) => { const xx = x(d).toFixed(1); svg += `<line class="ye" x1="${xx}" x2="${xx}" y1="${T - 4}" y2="${T + rows.length * rh}"/>`; if(i % every === 0) svg += `<text class="tl" x="${xx}" y="${T + rows.length * rh + 16}" text-anchor="middle">31 Mar ${new Date(d).getUTCFullYear()}</text>`; });
+    yes.forEach((d, i) => { const xx = x(d).toFixed(1); svg += `<line class="ye" x1="${xx}" x2="${xx}" y1="${T - 4}" y2="${T + body}"/>`; if(i % every === 0) svg += `<text class="tl" x="${xx}" y="${T + body + 16}" text-anchor="middle">31 Mar ${new Date(d).getUTCFullYear()}</text>`; });
     const maxChars = Math.floor((L - 14) / 6.5);
-    rows.forEach((r, i) => {
-      const y = T + i * rh, xs = x(Math.max(r.start ? r.start.getTime() : t0, t0 - pad)), xe = x(r.end.getTime()), w = Math.max(3, xe - xs);
+    let y = T;
+    rows.forEach(r => {
+      const h = rowH(r), xe = x(Math.max(...r.deals.map(d => d.end.getTime())));
       const lab = r.label.length > maxChars ? r.label.slice(0, maxChars - 1) + "…" : r.label;
-      svg += `<g class="row" data-tip="${esc(r.tip)}"><rect class="hit" x="0" y="${y}" width="${W}" height="${rh}"/>` +
-        `<text class="rl" x="${L - 10}" y="${y + rh / 2}" text-anchor="end" dominant-baseline="middle">${esc(lab)}</text>` +
-        `<rect class="bar" fill="${color(r.key)}" x="${xs.toFixed(1)}" y="${y + 5}" width="${w.toFixed(1)}" height="12" rx="3"/>` +
-        `<text class="cap" x="${(xe + 6).toFixed(1)}" y="${y + rh / 2}" dominant-baseline="middle">${mill(r.v)}</text></g>`;
+      svg += `<g class="row" data-tip="${esc(r.tip)}"><rect class="hit" x="0" y="${y}" width="${W}" height="${h}"/>` +
+        `<text class="rl" x="${L - 10}" y="${(y + h / 2).toFixed(1)}" text-anchor="end" dominant-baseline="middle">${esc(lab)}</text>`;
+      r.deals.forEach(d => { const xs = x(Math.max(d.start.getTime(), t0 - pad)), w = Math.max(3, x(d.end.getTime()) - xs);
+        svg += `<g class="deal" data-tip="${esc(d.tip)}"><rect class="bar" fill="${color(r.key)}" x="${xs.toFixed(1)}" y="${y + 2 + d.lane * lh}" width="${w.toFixed(1)}" height="12" rx="3"/></g>`; });
+      svg += `<text class="cap" x="${(xe + 6).toFixed(1)}" y="${(y + h / 2).toFixed(1)}" dominant-baseline="middle">${mill(r.total)}${r.deals.length > 1 ? `<tspan class="muted"> · ${r.deals.length}</tspan>` : ""}</text></g>`;
+      y += h;
     });
     const xa = x(o.asAt.getTime()).toFixed(1);
-    svg += `<line class="asat" x1="${xa}" x2="${xa}" y1="${T - 10}" y2="${T + rows.length * rh}"/><text class="tl ink" x="${xa}" y="${T - 14}" text-anchor="middle">as at ${dmy(o.asAt)}</text>`;
-    const table = tableOf([o.catName || "Counterparty", "Type", "Start", "Maturity", "Amount", "Rate"], (o.all || rows).map(r => [r.label, r.sub || "", dmy(r.start), dmy(r.end), money(r.v), r.rate == null ? "" : pct(r.rate)]));
+    svg += `<line class="asat" x1="${xa}" x2="${xa}" y1="${T - 10}" y2="${T + body}"/><text class="tl ink" x="${xa}" y="${T - 14}" text-anchor="middle">as at ${dmy(o.asAt)}</text>`;
+    const table = tableOf([o.catName || "Counterparty", "Type", "Start", "Maturity", "Amount", "Rate"], (o.all || deals).map(r => [r.label, r.sub || "", dmy(r.start), dmy(r.end), money(r.v), r.rate == null ? "" : pct(r.rate)]));
     return frame(o, H, svg, table, keys);
   }
 
@@ -1385,15 +1437,17 @@ const CH = (() => {
     /* A deeper foot than the other charts: a bar that fills the down side
        carries its cap below its end, and the month labels sit below that. */
     const rows = o.months, W = o.W, H = 314, L = 54, R = 12, T = 28, B = 60, pw = W - L - R, ph = H - T - B;
-    const upMax = niceMax(Math.max(...rows.map(r => r.inflow), 0)), dnMax = niceMax(Math.max(...rows.map(r => r.outflow), 0));
+    const upRaw = niceMax(Math.max(...rows.map(r => r.inflow), 0)), dnRaw = niceMax(Math.max(...rows.map(r => r.outflow), 0));
+    /* One step for both sides, the coarser of the two, and each side rounded
+       up to a whole number of steps, so the tallest bar on the smaller side
+       never meets the frame and every side ends on a labelled tick. */
+    const step = Math.max(upRaw / divisions(upRaw), dnRaw / divisions(dnRaw));
+    const upMax = Math.ceil(upRaw / step - 1e-9) * step, dnMax = Math.ceil(dnRaw / step - 1e-9) * step;
     const scale = ph / (upMax + dnMax), y0 = T + upMax * scale, y = v => y0 - v * scale;
     const colW = pw / rows.length, bw = Math.min(24, colW * 0.6), {labels, xSpan} = columns(rows, colW);
     const xs = rows.map((d, i) => L + colW * (i + 0.5));
     const capUp = caps(rows.map(r => r.inflow), rows.map(r => r.inflow > 0 ? mill(r.inflow) : ""), xs, L, W, R), capDn = caps(rows.map(r => r.outflow), rows.map(r => r.outflow > 0 ? mill(r.outflow) : ""), xs, L, W, R);
     let svg = "";
-    /* One step for both sides, the coarser of the two, so the axis reads as
-       one scale and a small side's labels never crowd. */
-    const step = Math.max(upMax / divisions(upMax), dnMax / divisions(dnMax));
     const ticks = (max, sign) => { for(let v = step; v <= max + 1e-9; v += step){ const yy = y(sign * v).toFixed(1); svg += `<line class="grid" x1="${L}" x2="${W - R}" y1="${yy}" y2="${yy}"/><text x="${L - 8}" y="${yy}" text-anchor="end" dominant-baseline="middle">${short(v)}</text>`; } };
     ticks(upMax, 1); ticks(dnMax, -1);
     svg += `<line class="base" x1="${L}" x2="${W - R}" y1="${y0.toFixed(1)}" y2="${y0.toFixed(1)}"/><text x="${L - 8}" y="${y0.toFixed(1)}" text-anchor="end" dominant-baseline="middle">£0</text>`;
@@ -1419,7 +1473,10 @@ const CH = (() => {
     const vals = o.series.flatMap(s => s.values).filter(v => v != null);
     const top = (o.niceTop || niceMax)(Math.max(...vals, 0) * 1.1), ax = yAxis(top, L, R, T, ph, W, o.yFmt || short);
     const n = pts.length, t0 = pts[0].x.getTime(), t1 = pts[n - 1].x.getTime(), span = Math.max(1, t1 - t0);
-    const x = i => n > 1 ? L + ((pts[i].x.getTime() - t0) / span) * pw : L + pw / 2;
+    /* The first and last points sit in from the frame, so their date labels
+       and markers stay inside the picture. */
+    const ins = Math.min(44, pw * 0.08);
+    const x = i => n > 1 ? L + ins + ((pts[i].x.getTime() - t0) / span) * (pw - 2 * ins) : L + pw / 2;
     const colW = n > 1 ? pw / (n - 1) : pw, {labels, xSpan} = columns(pts, Math.max(40, colW));
     let svg = ax.svg;
     o.series.forEach(s => {
@@ -1452,15 +1509,20 @@ const CH = (() => {
       stacked({...st, id: "ladder", title: "Maturity ladder", sub: "by counterparty type: money on call first, a notice account at its notice, term deals at nominal by time to maturity from " + asAt, W, rows: lad, unit: "deal", catName: "Period"}),
       scatter({...st, id: "yield", title: "What each investment earns, and for how long", sub: "rate against months to maturity, sized by amount; the dashed line is the weighted average", W,
         pts: yp.map(p => ({x: p.months, y: p.rate * 100, r: p.amount, key: group3(p.cpType), tip: tipOf(p.name, [esc(p.type) + " · " + esc(p.cpType), money(p.amount) + " at " + pct(p.rate), p.maturity ? "matures " + dmy(p.maturity) : (p.months > 0 ? Math.round(p.months * 30.4) + " days' notice" : "on call")])})),
-        xFmt: v => v === 0 ? "0" : Math.round(v) + "m", yFmt: v => v.toFixed(1) + "%", xLabel: "months to maturity", ref: stats.invRate == null ? null : stats.invRate * 100, refLabel: "average " + pct(stats.invRate),
+        xFmt: v => String(Math.round(v)), yFmt: v => v.toFixed(1) + "%", xLabel: "months to maturity", ref: stats.invRate == null ? null : stats.invRate * 100, refLabel: "average " + pct(stats.invRate),
         all: yp, cols: ["Counterparty", "Type", "Months", "Rate", "Amount"], row: p => [p.name, p.type, p.months.toFixed(1), pct(p.rate), money(p.amount)]})
     ];
     const term = reg.termInvestments.filter(r => r.counts).sort((a, b) => a.maturity - b.maturity);
     const dealRow = r => ({label: r.counterparty, sub: r.type, start: r.start, end: r.maturity, v: r.nominal, key: cpk(r), rate: r.rate,
       tip: tipOf(r.counterparty, [esc(r.type) + " · " + esc(cpk(r)), money(r.nominal) + " at " + pct(r.rate), dmy(r.start) + " to " + dmy(r.maturity)])});
-    const shown = term.slice(0, 30);
+    /* Dynamic by the size of the book (Phil, 3 October 2026): a timeline by
+       counterparty while a line per deal reads; beyond TIMELINE_MAX deals,
+       what is still out month by month by counterparty type. */
+    const big = term.length > TIMELINE_MAX;
     const wide = [
-      term.length ? timeline({...st, id: "deals", title: "When each deal comes back", sub: "every term deal from its start to its maturity, soonest first" + (term.length > shown.length ? `; the first ${shown.length} of ${term.length}, all in the table` : "") + "; the year ends are marked", W: Wd, wide: true, asAt: reg.asAt || new Date(), rows: shown.map(dealRow), all: term.map(dealRow)}) : "",
+      !term.length ? "" : big
+        ? area({...st, id: "deals", title: "What is still out, as deals come back", sub: `term deals at nominal still placed at each month end, by counterparty type, to the last maturity; ${term.length} deals, too many for a line each`, W: Wd, wide: true, rows: REG.invRunoff(reg), unit: "deal", catName: "Month end"})
+        : timeline({...st, id: "deals", title: "When each deal comes back", sub: "every term deal from its start to its maturity, a row per counterparty, soonest back first; the year ends are marked", W: Wd, wide: true, asAt: reg.asAt || new Date(), rows: dealRows(term, cpk, reg.asAt || new Date()), all: term.map(dealRow)}),
       hbars({...st, id: "exposure", title: "Exposure by counterparty", sub: "term deals at nominal and call balances together, largest first", W: Wd, wide: true,
         rows: REG.exposure(reg).map(e => ({label: e.counterparty, sub: e.cpType === "Local authority" ? `${e.names} authorit${e.names === 1 ? "y" : "ies"}, as one` : e.cpType, v: e.total, key: e.cpType, tip: tipOf(e.counterparty, [esc(e.cpType), money(e.total) + " in " + e.deals + " deal" + (e.deals === 1 ? "" : "s") + (e.cpType === "Local authority" ? ` across ${e.names} authorit${e.names === 1 ? "y" : "ies"}` : "")])}))})
     ];
@@ -1470,7 +1532,7 @@ const CH = (() => {
       stacked({...st, id: "debtladder", title: "Maturity structure of borrowing", sub: "principal repaid in each period from " + asAt + ", by lender type; EIP and annuity loans by instalment, LOBOs at their next call", W, rows: dl, unit: "loan", catName: "Period"}),
       scatter({...st, id: "cost", title: "What each loan costs, and for how long", sub: "rate against years to final maturity, sized by principal outstanding; the dashed line is the weighted average", W,
         pts: cp.map(p => ({x: p.years, y: p.rate * 100, r: p.amount, key: group3(p.lenderType), tip: tipOf(p.name, [esc(p.type) + " · " + esc(p.profile || "Maturity") + (p.fund ? " · " + esc(p.fund) : ""), money(p.amount) + " at " + pct(p.rate), "matures " + dmy(p.maturity) + (p.nextCall ? ", next call " + dmy(p.nextCall) : "")])})),
-        xFmt: v => Math.round(v) + "y", yFmt: v => v.toFixed(1) + "%", xLabel: "years to final maturity", ref: stats.debtRate == null ? null : stats.debtRate * 100, refLabel: "average " + pct(stats.debtRate),
+        xFmt: v => String(Math.round(v)), yFmt: v => v.toFixed(1) + "%", xLabel: "years to final maturity", ref: stats.debtRate == null ? null : stats.debtRate * 100, refLabel: "average " + pct(stats.debtRate),
         all: cp, cols: ["Lender", "Type", "Years", "Rate", "Outstanding"], row: p => [p.name, p.type, p.years.toFixed(1), pct(p.rate), money(p.amount)]})
     ];
     const ro = REG.runoffBy(reg, 50, reg.twoPools ? "fund" : "lenderType").map(r => ({...r, short: "Mar " + r.label.slice(-2)}));
@@ -1547,7 +1609,7 @@ const CH = (() => {
     return Object.keys(by).sort().map(k => { const reg = REG.fromSnapshot(by[k]), st = REG.stats(reg);
       return {asAt: reg.asAt, invested: st.invested, debt: st.debt, invRate: st.invRate, debtRate: st.debtRate, wLife: st.wLife, debtLife: st.debtLife, note: by[k].note || ""}; });
   }
-  return {PAL, color, order, group3, stacked, grouped, hbars, timeline, scatter, area, calendar, lines, figures, history, wire, mill, short, money, pct, dmy, esc, tipOf};
+  return {PAL, color, order, group3, stacked, grouped, hbars, timeline, dealRows, TIMELINE_MAX, scatter, area, calendar, lines, figures, history, wire, mill, short, money, pct, dmy, esc, tipOf};
 })();
 if(typeof module !== "undefined") module.exports = CH;
 
