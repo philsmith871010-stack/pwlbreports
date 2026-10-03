@@ -459,7 +459,7 @@ table.ledger tbody tr td input:focus{background:var(--accent-soft);outline-offse
 #doc .regfigs{max-width:920px}
 #doc .charts2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 24px;margin:8px 0 18px;align-items:start}
 #doc .charts2 .chart.static{margin:0}
-.chart.static{margin:8px 0 18px}
+.chart.static{margin:8px 0 18px;border:1px solid var(--hair);border-radius:var(--r-sm);background:var(--card);padding:10px 10px 6px}   /* the faint frame every chart in the paper carries (Phil, 3 October 2026); registerDraftCharts draws 22px narrower for it */
 .chart.static svg{width:100%;max-width:100%;height:auto;display:block;overflow:visible;font-family:var(--sans)}
 :is(#doc,.doc) .chart.static .chart-t{margin:0 0 6px;font-family:var(--sans);font-size:12.5px;line-height:1.35;color:#1d2733}
 :is(#doc,.doc) .chart.static .chart-t span{color:#5a6670;font-weight:400}
@@ -13571,7 +13571,11 @@ const SVG_PROPS = ["fill", "stroke", "stroke-width", "stroke-dasharray", "stroke
 /* An SVG as a PNG at print resolution. `attached` SVGs are in the page, so
    their computed styles (class-set fills, fonts) are copied inline first —
    the rasteriser sees only the markup, never the page's stylesheet. */
-async function svgToPng(svg, attached){
+/* pad: a margin inside the picture, in SVG pixels, so a framed chart's
+   labels and bars stand clear of the frame (Phil, 3 October 2026: charts in
+   reports get a faint grey border). */
+async function svgToPng(svg, attached, pad){
+  pad = pad || 0;
   const clone = svg.cloneNode(true);
   if(attached){
     const src = svg.querySelectorAll("*"), dst = clone.querySelectorAll("*");
@@ -13612,12 +13616,12 @@ async function svgToPng(svg, attached){
     im.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(xml);
   });
   const cv = document.createElement("canvas");
-  cv.width = Math.round(w * scale); cv.height = Math.round(h * scale);
+  cv.width = Math.round((w + 2 * pad) * scale); cv.height = Math.round((h + 2 * pad) * scale);
   const g = cv.getContext("2d");
   g.fillStyle = "#ffffff"; g.fillRect(0, 0, cv.width, cv.height);
-  g.drawImage(img, 0, 0, cv.width, cv.height);
+  g.drawImage(img, Math.round(pad * scale), Math.round(pad * scale), Math.round(w * scale), Math.round(h * scale));
   const blob = await new Promise(ok => cv.toBlob(ok, "image/png"));
-  return {bytes: new Uint8Array(await blob.arrayBuffer()), w, h, type: "png"};
+  return {bytes: new Uint8Array(await blob.arrayBuffer()), w: w + 2 * pad, h: h + 2 * pad, type: "png"};
 }
 /* A data-URI image (the logo) as bytes; an SVG one is rasterised. */
 async function dataUriToImage(uri){
@@ -13685,7 +13689,9 @@ class DocxBuilder {
     this.imgN = 0;
   }
   addNum(abstract){ this.nums.push(abstract); return this.nums.length; }
-  addImage(img, widthTwips){
+  /* frame: a 0.5pt hairline in the table-rule grey around the picture, the
+     charts' border in the paper (the logo goes unframed). */
+  addImage(img, widthTwips, frame){
     const id = ++this.imgN, ext = img.type === "jpeg" ? "jpeg" : "png";
     const name = `image${id}.${ext}`;
     this.media.push({name, bytes: img.bytes});
@@ -13700,7 +13706,7 @@ class DocxBuilder {
             <pic:nvPicPr><pic:cNvPr id="${id}" name="${name}"/><pic:cNvPicPr/></pic:nvPicPr>
             <pic:blipFill><a:blip r:embed="${rId}"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill>
             <pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm>
-              <a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr>
+              <a:prstGeom prst="rect"><a:avLst/></a:prstGeom>${frame ? '<a:ln w="6350"><a:solidFill><a:srgbClr val="D3DAE0"/></a:solidFill></a:ln>' : ""}</pic:spPr>
           </pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r>`;
   }
 }
@@ -13947,7 +13953,7 @@ async function docxBlocks(el, D, ctx, sink){
       for(const f of figs){
         const t = f.querySelector(".chart-t"), svg = f.querySelector("svg");
         let pic;
-        try{ const img = await svgToPng(svg, true); pic = para(D.addImage(img, inner), {spacing: [0, 40]}); }
+        try{ const img = await svgToPng(svg, true, 8); pic = para(D.addImage(img, inner, true), {spacing: [0, 40]}); }
         catch(e){ pic = para(run("[chart could not be drawn]", {font: DOCX_FONTS.sans, i: true, color: "68757F", sz: 16})); }
         const title = t ? para(runsOf(t, Object.assign(baseOf(t), {sz: 16, szMul: 16 / Math.max(1, halfPt(getComputedStyle(t).fontSize))})), {spacing: [0, 30], keepNext: true}) : "";
         cells.push(`<w:tc><w:tcPr><w:tcW w:w="${half}" w:type="dxa"/><w:tcMar><w:left w:w="0" w:type="dxa"/><w:right w:w="200" w:type="dxa"/></w:tcMar></w:tcPr>${title}${pic}</w:tc>`);
@@ -13963,12 +13969,12 @@ async function docxBlocks(el, D, ctx, sink){
     }
     if(tag === "table"){ push(await docxTable(node, D)); continue; }
     if(tag === "svg"){
-      try{ const img = await svgToPng(node, true); push(para(D.addImage(img, DOCX_TEXT_W), {spacing: [120, 120]})); }
+      try{ const img = await svgToPng(node, true, 8); push(para(D.addImage(img, DOCX_TEXT_W, true), {spacing: [120, 120]})); }
       catch(e){ push(para(run("[chart could not be drawn]", {font: DOCX_FONTS.sans, i: true, color: "68757F", sz: 18}))); }
       continue;
     }
     if(cl.contains("barwrap")){
-      try{ const img = await svgToPng(barwrapToSvg(node), false); push(para(D.addImage(img, DOCX_TEXT_W), {spacing: [80, 120]})); }
+      try{ const img = await svgToPng(barwrapToSvg(node), false, 8); push(para(D.addImage(img, DOCX_TEXT_W, true), {spacing: [80, 120]})); }
       catch(e){}
       continue;
     }
@@ -16224,15 +16230,16 @@ function registerDraftCharts(){
      wide ones take the column at 640. Compact and professional (Phil, 3
      October 2026). */
   const forWord = typeof window !== "undefined" && !!window.DOCX_CHART_W_NOW;
-  const W = forWord ? 300 : Math.floor((Wd - 24) / 2), FH = forWord ? 230 : undefined;
+  const FRAME = 22;   /* .chart.static: 10px padding and a 1px border each side; the SVG is drawn to fit inside */
+  const W = forWord ? 300 : Math.floor((Wd - 24) / 2) - FRAME, FH = forWord ? 230 : undefined;
   const P = registerPeriod(reg);
-  const F = CH.figures(reg, {W, Wd, H: FH, static: true, period: P});
+  const F = CH.figures(reg, {W, Wd: forWord ? Wd : Wd - FRAME, H: FH, static: true, period: P});
   const n = k => (S.register[k] || []).length;
   return `<div class="regfigs"><h4>The investment portfolio at ${esc(when)}, from the deal register</h4>` + registerPairs(F.inv) + F.wide.join("") +
     `<h4>The loan portfolio at ${esc(when)}</h4>` + registerPairs(F.debt) + F.dwide.join("") +
     `<h4>Year ends and the months ahead</h4>` + F.year.join("") +
     (F.act.some(Boolean) ? `<h4>Activity, ${esc(P.label)}</h4>` + registerPairs(F.act) : "") +
-    (() => { const H = registerHistory(); if(H.length < 2) return ""; const T = CH.figures(reg, {W, Wd, H: FH, static: true, history: H}).time; return `<h4>Positions over time, from the reports in this file</h4>` + registerPairs(T); })() +
+    (() => { const H = registerHistory(); if(H.length < 2) return ""; const T = CH.figures(reg, {W, Wd: forWord ? Wd : Wd - FRAME, H: FH, static: true, history: H}).time; return `<h4>Positions over time, from the reports in this file</h4>` + registerPairs(T); })() +
     `<p class="src">Drawn from the authority's deal register as at ${esc(when)}: ${n("term")} term deals, ${n("call")} call accounts and money market funds, ${n("loans")} loans and ${n("funds")} pooled funds. A LOBO is taken at its next call date; a matured deal or a repaid loan kept in the register is history, read for the activity and nothing else.</p></div>`;
 }
 
