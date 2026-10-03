@@ -21,7 +21,12 @@
  * behind every chart.
  * ======================================================================== */
 :root{
-  --bg:#f6f8fa; --card:#fff; --ink:#1d2733; --muted:#5a6670; --faint:#8a95a1;
+  /* The site's look, as the skin gives the tool: its ground, its navy panels,
+     its orange for where you are and the way on, its pill buttons, its type.
+     Written here rather than loaded: the skin knows the tool's pages, not this one. */
+  --navy:#0a2540; --navy2:#143659; --orange:#fd7e14; --orange2:#e06b00; --navyg:linear-gradient(120deg,#0a2540 0%,#143659 60%,#1a4775 100%);
+  --shadow:0 6px 18px rgba(10,37,64,.10); --light:#e0e8f0;
+  --bg:#f7f8fa; --card:#fff; --ink:#1d2733; --muted:#5a6670; --faint:#8a95a1;
   --line:#e3e8ee; --accent:#2a78d6; --accent-ink:#1d5fb0; --warn-bg:#fff4e0; --warn:#8a5a00;
   --bad-bg:#fdecec; --bad:#9b1c1c; --ok-bg:#e8f5ec; --ok:#1e6b3a; --tip:#1d2733;
   --font:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
@@ -31,36 +36,38 @@
 html{background:var(--bg)}
 body{margin:0;font:15px/1.5 var(--font);color:var(--ink);background:var(--bg);-webkit-text-size-adjust:100%}
 .wrap{max-width:1080px;margin:0 auto;padding:24px 16px 64px}
-header.top{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px 16px;margin-bottom:18px}
-header.top h1{font-size:22px;margin:0;font-weight:650;letter-spacing:-.01em}
-header.top .tag{font-size:12px;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:1px 9px;background:var(--card)}
+header.mast{background:var(--navyg);color:#fff;border-radius:10px;box-shadow:var(--shadow);padding:12px 18px;display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin-bottom:16px}
+header.mast .brand{color:#fff;text-decoration:none;font-size:15px;letter-spacing:.03em;font-weight:500}
+header.mast .brand b{font-weight:800}
+header.mast .sep{color:rgba(255,255,255,.45)}
+header.mast h1{font-size:20px;margin:0;font-weight:700;color:var(--orange);letter-spacing:-.01em}
+header.mast .tag{font-size:12px;color:var(--light);border:1px solid rgba(255,255,255,.35);border-radius:999px;padding:2px 10px}
+header.mast .acts{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
 p.lede{margin:0 0 20px;max-width:720px;color:var(--muted)}
-p.lede a{color:var(--accent)}
-nav.crumbs{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;font-size:13px;color:var(--muted);margin:0 0 10px}
-nav.crumbs a{color:var(--accent);text-decoration:none;font-weight:600}
-nav.crumbs a:hover{text-decoration:underline}
-nav.crumbs .sep{color:var(--faint)}
-nav.crumbs .tool{margin-left:auto}
+p.lede a{color:var(--navy2);font-weight:600}
 .door .act .hint{display:block;margin-top:8px}
 
 /* the doors */
 .doors{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;margin-bottom:22px}
-.door{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px 18px 16px;display:flex;flex-direction:column;gap:8px}
-.door h2{font-size:16px;margin:0;font-weight:650}
+.door{background:var(--card);border:0;border-radius:10px;box-shadow:var(--shadow);padding:0 18px 16px;display:flex;flex-direction:column;gap:8px;overflow:hidden}
+.door h2{font-size:15px;margin:0 -18px 6px;padding:10px 18px;font-weight:700;color:var(--orange);background:var(--navyg)}
 .door p{margin:0;color:var(--muted);font-size:14px}
 .door .act{margin-top:auto;padding-top:6px}
-.btn{display:inline-block;font:inherit;font-size:14px;font-weight:600;color:#fff;background:var(--accent);border:1px solid var(--accent);border-radius:8px;padding:8px 14px;cursor:pointer;text-decoration:none;line-height:1.2}
-.btn:hover{background:var(--accent-ink);border-color:var(--accent-ink)}
-.btn.sec{color:var(--accent-ink);background:var(--card);border-color:var(--line)}
-.btn.sec:hover{background:#f0f5fc}
+.btn{display:inline-block;font:inherit;font-size:14px;font-weight:600;color:#fff;background:var(--orange);border:1px solid var(--orange);border-radius:999px;padding:7px 16px;cursor:pointer;text-decoration:none;line-height:1.2}
+.btn:hover{background:var(--orange2);border-color:var(--orange2)}
+.btn.sec{color:var(--navy);background:var(--card);border-color:#c9d1da}
+.btn.sec:hover{background:#f0f3f7;border-color:var(--navy)}
+.btn.ghost{color:#fff;background:transparent;border-color:rgba(255,255,255,.4)}
+.btn.ghost:hover{background:rgba(255,255,255,.10);border-color:rgba(255,255,255,.6)}
 .btn.small{font-size:13px;padding:5px 11px}
 html.dash .doors,html.dash #regfile,html.dash .notice{display:none !important}
 html.dash .bar .acts{display:none}
-dialog.help{border:0;border-radius:14px;padding:0;width:min(720px,calc(100% - 32px));max-height:85vh;box-shadow:0 20px 60px rgba(0,0,0,.25);color:var(--ink);background:var(--card)}
+dialog.help{border:0;border-radius:10px;padding:0;width:min(720px,calc(100% - 32px));max-height:85vh;box-shadow:0 20px 60px rgba(0,0,0,.25);color:var(--ink);background:var(--card)}
 dialog.help::backdrop{background:rgba(29,39,51,.45);backdrop-filter:blur(2px)}
 .helpin{padding:22px 26px 18px;overflow:auto;max-height:85vh}
-.helpin h2{margin:0 0 10px;font-size:20px}
-.helpin h3{margin:16px 0 4px;font-size:15px}
+.helpin>h2:first-child{margin:-22px -26px 14px;padding:14px 26px;font-size:18px;color:var(--orange);background:var(--navyg)}
+.helpin h2{margin:0 0 10px;font-size:18px}
+.helpin h3{margin:16px 0 4px;font-size:15px;color:var(--navy)}
 .helpin p{margin:0 0 8px;font-size:14.5px;line-height:1.55;color:var(--ink)}
 .helpin .helpclose{margin-top:16px;text-align:right}
 #policybody h4{margin:18px 0 6px;font-size:15px}
@@ -72,15 +79,15 @@ dialog.help::backdrop{background:rgba(29,39,51,.45);backdrop-filter:blur(2px)}
 #policybody td.na{color:var(--faint)}
 #policybody p{font-size:14px;color:var(--muted)}
 .btn:disabled{opacity:.5;cursor:default}
-.btn:focus-visible,.rtab:focus-visible,.tv:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.btn:focus-visible,.rtab:focus-visible,.subtab:focus-visible,.tv:focus-visible{outline:2px solid var(--orange);outline-offset:2px}
 .hint{font-size:13px;color:var(--faint)}
 #regfile{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
 
 /* after a read: the slim status bar replaces the doors */
-.bar{display:none;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 16px;margin-bottom:16px;align-items:center;gap:8px 14px;flex-wrap:wrap}
+.bar{display:none;background:var(--card);border:0;box-shadow:var(--shadow);border-radius:10px;padding:12px 16px;margin-bottom:16px;align-items:center;gap:8px 14px;flex-wrap:wrap}
 html.read .bar{display:flex}
 html.read .doors{display:none}
-.bar .fname{font-weight:650}
+.bar .fname{font-weight:700;color:var(--navy)}
 .bar .meta{color:var(--muted);font-size:14px}
 .bar .meta span+span::before{content:"·";margin:0 7px;color:var(--faint)}
 .bar .acts{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
@@ -91,15 +98,24 @@ html.read .doors{display:none}
 .err code{font-family:var(--mono);font-size:13px}
 
 /* tabs and panels */
-.rtabs{display:none;gap:4px;border-bottom:1px solid var(--line);margin-bottom:16px;overflow-x:auto}
+.rtabs{display:none;gap:8px;flex-wrap:wrap;margin-bottom:16px}
 html.read .rtabs{display:flex}
-.rtab{font:inherit;font-size:14px;font-weight:600;color:var(--muted);background:none;border:0;border-bottom:2px solid transparent;padding:8px 12px;cursor:pointer;white-space:nowrap;margin-bottom:-1px}
-.rtab[aria-selected=true]{color:var(--ink);border-bottom-color:var(--accent)}
+.rtab,.subtab{font:inherit;font-size:14px;font-weight:600;color:var(--navy);background:var(--card);border:1px solid #c9d1da;border-radius:999px;padding:6px 15px;cursor:pointer;white-space:nowrap}
+.rtab:hover,.subtab:hover{border-color:var(--navy)}
+.rtab[aria-selected=true],.subtab[aria-selected=true]{color:#fff;background:var(--orange);border-color:var(--orange)}
+.subtabs{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 14px}
+.subtab{font-size:13px;padding:5px 13px}
+.fig{display:none}
+.fig.on{display:block}
 .rpanel{display:none}
 html.read .rpanel.on{display:block}
-.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px;margin-bottom:16px}
-.card h2{font-size:16px;margin:0 0 4px;font-weight:650}
-h2.group{font-size:18px;margin:4px 0 12px;font-weight:650;letter-spacing:-.01em}
+.card{background:var(--card);border:0;box-shadow:var(--shadow);border-radius:10px;padding:0 18px 18px;margin-bottom:16px;overflow:hidden}
+.card>h2{font-size:15px;margin:0 -18px 12px;padding:10px 18px;font-weight:700;color:var(--orange);background:var(--navyg)}
+.card>h2 small{color:var(--light)}
+.card.doc{padding-top:14px}
+.card.bytype{padding-top:14px}
+.card.bytype>h2{margin:0 0 8px;padding:0;background:none;color:var(--navy);font-size:15px}
+h2.group{font-size:16px;margin:0 0 12px;font-weight:700;letter-spacing:-.01em;color:var(--navy)}
 h2.group .pline{font-size:14px;font-weight:500;color:var(--muted);margin-left:10px}
 h2.group select{font:inherit;font-size:14px;color:var(--ink);background:var(--card);border:1px solid var(--line);border-radius:6px;padding:3px 8px}
 table.rep tr.hist td{color:var(--faint)}
@@ -131,16 +147,16 @@ table.rep tfoot td{font-weight:650;border-top:2px solid var(--line);border-botto
 .tiles{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-bottom:16px}
 @media (min-width:600px){.tiles{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media (max-width:599px){.tile.hero{grid-column:1/-1}}   /* £57,000,000 is wider than half a phone */
-.tile{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
-.tile .v{font-size:24px;font-weight:650;letter-spacing:-.01em;line-height:1.15;font-variant-numeric:tabular-nums}
+.tile{background:var(--card);border:0;box-shadow:var(--shadow);border-radius:10px;padding:14px 16px}
+.tile .v{font-size:24px;font-weight:700;color:var(--navy);letter-spacing:-.01em;line-height:1.15;font-variant-numeric:tabular-nums}
 .tile .l{font-size:13px;color:var(--muted);margin-top:2px}
 .tile.hero .v{font-size:30px}
 .charts{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(400px,100%),1fr));gap:16px;margin-bottom:16px}
 .charts:empty{display:none}
 .charts.one{grid-template-columns:1fr}   /* the wide ones: a full row each */
-figure.chart{margin:0;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 16px 12px;position:relative}
+figure.chart{margin:0;background:var(--card);border:0;box-shadow:var(--shadow);border-radius:10px;padding:16px 16px 12px;position:relative}
 figure.chart figcaption{margin-bottom:8px}
-figure.chart figcaption b{font-size:15px;font-weight:650;display:block}
+figure.chart figcaption b{font-size:15px;font-weight:700;display:block;color:var(--navy)}
 figure.chart figcaption span{font-size:13px;color:var(--muted)}
 figure.chart svg{width:100%;height:auto;display:block;overflow:visible}
 figure.chart text{font-family:var(--font);fill:var(--muted);font-size:12px}
@@ -172,7 +188,7 @@ figure.chart text.refl,figure.chart text.axl{fill:var(--muted);font-size:11px}
 .tip{position:absolute;pointer-events:none;background:var(--tip);color:#fff;font-size:12px;line-height:1.35;padding:6px 9px;border-radius:6px;white-space:nowrap;transform:translate(-50%,calc(-100% - 26px));opacity:0;transition:opacity .12s}
 .tip.on{opacity:1}
 .tip b{font-weight:650}
-.tv{font:inherit;font-size:12px;color:var(--accent-ink);background:none;border:0;padding:0;cursor:pointer;text-decoration:underline;margin-top:6px}
+.tv{font:inherit;font-size:12px;color:var(--navy2);background:none;border:0;padding:0;cursor:pointer;text-decoration:underline;margin-top:6px}
 figure.chart table{display:none;border-collapse:collapse;width:100%;font-size:13px;margin-top:8px}
 figure.chart.table svg,figure.chart.table .tip{display:none}
 figure.chart.table table{display:table}
@@ -194,14 +210,15 @@ footer.fine{margin-top:32px;font-size:13px;color:var(--faint);max-width:720px}
 </head>
 <body>
 <div class="wrap">
-<nav class="crumbs" aria-label="Where this page sits">
-  <a href="https://philsmith871010-stack.github.io/pwlbreports/">PWLBreports</a><span class="sep">›</span><span>Deal register</span>
-  <a class="tool" href="https://philsmith871010-stack.github.io/pwlbreports/pwlbreports-tool.html">Open the report tool →</a>
-</nav>
-<header class="top">
+<header class="mast">
+  <a class="brand" href="https://philsmith871010-stack.github.io/pwlbreports/" title="PWLBreports: the report tool"><b>PWLB</b>reports</a>
+  <span class="sep">›</span>
   <h1>Deal register</h1>
   <span class="tag" id="tag">reads your workbook in the browser</span>
-  <button class="btn sec small" id="helpbtn" type="button">How it works</button>
+  <span class="acts">
+    <button class="btn ghost small" id="helpbtn" type="button">How it works</button>
+    <a class="btn small" href="https://philsmith871010-stack.github.io/pwlbreports/pwlbreports-tool.html">Open the report tool →</a>
+  </span>
 </header>
 <p class="lede">Keep your deals in a spreadsheet you own. Point this page at it and it reads your investments and borrowing as they stand: the position, the maturity ladders, what is still out at each year end, the period’s activity and income, and every row as it read it. Nothing is uploaded, nothing is written back, and the page makes no request of its own. Read the same workbook into the <a href="https://philsmith871010-stack.github.io/pwlbreports/pwlbreports-tool.html">report tool</a> and it fills the holdings, the projections and the draft.</p>
 
@@ -230,12 +247,12 @@ footer.fine{margin-top:32px;font-size:13px;color:var(--faint);max-width:720px}
   <span class="fname" id="fname"></span>
   <span class="meta" id="meta"></span>
   <span class="acts">
-    <button class="btn" id="again" type="button">Read again</button>
-    <button class="btn sec" id="another" type="button">Choose another</button>
-    <a class="btn sec" id="dl2" download="pwlb-register.xlsx" href="#">Template</a>
+    <button class="btn" id="again" type="button" title="Picks up what you have saved in Excel since">Re-read the file</button>
+    <button class="btn sec" id="another" type="button">Choose a different workbook</button>
+    <a class="btn sec" id="dl2" download="pwlb-register.xlsx" href="#">Download the template</a>
   </span>
 </div>
-<div class="notice" id="changed">Your workbook has changed since it was read. <b>Read again</b> picks up the new rows.</div>
+<div class="notice" id="changed">Your workbook has changed since it was read. <b>Re-read the file</b> picks up the new rows.</div>
 
 <nav class="rtabs" role="tablist" aria-label="What was read">
   <button class="rtab" role="tab" data-tab="figures" aria-selected="true" type="button">Figures</button>
@@ -248,25 +265,39 @@ footer.fine{margin-top:32px;font-size:13px;color:var(--faint);max-width:720px}
 </nav>
 
 <section class="rpanel on" id="p-figures" role="tabpanel" aria-label="Figures">
-  <h2 class="group">Investments</h2>
-  <div class="tiles" id="tiles"></div>
-  <div class="charts" id="charts"></div>
-  <div class="charts one" id="wcharts"></div>
-  <div class="card bytype" id="bytype"></div>
-  <h2 class="group">Borrowing</h2>
-  <div class="tiles" id="dtiles"></div>
-  <div class="charts" id="dcharts"></div>
-  <div class="charts one" id="wdcharts"></div>
-  <div class="card bytype" id="bylender"></div>
-  <h2 class="group">Year ends and the months ahead</h2>
-  <div class="charts one" id="ycharts"></div>
-  <h2 class="group">Activity <span class="pline"><label for="period">in</label> <select id="period"></select></span></h2>
-  <div class="tiles" id="atiles"></div>
-  <div class="tiles" id="itiles"></div>
-  <div class="charts" id="acharts"></div>
-  <h2 class="group" id="timehead" hidden>Over time</h2>
-  <p class="count" id="timenote" hidden></p>
-  <div class="charts" id="tcharts"></div>
+  <nav class="subtabs" id="figtabs" role="tablist" aria-label="Which figures">
+    <button class="subtab" role="tab" data-fig="inv" aria-selected="true" type="button">Investments</button>
+    <button class="subtab" role="tab" data-fig="debt" aria-selected="false" type="button">Borrowing</button>
+    <button class="subtab" role="tab" data-fig="year" aria-selected="false" type="button">Year ends and the months ahead</button>
+    <button class="subtab" role="tab" data-fig="act" aria-selected="false" type="button">Activity</button>
+    <button class="subtab" role="tab" data-fig="time" aria-selected="false" type="button" id="timetab" hidden>Over time</button>
+  </nav>
+  <div class="fig on" id="f-inv" role="tabpanel" aria-label="Investments">
+    <div class="tiles" id="tiles"></div>
+    <div class="charts" id="charts"></div>
+    <div class="charts one" id="wcharts"></div>
+    <div class="card bytype" id="bytype"></div>
+  </div>
+  <div class="fig" id="f-debt" role="tabpanel" aria-label="Borrowing">
+    <div class="tiles" id="dtiles"></div>
+    <div class="charts" id="dcharts"></div>
+    <div class="charts one" id="wdcharts"></div>
+    <div class="card bytype" id="bylender"></div>
+  </div>
+  <div class="fig" id="f-year" role="tabpanel" aria-label="Year ends and the months ahead">
+    <div class="charts one" id="ycharts"></div>
+  </div>
+  <div class="fig" id="f-act" role="tabpanel" aria-label="Activity">
+    <h2 class="group">Activity <span class="pline"><label for="period">in</label> <select id="period"></select></span></h2>
+    <div class="tiles" id="atiles"></div>
+    <div class="tiles" id="itiles"></div>
+    <div class="charts" id="acharts"></div>
+  </div>
+  <div class="fig" id="f-time" role="tabpanel" aria-label="Over time">
+    <h2 class="group" id="timehead" hidden>Over time</h2>
+    <p class="count" id="timenote" hidden></p>
+    <div class="charts" id="tcharts"></div>
+  </div>
 </section>
 <section class="rpanel" id="p-policy" role="tabpanel" aria-label="Policy and activity">
   <div class="card doc" id="policybody"></div>
@@ -323,7 +354,7 @@ footer.fine{margin-top:32px;font-size:13px;color:var(--faint);max-width:720px}
     <h3>What the figures mean</h3>
     <p>A term deal counts at its nominal: the face value where one is given, the principal otherwise. A loan's principal is what is outstanding at the as-at date; EIP and annuity loans are run forward by their profile and backward for the instalments already paid. A LOBO is taken at its next call date. Maturity bands are counted in whole calendar months from the as-at date. Interest figures are indicative, on deal terms, actual days over 365: a figure to set against the ledger, never the ledger.</p>
     <h3>In the report tool</h3>
-    <p>On the tool's What you hold step, Read from my register fills the debt and investment rows and both maturity grids from the same workbook, and step 3's projections run off from the dates loan by loan. The counterparty step sets each limit against what the register holds. The draft can be summary, the tables as now, or detailed, with every chart from here. A monitoring report's activity section carries the period's placed, matured, raised and repaid. Export the dashboard writes this page with your figures and your policy in it, as one file to send on.</p>
+    <p>On the tool's What you hold step, Use the deal register fills the debt and investment rows and both maturity grids from the same workbook, and step 3's projections run off from the dates loan by loan. The counterparty step sets each limit against what the register holds. The draft can be summary, the tables as now, or detailed, with every chart from here. A monitoring report's activity section carries the period's placed, matured, raised and repaid. Download the dashboard writes this page with your figures and your policy in it, as one file to send on.</p>
     <h3>Privacy</h3>
     <p>The page keeps no record of your deals, stores nothing between visits, and makes no request of its own. The report tool keeps a snapshot of the rows it read inside your own report file, and nowhere else.</p>
     <p class="helpclose"><button class="btn" type="button" id="helpclose">Close</button></p>
@@ -880,12 +911,19 @@ const REG = (() => {
     return out;
   }
   /* Exposure by counterparty: term deals at nominal and call balances. */
+  /* Local authorities are one counterparty in every output (Phil, 3 October
+     2026: "LA positions should be grouped - they're effectively homogenous"):
+     the credit is the same whichever council holds the money, so the
+     exposure is the sum, with how many authorities it is across. */
+  const LA = "Local authority", LA_GROUP = "Local authorities";
   function exposure(reg){
     const by = {};
-    const add = (r, v) => { const k = norm(r.counterparty); const o = by[k] || (by[k] = {counterparty: r.counterparty, cpType: r.cpType || "Not on the list", total: 0, deals: 0}); o.total += v; o.deals++; };
+    const add = (r, v) => { const la = r.cpType === LA, k = la ? "\u0000la" : norm(r.counterparty);
+      const o = by[k] || (by[k] = {counterparty: la ? LA_GROUP : r.counterparty, cpType: r.cpType || "Not on the list", total: 0, deals: 0, names: {}});
+      o.total += v; o.deals++; o.names[norm(r.counterparty)] = 1; };
     reg.termInvestments.filter(r => r.counts).forEach(r => add(r, r.nominal));
     reg.callAccounts.filter(r => r.counts).forEach(r => add(r, r.balance));
-    return Object.values(by).sort((a, b) => b.total - a.total);
+    return Object.values(by).map(o => ({counterparty: o.counterparty, cpType: o.cpType, total: o.total, deals: o.deals, names: Object.keys(o.names).length})).sort((a, b) => b.total - a.total);
   }
   /* Every investment as a point: months to maturity (nil for money on call)
      against its rate, sized by amount. */
@@ -1073,7 +1111,7 @@ const REG = (() => {
   }
   return {TEMPLATE_VERSION, VOCAB, BUCKETS, DEBT_BUCKETS, readRegister, schedule, ladder, yearEnds, debtLadder, debtYearEnds, stats, dmy, money, pct, bucketOf, debtBucketOf, addMonths, monthsBetween,
     ladderBy, debtLadderBy, runoffBy, calendar, exposure, yieldPoints, costPoints, snapshot, fromSnapshot,
-    TERM_BUCKETS, periods, settingsPeriod, pastSchedule, activity, activityByMonth, termAllocation, interestIn, interestToYearEnd, loanBalances};
+    TERM_BUCKETS, periods, settingsPeriod, LA_GROUP, pastSchedule, activity, activityByMonth, termAllocation, interestIn, interestToYearEnd, loanBalances};
 })();
 if(typeof module !== "undefined") module.exports = REG;
 
@@ -1424,7 +1462,7 @@ const CH = (() => {
     const wide = [
       term.length ? timeline({...st, id: "deals", title: "When each deal comes back", sub: "every term deal from its start to its maturity, soonest first" + (term.length > shown.length ? `; the first ${shown.length} of ${term.length}, all in the table` : "") + "; the year ends are marked", W: Wd, wide: true, asAt: reg.asAt || new Date(), rows: shown.map(dealRow), all: term.map(dealRow)}) : "",
       hbars({...st, id: "exposure", title: "Exposure by counterparty", sub: "term deals at nominal and call balances together, largest first", W: Wd, wide: true,
-        rows: REG.exposure(reg).map(e => ({label: e.counterparty, sub: e.cpType, v: e.total, key: e.cpType, tip: tipOf(e.counterparty, [esc(e.cpType), money(e.total) + " in " + e.deals + " deal" + (e.deals === 1 ? "" : "s")])}))})
+        rows: REG.exposure(reg).map(e => ({label: e.counterparty, sub: e.cpType === "Local authority" ? `${e.names} authorit${e.names === 1 ? "y" : "ies"}, as one` : e.cpType, v: e.total, key: e.cpType, tip: tipOf(e.counterparty, [esc(e.cpType), money(e.total) + " in " + e.deals + " deal" + (e.deals === 1 ? "" : "s") + (e.cpType === "Local authority" ? ` across ${e.names} authorit${e.names === 1 ? "y" : "ies"}` : "")])}))})
     ];
     const dl = REG.debtLadderBy(reg).map((b, i) => ({...b, short: SHORT_DEBT[i]}));
     const cp = REG.costPoints(reg);
@@ -1546,7 +1584,7 @@ if(typeof module !== "undefined") module.exports = CH;
     showErr("This browser cannot unpack a workbook on its own (it has no DecompressionStream). Chrome 80, Edge 80, Safari 16.4 and Firefox 113 or later can.");
     $("pick").disabled = true; $("demo").disabled = true;
   }
-  $("pickhint").textContent = canPick ? "Chrome and Edge keep a link to the file, so Read again picks up what you save." : "Read again will ask for the file once more.";
+  $("pickhint").textContent = canPick ? "Chrome and Edge keep a link to the file, so re-reading picks up what you save." : "Re-reading will ask for the file once more.";
 
   /* ---- the doors ---------------------------------------------------------- */
   async function pick(){
@@ -1633,6 +1671,15 @@ if(typeof module !== "undefined") module.exports = CH;
   function showTab(name){
     document.querySelectorAll(".rtab").forEach(b => b.setAttribute("aria-selected", String(b.dataset.tab === name)));
     document.querySelectorAll(".rpanel").forEach(p => p.classList.toggle("on", p.id === "p-" + name));
+  }
+  /* The figures, one group at a time: investments, borrowing, the year ends
+     and the months ahead, the activity, and over time when the file has it
+     (Phil, 3 October 2026). Charts are sized from the page width, not their
+     own box, so a group drawn while hidden is drawn right. */
+  document.querySelectorAll(".subtab").forEach(b => b.addEventListener("click", () => showFig(b.dataset.fig)));
+  function showFig(name){
+    document.querySelectorAll(".subtab").forEach(b => b.setAttribute("aria-selected", String(b.dataset.fig === name)));
+    document.querySelectorAll(".fig").forEach(p => p.classList.toggle("on", p.id === "f-" + name));
   }
 
   /* ---- rendering ------------------------------------------------------------- */
@@ -1733,7 +1780,7 @@ if(typeof module !== "undefined") module.exports = CH;
     const reg = S.reg; if(!reg) return;
     const ww = document.querySelector(".wrap").clientWidth - 32;
     const col = ww >= 2 * 400 + 16 ? (ww - 16) / 2 : ww;   /* mirrors .charts' minmax(400px,1fr) */
-    const W = Math.max(280, Math.floor(col - 34)), Wd = Math.max(280, Math.floor(ww - 34));
+    const W = Math.max(280, Math.floor(col - 32)), Wd = Math.max(280, Math.floor(ww - 32));   /* the figure's 16px padding each side, no border */
     const periods = REG.periods(reg), sel = $("period");
     if(!periods.some(p => p.key === S.period)) S.period = periods.length ? periods[0].key : null;
     sel.innerHTML = periods.map(p => `<option value="${p.key}"${p.key === S.period ? " selected" : ""}>${esc(p.label)}</option>`).join("");
@@ -1767,6 +1814,8 @@ if(typeof module !== "undefined") module.exports = CH;
     } else { $("atiles").innerHTML = ""; $("itiles").innerHTML = ""; }
     const hist = S.history || null;
     $("timehead").hidden = !(hist && hist.length > 1); $("timenote").hidden = !(hist && hist.length > 1);
+    $("timetab").hidden = !(hist && hist.length > 1);
+    if($("timetab").hidden && $("f-time").classList.contains("on")) showFig("inv");
     if(hist && hist.length > 1){
       $("timenote").textContent = `${hist.length} dates, from ${REG.dmy(hist[0].asAt)} to ${REG.dmy(hist[hist.length - 1].asAt)}, one for each report struck from the register.`;
       $("tcharts").innerHTML = F.time.join("");
