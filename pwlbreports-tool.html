@@ -457,7 +457,7 @@ table.ledger tbody tr td input:focus{background:var(--accent-soft);outline-offse
    half charts, with type sized for the page. Selectors carry #doc so the
    site's skin, which re-sizes type outside the draft, leaves them alone. */
 #doc .regfigs{max-width:920px}
-#doc .charts2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 24px;margin:8px 0 18px;align-items:start}
+:is(#doc,.doc) .charts2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 24px;margin:8px 0 18px;align-items:stretch}   /* stretch: two cards on a row share their top and bottom edges */
 #doc .charts2 .chart.static{margin:0}
 .chart.static{margin:8px 0 18px;border:1px solid var(--hair);border-radius:var(--r-sm);background:var(--card);padding:10px 10px 6px}   /* the faint frame every chart in the paper carries (Phil, 3 October 2026); registerDraftCharts draws 22px narrower for it */
 .chart.static svg{width:100%;max-width:100%;height:auto;display:block;overflow:visible;font-family:var(--sans)}
@@ -1214,6 +1214,7 @@ button.rm:hover{color:var(--alert)}
    label column started in one place in a table and another in a chart. Same
    246px label, same right edge, one grid down the page. */
 .doc .barwrap,#pvbody .barwrap{max-width:100%}
+.doc .barwrap{border:1px solid var(--hair);border-radius:var(--r-sm);background:var(--card);padding:10px 12px 6px}   /* a card like every other chart in the paper */
 .doc .barrow,#pvbody .barrow{grid-template-columns:246px 58px 1fr 84px;gap:0}
 .doc .barrow.rated,#pvbody .barrow.rated{grid-template-columns:246px 58px 1fr 84px}
 .doc .barrow .br{padding-right:10px}
@@ -13895,6 +13896,29 @@ async function docxTable(tbl, D){
     + para("", {spacing: [0, 120]});
 }
 
+/* THE CARDS. A chart in the paper sits in a card: a table cell with a
+   0.5pt border in the table-rule grey, 5pt of padding, its title and legend
+   inside. The frame is the cell and not the picture, so two cards on a row
+   are the same height by construction and their edges line up, and a
+   full-width card shares its left and right edges with the row's outer
+   ones (Phil, 3 October 2026: "borders should line up between charts on
+   the same row and column"). CARD_GAP is the space between two on a row. */
+const CARD_PAD = 100, CARD_GAP = 240;
+const CARD_BORDER = ["top", "left", "bottom", "right"].map(e => `<w:${e} w:val="single" w:sz="4" w:space="0" w:color="D3DAE0"/>`).join("");
+const NO_BORDER = ["top", "left", "bottom", "right"].map(e => `<w:${e} w:val="nil"/>`).join("");
+function cardCell(w, body, framed){
+  return `<w:tc><w:tcPr><w:tcW w:w="${w}" w:type="dxa"/><w:tcBorders>${framed ? CARD_BORDER : NO_BORDER}</w:tcBorders>`
+    + `<w:tcMar><w:top w:w="${CARD_PAD}" w:type="dxa"/><w:left w:w="${CARD_PAD}" w:type="dxa"/><w:bottom w:w="${CARD_PAD - 40}" w:type="dxa"/><w:right w:w="${CARD_PAD}" w:type="dxa"/></w:tcMar><w:vAlign w:val="top"/></w:tcPr>`
+    + (body || para(run(" ", {}), {spacing: [0, 0]})) + "</w:tc>";
+}
+function cardTable(rows, widths, after){
+  const trs = rows.map(r => `<w:tr><w:trPr><w:cantSplit/></w:trPr>${r.map((c, i) => cardCell(widths[i], c.body, c.framed)).join("")}</w:tr>`).join("");
+  return `<w:tbl><w:tblPr><w:tblW w:w="${widths.reduce((a, b) => a + b, 0)}" w:type="dxa"/><w:tblInd w:w="0" w:type="dxa"/><w:tblLayout w:type="fixed"/>`
+    + `<w:tblBorders>${NO_BORDER}<w:insideH w:val="nil"/><w:insideV w:val="nil"/></w:tblBorders>`
+    + `<w:tblCellMar><w:top w:w="0" w:type="dxa"/><w:left w:w="0" w:type="dxa"/><w:bottom w:w="0" w:type="dxa"/><w:right w:w="0" w:type="dxa"/></w:tblCellMar></w:tblPr>`
+    + `<w:tblGrid>${widths.map(w => `<w:gridCol w:w="${w}"/>`).join("")}</w:tblGrid>${trs}</w:tbl>` + para(run("", {}), {spacing: [0, after == null ? 120 : after]});
+}
+const CARD_INNER = w => w - 2 * CARD_PAD - 20;   // the picture inside a card of width w: the padding and a little for the border
 async function docxBlocks(el, D, ctx, sink){
   ctx = ctx || {prose: true};
   const out = sink || D.body;
@@ -13946,42 +13970,52 @@ async function docxBlocks(el, D, ctx, sink){
        a borderless two-cell table, each cell its title at 8pt and its
        picture at half the column, drawn at 300px (register.js) so the
        print carries 6.5pt type: compact and professional. */
+    /* Two charts to a row (the draft's register figures, registerDraftCharts):
+       two cards with a gap between, each its title at 8pt and its picture,
+       drawn at 300px (register.js) so the print carries 6.5pt type. */
     if(cl.contains("charts2")){
       const figs = [...node.children].filter(c => c.querySelector("svg"));
-      const half = Math.floor(DOCX_TEXT_W / 2), inner = half - 200;
+      const cw = Math.floor((DOCX_TEXT_W - CARD_GAP) / 2), inner = CARD_INNER(cw);
       const cells = [];
       for(const f of figs){
         const t = f.querySelector(".chart-t"), svg = f.querySelector("svg");
         let pic;
-        try{ const img = await svgToPng(svg, true, 8); pic = para(D.addImage(img, inner, true), {spacing: [0, 40]}); }
+        try{ const img = await svgToPng(svg, true, 2); pic = para(D.addImage(img, inner), {spacing: [0, 0]}); }
         catch(e){ pic = para(run("[chart could not be drawn]", {font: DOCX_FONTS.sans, i: true, color: "68757F", sz: 16})); }
-        const title = t ? para(runsOf(t, Object.assign(baseOf(t), {sz: 16, szMul: 16 / Math.max(1, halfPt(getComputedStyle(t).fontSize))})), {spacing: [0, 30], keepNext: true}) : "";
-        cells.push(`<w:tc><w:tcPr><w:tcW w:w="${half}" w:type="dxa"/><w:tcMar><w:left w:w="0" w:type="dxa"/><w:right w:w="200" w:type="dxa"/></w:tcMar></w:tcPr>${title}${pic}</w:tc>`);
+        const title = t ? para(runsOf(t, Object.assign(baseOf(t), {sz: 16, szMul: 16 / Math.max(1, halfPt(getComputedStyle(t).fontSize))})), {spacing: [0, 40], keepNext: true}) : "";
+        cells.push({body: title + pic, framed: true});
       }
-      const blank = `<w:tc><w:tcPr><w:tcW w:w="${half}" w:type="dxa"/></w:tcPr>${para(run(" ", {}), {spacing: [0, 0]})}</w:tc>`;
-      let trs = "";
-      for(let i = 0; i < cells.length; i += 2) trs += `<w:tr><w:trPr><w:cantSplit/></w:trPr>${cells[i]}${cells[i + 1] || blank}</w:tr>`;
-      if(trs) push(`<w:tbl><w:tblPr><w:tblW w:w="5000" w:type="pct"/><w:tblInd w:w="0" w:type="dxa"/><w:tblLayout w:type="fixed"/>`
-        + `<w:tblBorders><w:top w:val="nil"/><w:left w:val="nil"/><w:bottom w:val="nil"/><w:right w:val="nil"/><w:insideH w:val="nil"/><w:insideV w:val="nil"/></w:tblBorders>`
-        + `<w:tblCellMar><w:top w:w="0" w:type="dxa"/><w:left w:w="0" w:type="dxa"/><w:bottom w:w="60" w:type="dxa"/><w:right w:w="0" w:type="dxa"/></w:tblCellMar></w:tblPr>`
-        + `<w:tblGrid><w:gridCol w:w="${half}"/><w:gridCol w:w="${half}"/></w:tblGrid>${trs}</w:tbl>` + para(run("", {}), {spacing: [0, 40]}));
+      const rows = [];
+      for(let i = 0; i < cells.length; i += 2) rows.push([cells[i], {body: "", framed: false}, cells[i + 1] || {body: "", framed: false}]);
+      if(rows.length) push(cardTable(rows, [cw, CARD_GAP, cw], 160));
+      continue;
+    }
+    /* An indicator or rates chart with its legend and note: one full-width
+       card, its contents walked with inCard so the picture goes in plain. */
+    if(cl.contains("chartwrap") && !ctx.inCard){
+      const parts = [];
+      await docxBlocks(node, D, {prose: false, inCard: true}, parts);
+      push(cardTable([[{body: parts.join(""), framed: true}]], [DOCX_TEXT_W], 160));
       continue;
     }
     if(tag === "table"){ push(await docxTable(node, D)); continue; }
     if(tag === "svg"){
-      try{ const img = await svgToPng(node, true, 8); push(para(D.addImage(img, DOCX_TEXT_W, true), {spacing: [120, 120]})); }
-      catch(e){ push(para(run("[chart could not be drawn]", {font: DOCX_FONTS.sans, i: true, color: "68757F", sz: 18}))); }
+      const w = ctx.inCard ? CARD_INNER(DOCX_TEXT_W) : DOCX_TEXT_W;
+      let pic;
+      try{ const img = await svgToPng(node, true, 2); pic = para(D.addImage(img, w), {spacing: [0, 0]}); }
+      catch(e){ pic = para(run("[chart could not be drawn]", {font: DOCX_FONTS.sans, i: true, color: "68757F", sz: 18})); }
+      if(ctx.inCard) push(pic); else push(cardTable([[{body: pic, framed: true}]], [DOCX_TEXT_W], 160));
       continue;
     }
     if(cl.contains("barwrap")){
-      try{ const img = await svgToPng(barwrapToSvg(node), false, 8); push(para(D.addImage(img, DOCX_TEXT_W, true), {spacing: [80, 120]})); }
+      try{ const img = await svgToPng(barwrapToSvg(node), false, 2); push(cardTable([[{body: para(D.addImage(img, CARD_INNER(DOCX_TEXT_W)), {spacing: [0, 0]}), framed: true}]], [DOCX_TEXT_W], 160)); }
       catch(e){}
       continue;
     }
     if(cl.contains("legend")){
-      const base = Object.assign(baseOf(node), {font: DOCX_FONTS.sans, sz: 19});
+      const base = Object.assign(baseOf(node), {font: DOCX_FONTS.sans, sz: ctx.inCard ? 16 : 19});
       const items = [...node.children].map(sp => runsOf(sp, base));
-      push(para(items.join(run("\u00a0\u00a0\u00a0\u00a0", base)), {spacing: [0, 200]}));
+      push(para(items.join(run("\u00a0\u00a0\u00a0\u00a0", base)), {spacing: ctx.inCard ? [60, 0] : [0, 200]}));
       continue;
     }
     if(cl.contains("headline")){
@@ -14030,7 +14064,7 @@ async function docxBlocks(el, D, ctx, sink){
       continue;
     }
     // everything else is a container: sections, indicator blocks, chart wraps
-    await docxBlocks(node, D, {prose: ctx.prose && !cl.contains("chartwrap")}, sink);
+    await docxBlocks(node, D, {prose: ctx.prose && !cl.contains("chartwrap"), inCard: ctx.inCard}, sink);
   }
 }
 
